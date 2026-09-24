@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import type { CaseProperty, ConciergeRegionItem, ConciergeResponse, PurchaseCase } from "@/lib/types";
 import Link from "next/link";
 import LawSources from "./LawSources";
+import ConciergeComplexCard, { type ComplexCandidateInput } from "./ConciergeComplexCard";
 import { useSessionValue, setSessionValue, removeSessionValue } from "@/lib/sessionStore";
 
 type Message = {
@@ -161,6 +162,9 @@ function UserConciergeWidget({ userId }: { userId: number }) {
   const [candidates, setCandidates] = useState<CaseProperty[]>([]);
   const [candidateId, setCandidateId] = useState("");
   const [savedRegions, setSavedRegions] = useState<Set<string>>(new Set());
+  const [savingComplex, setSavingComplex] = useState(false);
+  const saveLock = useRef(false);
+  const [candidateNotice, setCandidateNotice] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const storageKey = `concierge-conversation:${userId}`;
   const savedConversationId = useSessionValue(storageKey);
@@ -256,9 +260,32 @@ function UserConciergeWidget({ userId }: { userId: number }) {
     }
   };
 
+  const saveComplex = async (response: ConciergeResponse, input: ComplexCandidateInput) => {
+    if (saveLock.current || sending || restoring) return;
+    saveLock.current = true; setSavingComplex(true); setCandidateNotice("");
+    try {
+      let target = Number(caseId);
+      if (!target) {
+        const created = await api.createCase({ title: `${response.data.region_name ?? "단지"} 매수 검토`, budget_max: response.criteria.budget_max_won ?? undefined });
+        target = created.id; setCases((current) => [...current, created]); setCaseId(String(target));
+      }
+      const detail = await api.caseOne(target);
+      const properties = detail.properties ?? [];
+      // 재클릭·복원 후 같은 후보를 다시 저장하지 않도록 서버의 현재 목록과 대조한다.
+      const existing = properties.find((candidate) => candidate.name === input.name && candidate.address === input.address && candidate.area_sqm === input.area_sqm && candidate.category === "apartment");
+      const candidate = existing ?? await api.addCaseProperty(target, {
+        ...input, category: "apartment", source: "recommendation",
+        notes: "챗봇 실거래 단지 추천에서 사용자가 주소·면적을 확인하여 저장. 희망가는 사용자 입력값이며 실거래 평균과 구분함.",
+      });
+      setCandidates(existing ? properties : [...properties, candidate]);
+      setCandidateId(String(candidate.id));
+      setCandidateNotice(`${candidate.name} 후보를 ${existing ? "기존 목록에서 선택" : "저장하고 선택"}했습니다. 아래에서 AVM 또는 자금 분석을 요청하세요.${existing ? " 기존 후보의 희망가는 변경하지 않았습니다." : ""}`);
+    } finally { saveLock.current = false; setSavingComplex(false); }
+  };
+
   const send = async (suggestion?: string) => {
     const message = (suggestion ?? input).trim();
-    if (!message || sending || restoring) return;
+    if (!message || sending || restoring || saveLock.current) return;
     setInput("");
     setMessages((current) => [...current, { role: "user", content: message }]);
     setSending(true);
@@ -336,9 +363,13 @@ function UserConciergeWidget({ userId }: { userId: number }) {
                     {message.response && <CriteriaChips response={message.response} />}
                     {message.response && <FundingConditions response={message.response} />}
                     {message.response && <RegionCards response={message.response} saved={savedRegions} onSave={saveRegion} />}
+                    {message.response?.tool_used === "select_properties" && message.response.data.results?.map((item) => {
+                      const response = message.response!;
+                      return <ConciergeComplexCard key={`${item.dong}-${item.complex_name}`} item={item} region={response.data.region_name ?? response.criteria.region_name ?? ""} disabled={sending || restoring || savingComplex} onSave={(input) => saveComplex(response, input)} />;
+                    })}
                     {message.response?.data.job_id && <AppraisalProgress jobId={message.response.data.job_id} caseId={message.response.data.case_id} />}
                     {message.response?.data.input_url && <Link href={message.response.data.input_url} className="text-primary underline">후보 정보 확인하고 시세추정</Link>}
-                    {message.response?.data.result_url && <Link href={message.response.data.result_url} className="mt-2 block text-primary underline">케이스에서 분석·비교 결과 확인</Link>}
+                    {message.response?.data.result_url && <Link href={message.response.data.result_url} className="mt-2 block text-primary underline">{message.response.tool_used === "search_listings" ? "매물 보관함에서 확인" : "케이스에서 분석·비교 결과 확인"}</Link>}
                   </div>
                 </div>
               ))}
@@ -347,9 +378,11 @@ function UserConciergeWidget({ userId }: { userId: number }) {
             </div>
 
             <footer className="border-t border-slate-200 bg-white p-3">
-              <label className="mb-2 block text-xs text-slate-500">분석할 후보<select aria-label="분석할 후보" disabled={sending} value={candidateId} onChange={(event) => setCandidateId(event.target.value)} className="ml-2 rounded border p-1"><option value="">후보 선택</option>{candidates.filter((candidate) => candidate.case_id === Number(caseId)).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label>
-              {cases.length > 0 && <div className="mb-2 flex items-center gap-2 px-1"><label className="shrink-0 text-[11px] text-slate-500">검토 케이스</label><select aria-label="검토 케이스" disabled={sending} value={caseId} onChange={(event) => { setCaseId(event.target.value); setCandidateId(""); }} className="min-w-0 flex-1 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px]">{cases.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div>}
-              <button type="button" disabled={sending} onClick={() => { removeSessionValue(storageKey); setMessages([]); setConversationId(null); setRestoreError(""); }} className="mb-2 text-xs text-slate-500 underline">새 대화 시작 · 기억한 조건 초기화</button>
+              {candidateNotice && <p role="status" className="mb-2 text-xs text-emerald-700">{candidateNotice}</p>}
+              {candidateId && <div className="mb-2 flex gap-2 text-xs"><button type="button" disabled={sending || restoring || savingComplex} onClick={() => send("AVM 실행해줘")} className="rounded border px-2 py-1 text-primary">선택 후보 AVM 실행</button><button type="button" disabled={sending || restoring || savingComplex} onClick={() => send("이 후보 자금 분석해줘")} className="rounded border px-2 py-1 text-primary">선택 후보 자금 분석</button></div>}
+              <label className="mb-2 block text-xs text-slate-500">분석할 후보<select aria-label="분석할 후보" disabled={sending || savingComplex} value={candidateId} onChange={(event) => setCandidateId(event.target.value)} className="ml-2 rounded border p-1"><option value="">후보 선택</option>{candidates.filter((candidate) => candidate.case_id === Number(caseId)).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</select></label>
+              {cases.length > 0 && <div className="mb-2 flex items-center gap-2 px-1"><label className="shrink-0 text-[11px] text-slate-500">검토 케이스</label><select aria-label="검토 케이스" disabled={sending || savingComplex} value={caseId} onChange={(event) => { setCaseId(event.target.value); setCandidateId(""); }} className="min-w-0 flex-1 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[11px]">{cases.map((item) => <option key={item.id} value={item.id}>{item.title}</option>)}</select></div>}
+              <button type="button" disabled={sending || savingComplex} onClick={() => { removeSessionValue(storageKey); setMessages([]); setConversationId(null); setRestoreError(""); }} className="mb-2 text-xs text-slate-500 underline">새 대화 시작 · 기억한 조건 초기화</button>
               <div className="flex items-end gap-2 rounded-xl border border-slate-300 bg-white p-1.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/10">
                 <textarea
                   rows={1}

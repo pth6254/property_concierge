@@ -1,4 +1,4 @@
-import type { ActivityItem, CaseCandidateComparison, CaseExecution, ConciergeResponse, ExecutionActor, ExecutionPhase, ExecutionTaskStatus, PurchaseCase, RecommendationRequest, SimulationRequest } from "./types";
+import type { ActivityItem, CaseCandidateComparison, CaseExecution, CaseProperty, ConciergeResponse, ExecutionActor, ExecutionPhase, ExecutionTaskStatus, PurchaseCase, RecommendationRequest, SimulationRequest } from "./types";
 
 const BASE = "/api";
 
@@ -247,7 +247,7 @@ export const api = {
     name: string; address?: string; category?: string; asking_price?: number;
     area_sqm?: number; notes?: string; history_id?: number;
     source?: "manual" | "recommendation" | "appraisal";
-  }) => req(`/cases/${caseId}/properties`, { method: "POST", body: JSON.stringify(data) }),
+  }) => req<CaseProperty>(`/cases/${caseId}/properties`, { method: "POST", body: JSON.stringify(data) }),
 
   deleteCaseProperty: (caseId: number, propertyId: number) =>
     req<void>(`/cases/${caseId}/properties/${propertyId}`, { method: "DELETE" }),

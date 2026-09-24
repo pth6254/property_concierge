@@ -364,7 +364,7 @@ export interface CaseExecution {
 }
 
 export type ConciergeIntent =
-  | "find_region" | "select_property" | "appraise" | "compare"
+  | "find_region" | "select_property" | "search_listing" | "appraise" | "compare"
   | "simulate" | "rights_check" | "tax_legal" | "general";
 
 export interface ConciergeCriteria {
@@ -405,6 +405,14 @@ export interface ChatSource {
   origin?: string;
 }
 
+export interface ConciergeComplex {
+  complex_name: string;
+  dong: string;
+  avg_price: number;
+  avg_area_m2: number;
+  deal_count: number;
+}
+
 export interface ConciergeResponse {
   conversation_id: string;
   status: "completed" | "needs_input" | "not_available" | "error" | "queued";
@@ -412,6 +420,8 @@ export interface ConciergeResponse {
   answer: string;
   criteria: ConciergeCriteria;
   data: {
+    results?: ConciergeComplex[];
+    region_name?: string;
     result_url?: string;
     comparison?: CaseCandidateComparison;
     funding_inputs?: Partial<SimulationRequest>;

@@ -21,6 +21,7 @@ const GROUPS: NavGroup[] = [
     label: "의사결정",
     items: [
       { href: "/explore", label: "동네 탐색", icon: SearchCheck },
+      { href: "/listings", label: "매물 보관함", icon: MapPin },
       { href: "/cases", label: "매수 검토 케이스", icon: BriefcaseBusiness },
     ],
   },

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ConciergeIntent(str, Enum):
     FIND_REGION = "find_region"
     SELECT_PROPERTY = "select_property"
+    SEARCH_LISTING = "search_listing"
     APPRAISE = "appraise"
     COMPARE = "compare"
     SIMULATE = "simulate"

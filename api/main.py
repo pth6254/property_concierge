@@ -24,7 +24,7 @@ for _p in [_PROJECT_ROOT, _BACKEND_DIR, _API_DIR]:
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-from api.routes import activity, appraisal, address, auth, cases, chat, comparison, concierge, history, market, recommendation, rights, simulation
+from api.routes import activity, appraisal, address, auth, cases, chat, comparison, concierge, history, listings, market, recommendation, rights, simulation
 from api import auth_db as _adb
 from api import history_db as _hdb
 from api import activity_db as _actdb
@@ -106,6 +106,7 @@ for _router in [
     comparison.router,
     cases.router,
     market.router,
+    listings.router,
     concierge.router,
     history.router,
     activity.router,

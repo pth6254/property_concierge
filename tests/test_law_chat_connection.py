@@ -73,7 +73,7 @@ def test_concierge_reuses_guarded_answer_without_regeneration(monkeypatch):
     from backend.services import chat_service
     from backend.graphs.concierge_graph import execute_node, explain_node
     from schemas.concierge import ConciergeDecision
-    monkeypatch.setattr(chat_service, 'answer_question', lambda q: {'answer':q,'sources':[{'title':'공식 법령'}],'blocked':['위조 숫자']})
+    monkeypatch.setattr(chat_service, 'answer_question', lambda q, history=None: {'answer':q,'sources':[{'title':'공식 법령'}],'blocked':['위조 숫자']})
     state = execute_node({'decision':ConciergeDecision(intent='tax_legal'),'user_id':1,'message':'원문 질문'})
     output = explain_node(state)
     assert output['answer'] == '원문 질문' and output['blocked'] == ['위조 숫자']

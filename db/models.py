@@ -415,3 +415,45 @@ class ChatChunk(Base):
     source: Mapped[str] = mapped_column(Text, default="")
     text: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list | None] = mapped_column(JSON, default=None)
+
+
+class ImportedListing(Base):
+    """업로드한 사용자의 매물. 실거래·샘플 매물과 섞지 않는다."""
+    __tablename__ = "imported_listings"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    source_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    legal_region_code: Mapped[str | None] = mapped_column(String(10))
+    property_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    transaction_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    price: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    area_sqm: Mapped[float] = mapped_column(Float, nullable=False)
+    confirmed_at: Mapped[float] = mapped_column(Float, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    __table_args__ = (
+        Index("uq_imported_listing_source", "user_id", "source_name", "external_id", unique=True),
+        Index("ix_imported_listing_search", "user_id", "legal_region_code", "status"),
+    )
+
+
+class ListingRevision(Base):
+    __tablename__ = "listing_revisions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    listing_id: Mapped[int] = mapped_column(ForeignKey("imported_listings.id", ondelete="CASCADE"), nullable=False, index=True)
+    imported_at: Mapped[float] = mapped_column(Float, nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+
+class ListingObservation(Base):
+    """실패도 남겨 마지막 성공과 마지막 시도를 구별하는 불변 수집 기록."""
+    __tablename__ = "listing_observations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    external_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    requested_at: Mapped[float] = mapped_column(Float, nullable=False)
+    fetched_at: Mapped[float] = mapped_column(Float, nullable=False)
+    outcome: Mapped[str] = mapped_column(String(30), nullable=False)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    __table_args__ = (Index("ix_listing_observation_owner", "user_id", "external_id", "fetched_at"),)
