@@ -35,7 +35,8 @@ done
 if [[ -f "$_PROJECT_ROOT/.env" ]]; then
   set -a
   # shellcheck disable=SC1091
-  source "$_PROJECT_ROOT/.env"
+  # Windows에서 편집한 CRLF도 WSL의 bash가 같은 값으로 읽도록 한다.
+  source <(sed 's/\r$//' "$_PROJECT_ROOT/.env")
   set +a
 fi
 
@@ -68,3 +69,6 @@ if [[ "$RETENTION_DAYS" -gt 0 ]]; then
   DELETED=$(find "$OUT_DIR" -name 'property_concierge_*.dump' -mtime "+$RETENTION_DAYS" -print -delete | wc -l)
   [[ "$DELETED" -gt 0 ]] && echo "[backup] ${RETENTION_DAYS}일 초과 백업 ${DELETED}개 삭제"
 fi
+
+# 삭제 대상이 0개인 정상 백업도 성공 코드로 종료한다.
+exit 0

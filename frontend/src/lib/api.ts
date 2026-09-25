@@ -1,4 +1,4 @@
-import type { ActivityItem, CaseCandidateComparison, CaseExecution, CaseProperty, ConciergeResponse, ExecutionActor, ExecutionPhase, ExecutionTaskStatus, PurchaseCase, RecommendationRequest, SimulationRequest } from "./types";
+import type { ActivityItem, CaseCandidateComparison, CaseExecution, CaseProperty, ComplexAddress, ConciergeResponse, ExecutionActor, ExecutionPhase, ExecutionTaskStatus, PurchaseCase, RecommendationRequest, SimulationRequest } from "./types";
 
 const BASE = "/api";
 
@@ -128,11 +128,11 @@ export const api = {
       sample_count: number;
       complex_count: number;
       region_avg_per_sqm: number;
-      results: {
+      results: (ComplexAddress & {
         complex_name: string; dong: string; avg_price: number;
         avg_per_sqm: number; avg_area_m2: number; deal_count: number;
         build_year: number; last_deal_ym: string; score: number; reasons: string[];
-      }[];
+      })[];
       report: string;
       error: string;
     }>("/recommendation/complexes", { method: "POST", body: JSON.stringify(params) }),
@@ -238,8 +238,15 @@ export const api = {
     req<void>(`/cases/${caseId}/execution/tasks/${taskId}`, { method: "DELETE" }),
 
   updateCase: (id: number, data: Partial<Pick<PurchaseCase,
-    "title" | "status" | "budget_min" | "budget_max" | "target_regions" | "notes"
+    "title" | "status" | "budget_min" | "budget_max" | "target_regions" | "notes" | "buyer_profile"
   >>) => req<PurchaseCase>(`/cases/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  caseFundingScenarios: (caseId: number, data: {
+    property_ids?: number[]; price_delta_won?: number; interest_delta_pct?: number; reserve_delta_won?: number;
+  }) => req<import("@/lib/types").CaseFundingScenarioResult>(`/cases/${caseId}/funding-scenarios`, {
+    method: "POST", body: JSON.stringify(data),
+  }),
+  caseRecommendations: (caseId:number,regionCode:string) => req<{results:import("@/lib/types").ComplexRecommendation[];error?:string}>(`/cases/${caseId}/recommendations?region_code=${encodeURIComponent(regionCode)}`),
 
   deleteCase: (id: number) => req<void>(`/cases/${id}`, { method: "DELETE" }),
 
@@ -256,6 +263,13 @@ export const api = {
     asking_price?: number | null;
     status?: "reviewing" | "shortlisted" | "rejected" | "selected"; notes?: string;
   }) => req(`/cases/${caseId}/properties/${propertyId}`, { method: "PATCH", body: JSON.stringify(data) }),
+
+  applyListingUpdate: (caseId: number, propertyId: number, expectedRevisionId: number, expectedConfirmedAt: string) =>
+    req<{ changed: boolean; invalidated_analyses: string[]; decision_reopened: boolean }>(
+      `/cases/${caseId}/properties/${propertyId}/source-update`, {
+        method: "POST", body: JSON.stringify({ expected_revision_id: expectedRevisionId,
+                                                 expected_confirmed_at: expectedConfirmedAt }),
+      }),
 
   updateCandidateChecklist: (caseId: number, propertyId: number, checklistId: number, data: {
     status: "todo" | "done" | "warning" | "blocked"; evidence?: string;

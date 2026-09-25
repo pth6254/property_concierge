@@ -48,6 +48,8 @@ services:
     image: redis:7-alpine
     container_name: property_concierge_redis
     restart: unless-stopped
+    # Stream 작업 입력도 보관하므로 컨테이너 재시작 시 기록을 복구한다.
+    command: ["redis-server", "--appendonly", "yes"]
     # 호스트 포트 미노출 — pgvector와 동일한 이유.
     volumes:
       - redis_data:/data
@@ -83,7 +85,7 @@ services:
       PG_CONNECTION_STRING: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
     ports:
-      - "8000:8000"
+      - "${API_BIND_PORT:-8000}:8000"
     # 소스 볼륨 마운트 없음 — 이미지에 COPY 된 코드만 실행한다 (Dockerfile.backend).
     # 워커 수(UVICORN_WORKERS, 기본 4)는 Dockerfile ENV 로 정의되며 .env 에서 재정의 가능.
     healthcheck:
@@ -92,6 +94,52 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  job-worker:
+    image: property_concierge_backend:latest
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
+      PG_CONNECTION_STRING: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
+      REDIS_URL: redis://redis:6379/0
+    command: ["python", "-m", "api.job_worker"]
+
+  # 외부 API 할당량을 고려해 명시적으로 활성화하는 주기 재수집기.
+  operations-monitor:
+    image: property_concierge_backend:latest
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
+      REDIS_URL: redis://redis:6379/0
+    command: ["python", "-m", "api.operational_health"]
+
+  transaction-refresh:
+    profiles: ["maintenance"]
+    image: property_concierge_backend:latest
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
+      REDIS_URL: redis://redis:6379/0
+      TRANSACTION_REFRESH_INTERVAL_HOURS: ${TRANSACTION_REFRESH_INTERVAL_HOURS:-168}
+      TRANSACTION_REFRESH_MONTHS: ${TRANSACTION_REFRESH_MONTHS:-12}
+      TRANSACTION_REFRESH_WORKERS: ${TRANSACTION_REFRESH_WORKERS:-2}
+      TRANSACTION_REFRESH_SIDO: ${TRANSACTION_REFRESH_SIDO:-서울특별시}
+    command: ["sh", "/app/scripts/run_transaction_refresh.sh"]
 
   # ────────────────────────────────────────────
   #  Next.js 프론트엔드

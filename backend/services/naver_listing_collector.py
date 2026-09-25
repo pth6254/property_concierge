@@ -4,10 +4,34 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+import math
+from email.utils import parsedate_to_datetime
 from decimal import Decimal, InvalidOperation
 from urllib.parse import urlsplit, parse_qs
 
 HOSTS = {"land.naver.com", "new.land.naver.com", "fin.land.naver.com", "m.land.naver.com"}
+
+
+def restriction_response(url: str, status: int, *, navigation: bool, article: str) -> bool:
+    parsed = urlsplit(url)
+    if parsed.scheme != "https" or parsed.hostname != "fin.land.naver.com" or status not in (401, 403, 429):
+        return False
+    if navigation:
+        return parsed.path in (f"/articles/{article}", "/map", "/404")
+    query = parse_qs(parsed.query)
+    # 광고·로그인·다른 매물의 오류를 현재 매물 차단으로 확대 해석하지 않는다.
+    return ((parsed.path.startswith("/front-api/v1/article/") and query.get("articleNumber") == [article])
+            or (parsed.path == "/front-api/v1/data-service/transport"
+                and query.get("itemType") == ["article"] and query.get("itemId") == [article]))
+
+
+def retry_seconds(value: str | None) -> int:
+    from backend.services.listing_collection_gate import BLOCK_SECONDS
+    try:
+        seconds = int(value) if value and value.strip().isdigit() else math.ceil(parsedate_to_datetime(value).timestamp() - time.time())
+    except (TypeError, ValueError, OverflowError):
+        seconds = BLOCK_SECONDS
+    return max(BLOCK_SECONDS, seconds)
 
 
 def allow_browser_request(url: str, *, navigation: bool, article: str) -> bool:
@@ -79,17 +103,30 @@ def parse_page(text: str, title: str, http_status: int = 200) -> dict:
                 if kind == "월세":
                     fields["monthly_rent"] = values[1]
                 break
+    address_candidates = []
+    broker_section = False
     for i, line in enumerate(lines):
+        if re.search(r"중개사(?:무소| 정보)?|중개업소|공인중개사", line):
+            broker_section = True
+        elif re.fullmatch(r"(?:매물|기본|상세|건물)\s*정보", line):
+            broker_section = False
         joined = line + " " + (lines[i + 1] if i + 1 < len(lines) else "")
         area = re.search(r"(?:공급\s*/\s*전용면적\s*[\d.,]+\s*(?:㎡|m²|m2)?\s*/\s*|전용면적\s*[:：]?\s*)(\d+(?:\.\d+)?)\s*(?:㎡|m²|m2)", joined)
         if area:
             fields["area_sqm"] = float(area[1])
-        address = re.match(r"(?:소재지|주소|위치)\s*[:：]?\s+(.+)", joined if re.fullmatch(r"소재지|주소|위치", line) else line)
-        if address:
-            fields["address"] = address[1][:500]
+        address_text = joined if re.fullmatch(r"소재지|주소|위치", line) else line
+        address = re.match(r"(소재지|주소|위치)\s*[:：]?\s+(.+)", address_text)
+        if address and not broker_section:
+            # 중개사무소의 주소가 뒤에 나오더라도 매물 소재지를 덮어쓰지 않는다.
+            address_candidates.append(({"소재지": 0, "위치": 1, "주소": 2}[address[1]], address[2][:500]))
         date = re.search(r"(?:매물확인일|확인매물|확인일)\s*[:：]?\s*(\d{2,4}[.\-/]\s*\d{1,2}[.\-/]\s*\d{1,2}\.?)", joined)
         if date:
             fields["source_confirmed_date"] = date[1]
+    if address_candidates:
+        priority = min(item[0] for item in address_candidates)
+        addresses = {value for rank, value in address_candidates if rank == priority}
+        if len(addresses) == 1:
+            fields["address"] = addresses.pop()
     if "transaction_type" not in fields or "area_sqm" not in fields:
         return {"outcome": "parse_error", "fields": fields, "message": "가격·전용면적을 모두 식별하지 못했습니다. 원문을 직접 확인해주세요."}
     heading = next((m[1] for line in lines if (m := re.fullmatch(r"(.{2,120}?)\s+(?:매매|전세|월세)\s+[\d.,억만원 /]+", line))), "")
@@ -103,9 +140,20 @@ def parse_page(text: str, title: str, http_status: int = 200) -> dict:
 
 async def collect_page(url: str) -> dict:
     from playwright.async_api import async_playwright
+    from backend.services import listing_collection_gate as gate
     canonical, article = canonical_url(url)
     started = time.time()
+    restriction = None
+    request_sent = False
+    result = {}
     try:
+        wait = await asyncio.to_thread(gate.reserve)
+        if wait:
+            return {"outcome": "blocked", "fields": {}, "message": gate.wait_message(wait),
+                    "reason_code": "collection_cooldown", "request_sent": False,
+                    "retry_after_seconds": wait, "retry_at": time.time() + wait,
+                    "source_url": canonical, "external_id": article, "requested_at": started,
+                    "fetched_at": time.time(), "parser_version": "naver-dom-v2"}
         async with asyncio.timeout(45):
             async with async_playwright() as playwright:
                 browser = await playwright.chromium.launch(headless=True)
@@ -121,8 +169,22 @@ async def collect_page(url: str) -> dict:
                             await route.abort()
                     await context.route("**/*", guard)
                     page = await context.new_page()
+                    def observe_response(response):
+                        nonlocal restriction
+                        if restriction_response(response.url, response.status,
+                                                navigation=response.request.is_navigation_request(), article=article):
+                            wait = retry_seconds(response.headers.get("retry-after"))
+                            if restriction is None or wait > restriction["retry_after_seconds"]:
+                                restriction = {"outcome": "blocked", "fields": {},
+                                    "reason_code": f"naver_http_{response.status}", "upstream_status": response.status,
+                                    "restriction_source": "document" if response.request.is_navigation_request() else "article_api",
+                                    "retry_after_seconds": wait}
+                    page.on("response", observe_response)
+                    request_sent = True
                     response = await page.goto(canonical, wait_until="domcontentloaded", timeout=25000)
                     for _ in range(10):
+                        if restriction:
+                            break
                         body = await page.locator("body").inner_text(timeout=5000)
                         result = parse_page(body[:100000], await page.title(), response.status if response else 0)
                         if result["outcome"] != "parse_error":
@@ -133,4 +195,17 @@ async def collect_page(url: str) -> dict:
     except Exception as exc:
         # 브라우저 예외에는 실행 경로 등이 들어가므로 사용자 응답에는 정해진 메시지만 남긴다.
         result = {"outcome": "failed", "fields": {}, "message": "원문 조회에 실패했습니다. 브라우저 설치·네트워크 또는 접근 제한을 확인해주세요.", "error_type": type(exc).__name__}
-    return {**result, "source_url": canonical, "external_id": article, "requested_at": started, "fetched_at": time.time(), "parser_version": "naver-dom-v1"}
+    # 내부 API 차단 뒤 오류 화면으로 이동하거나 탐색 예외가 나도 최초 제한 증거를 보존한다.
+    if restriction:
+        result = restriction
+    if result.get("outcome") == "blocked":
+        wait = result.get("retry_after_seconds", gate.BLOCK_SECONDS)
+        try:
+            wait = await asyncio.to_thread(gate.postpone, wait)
+        except Exception:
+            # Redis 장애 중에는 다음 수집도 예약에 실패해 외부 요청이 나가지 않는다.
+            result["cooldown_persisted"] = False
+        result.update(retry_after_seconds=wait, retry_at=time.time() + wait,
+                      message="네이버가 원문 접근을 제한했습니다. 매물 삭제나 거래 종료를 뜻하지 않습니다. " + gate.wait_message(wait))
+    return {**result, "request_sent": request_sent, "source_url": canonical, "external_id": article,
+            "requested_at": started, "fetched_at": time.time(), "parser_version": "naver-dom-v2"}

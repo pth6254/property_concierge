@@ -24,7 +24,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from api import activity_db, auth_db, auth_utils, email_service, history_db
-from api.deps import get_current_user
+from api.deps import get_current_user, is_operator
 from api.rate_limit import limiter
 from db.redis_client import get_redis
 
@@ -154,7 +154,7 @@ def register(request: Request, body: RegisterBody, response: Response):
     hashed = auth_utils.hash_password(body.password)
     user   = auth_db.create_local_user(body.email, hashed, body.name)
     _set_cookie(response, auth_utils.create_jwt(user["id"], user.get("password_changed_at")))
-    return {"id": user["id"], "email": user["email"], "name": user["name"]}
+    return {"id": user["id"], "email": user["email"], "name": user["name"], "is_operator": is_operator(user)}
 
 
 @router.post("/auth/login")
@@ -170,7 +170,7 @@ def login(request: Request, body: LoginBody, response: Response):
         raise HTTPException(status_code=401, detail="이메일 또는 비밀번호가 올바르지 않습니다")
     _clear_login_fails(body.email)
     _set_cookie(response, auth_utils.create_jwt(user["id"], user.get("password_changed_at")))
-    return {"id": user["id"], "email": user["email"], "name": user["name"]}
+    return {"id": user["id"], "email": user["email"], "name": user["name"], "is_operator": is_operator(user)}
 
 
 # ── 비밀번호 재설정 ──────────────────────────────────────
@@ -313,6 +313,7 @@ def me(user: dict = Depends(get_current_user)):
         "name":       user["name"],
         "avatar_url": user.get("avatar_url", ""),
         "provider":   user.get("provider", "local"),
+        "is_operator": is_operator(user),
     }
 
 

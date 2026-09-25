@@ -22,6 +22,7 @@ class PurchaseCaseCreate(BaseModel):
     budget_max: int | None = Field(default=None, ge=0)
     target_regions: list[str] = Field(default_factory=list, max_length=20)
     notes: str = Field(default="", max_length=5000)
+    buyer_profile: "BuyerProfile" = Field(default_factory=lambda: BuyerProfile())
 
     @model_validator(mode="after")
     def validate_budget(self):
@@ -37,6 +38,30 @@ class PurchaseCaseUpdate(BaseModel):
     budget_max: int | None = Field(default=None, ge=0)
     target_regions: list[str] | None = Field(default=None, max_length=20)
     notes: str | None = Field(default=None, max_length=5000)
+    buyer_profile: "BuyerProfile | None" = None
+
+
+class BuyerProfile(BaseModel):
+    cash_available: int | None = Field(default=None, ge=0, le=10**15)
+    emergency_reserve: int = Field(default=0, ge=0, le=10**15)
+    monthly_payment_limit: int | None = Field(default=None, ge=0, le=10**12)
+    annual_income: int | None = Field(default=None, ge=0, le=10**15)
+    existing_loan_annual_payment: int = Field(default=0, ge=0, le=10**15)
+    loan_ratio: float | None = Field(default=None, ge=0, le=0.9)
+    annual_interest_rate: float | None = Field(default=None, ge=0, le=30)
+    loan_years: int | None = Field(default=None, ge=1, le=50)
+    owned_homes: int | None = Field(default=None, ge=1, le=100)
+    adjusted_area: bool | None = None
+    min_area_sqm: float | None = Field(default=None, gt=0, le=100000)
+    min_build_year: int | None = Field(default=None, ge=1800, le=2100)
+    property_types: list[Literal["apartment", "officetel", "row_house", "detached", "non_residential", "industrial", "land"]] = Field(default_factory=list, max_length=7)
+    priority: Literal["cash", "monthly", "value", "liquidity", "age"] = "cash"
+
+    @model_validator(mode="after")
+    def validate_cash(self):
+        if self.cash_available is not None and self.emergency_reserve > self.cash_available:
+            raise ValueError("비상자금은 보유 현금보다 클 수 없습니다")
+        return self
 
 
 class CasePropertyCreate(BaseModel):

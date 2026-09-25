@@ -68,7 +68,7 @@ def test_failed_month_is_retried(store):
     assert store.is_month_completed(*KEY)
 
 
-def test_completed_old_month_is_skipped_even_after_ttl(store):
+def test_completed_old_month_is_refetched_after_ttl(store):
     from sqlalchemy import update
     from db.base import session_scope
     from db.models import IngestLog
@@ -79,7 +79,7 @@ def test_completed_old_month_is_skipped_even_after_ttl(store):
         session.execute(
             update(IngestLog).where(IngestLog.deal_ym == "202401").values(fetched_at=0)
         )
-    assert store.should_skip_batch_month(*old_key)
+    assert not store.should_skip_batch_month(*old_key)
 
 
 def test_stale_recent_month_is_refetched(store):

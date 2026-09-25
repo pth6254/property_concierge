@@ -67,10 +67,11 @@ export default function ComparisonPage() {
       <div className="max-w-2xl mx-auto text-center py-20">
         <div className="text-5xl mb-4">⚖️</div>
         <h2 className="text-xl font-semibold mb-2">비교 바구니가 비어있습니다</h2>
-        <p className="text-slate-400 text-sm mb-6">매물 추천에서 비교 바구니에 매물을 담아주세요.</p>
+        <p className="text-slate-500 text-sm mb-4">이 화면은 샘플 매물 비교 도구입니다. 등록한 실제 후보는 매수 검토 케이스에서 비교하세요.</p>
+        <button onClick={() => router.push("/cases")} className="mb-4 block w-full text-sm font-semibold text-primary underline">내 케이스에서 후보 비교하기 →</button>
         <button onClick={() => router.push("/recommendation")}
           className="px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-primary-strong">
-          매물 추천으로 이동
+          단지 추천·샘플로 이동
         </button>
       </div>
     );
@@ -82,7 +83,7 @@ export default function ComparisonPage() {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold">매물 비교</h1>
+          <h1 className="text-2xl font-bold">샘플 매물 비교</h1>
           <p className="text-slate-500 text-sm mt-1">{basket.length}개 매물 비교 분석</p>
         </div>
         <div className="flex gap-2">

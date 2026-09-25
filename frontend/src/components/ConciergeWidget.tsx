@@ -365,7 +365,7 @@ function UserConciergeWidget({ userId }: { userId: number }) {
                     {message.response && <RegionCards response={message.response} saved={savedRegions} onSave={saveRegion} />}
                     {message.response?.tool_used === "select_properties" && message.response.data.results?.map((item) => {
                       const response = message.response!;
-                      return <ConciergeComplexCard key={`${item.dong}-${item.complex_name}`} item={item} region={response.data.region_name ?? response.criteria.region_name ?? ""} disabled={sending || restoring || savingComplex} onSave={(input) => saveComplex(response, input)} />;
+                      return <ConciergeComplexCard key={`${item.dong}-${item.complex_name}`} item={item} caseId={caseId} region={response.data.region_name ?? response.criteria.region_name ?? ""} disabled={sending || restoring || savingComplex} onSave={(input) => saveComplex(response, input)} />;
                     })}
                     {message.response?.data.job_id && <AppraisalProgress jobId={message.response.data.job_id} caseId={message.response.data.case_id} />}
                     {message.response?.data.input_url && <Link href={message.response.data.input_url} className="text-primary underline">후보 정보 확인하고 시세추정</Link>}

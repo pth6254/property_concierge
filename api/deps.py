@@ -4,10 +4,16 @@ deps.py — FastAPI 공통 의존성
 from __future__ import annotations
 
 from typing import Optional
+import os
 
-from fastapi import Cookie, HTTPException, status
+from fastapi import Cookie, Depends, HTTPException, status
 
 from api import auth_db, auth_utils
+
+
+def is_operator(user: dict) -> bool:
+    # 이메일 재가입으로 권한이 승계되지 않도록 기존 계정의 고유 ID를 지정한다.
+    return str(user["id"]) in {value.strip() for value in os.getenv("OPERATOR_USER_IDS", "").split(",") if value.strip()}
 
 
 def get_current_user(auth_token: Optional[str] = Cookie(default=None)) -> dict:
@@ -41,4 +47,10 @@ def get_optional_user(auth_token: Optional[str] = Cookie(default=None)) -> Optio
         return None
     if user and not auth_utils.is_session_valid(payload, user):
         return None
+    return user
+
+
+def require_operator(user: dict = Depends(get_current_user)) -> dict:
+    if not is_operator(user):
+        raise HTTPException(status_code=403, detail="운영자 권한이 필요합니다")
     return user

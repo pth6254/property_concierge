@@ -29,9 +29,7 @@ const GROUPS: NavGroup[] = [
     label: "분석",
     items: [
       { href: "/appraisal",      label: "AI 시세추정",     icon: Tag },
-      { href: "/recommendation", label: "매물 추천",       icon: MapPin },
       { href: "/simulation",     label: "투자 시뮬레이션", icon: TrendingUp },
-      { href: "/comparison",     label: "매물 비교",       icon: Columns2 },
     ],
   },
   {
@@ -39,6 +37,13 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/rights", label: "권리관계 점검", icon: ShieldCheck },
       { href: "/chat",   label: "법률·세금 AI",  icon: MessageSquareText },
+    ],
+  },
+  {
+    label: "추가 도구",
+    items: [
+      { href: "/recommendation", label: "단지 추천·샘플", icon: MapPin },
+      { href: "/comparison", label: "샘플 매물 비교", icon: Columns2 },
     ],
   },
   {
@@ -81,6 +86,7 @@ function NavList({ path, onNavigate }: { path: string; onNavigate?: () => void }
               <Link
                 key={href}
                 href={href}
+                aria-current={active ? "page" : undefined}
                 onClick={onNavigate}
                 className={`relative mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
                   active
@@ -122,6 +128,7 @@ function UserFooter() {
             {user.name || user.email}
           </div>
           <div className="truncate text-xs text-white/40">{user.email}</div>
+          {user.is_operator && <Link href="/operations" className="block py-2 text-sm text-white underline">운영 관리</Link>}
           <div className="flex gap-1.5">
             <button
               onClick={logout}
@@ -142,7 +149,7 @@ function UserFooter() {
         <Link href="/privacy" className="text-white/40 hover:text-white/70 hover:underline">개인정보처리방침</Link>
         <Link href="/terms" className="text-white/40 hover:text-white/70 hover:underline">이용약관</Link>
       </div>
-      <div className="text-[11px] text-white/30">샘플 데이터 기반 · 참고용</div>
+      <div className="text-[11px] text-white/50">실거래·사용자 등록 자료 · 참고용</div>
     </div>
   );
 }

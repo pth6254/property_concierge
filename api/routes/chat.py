@@ -98,15 +98,8 @@ async def chat_endpoint(request: Request, req: ChatRequest, user: Optional[dict]
 @limiter.limit("10/minute")
 async def create_chat_job(request: Request, req: ChatRequest, user: Optional[dict] = Depends(get_optional_user)):
     from api import jobs
-    def runner(set_step):
-        set_step("법령 검색 및 답변 생성")
-        try:
-            return asyncio.run(_answer(req, user))
-        except HTTPException as exc:
-            return {"error": exc.detail}
-        except Exception:
-            return {"error": "답변 생성 중 오류가 발생했습니다."}
-    return {"job_id": jobs.create(runner, owner_id=user["id"] if user else None)}
+    return {"job_id": jobs.create_task("chat", {"request": req.model_dump(mode="json")},
+                                       owner_id=user["id"] if user else None)}
 
 
 @router.get("/chat/jobs/{job_id}")

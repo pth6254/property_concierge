@@ -98,6 +98,7 @@ def select_properties(criteria: ConciergeCriteria, user_id: int, candidate_conte
     for index, item in enumerate(result["results"], 1):
         lines.append(f"{index}. {item['complex_name']} ({item['dong']}) — 시점수정 평균 {item['avg_price']:,}만원, "
                      f"평균 면적 {item['avg_area_m2']}㎡, 거래 {item['deal_count']}건")
+        lines.append(f"도로명: {item.get('road_address') or '확인되지 않음'} / 지번: {item.get('jibun_address') or '확인되지 않음'}")
     lines.append("가격은 시점수정한 실거래 평균이며 개별 매물 호가가 아닙니다. 현재 매물 존재 여부는 별도 확인이 필요합니다.")
     lines.append("아래 단지 카드에서 검토할 주소·면적과 알고 있는 희망가를 확인한 뒤 후보로 저장할 수 있습니다.")
     return reply("\n\n".join(lines), status="completed", results=result["results"],

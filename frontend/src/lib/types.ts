@@ -197,6 +197,16 @@ export interface CaseProperty {
   area_sqm: number | null;
   legal_region_code: string | null;
   source: "manual" | "recommendation" | "appraisal";
+  source_listing_id: number | null;
+  source_status: ListingSourceStatus | null;
+  source_reviews: {
+    id: number; created: string; previous_snapshot: Record<string, unknown>;
+    applied_snapshot: Record<string, unknown>;
+    previous_decision: { reason: string; decided_at: string | null } | null;
+    invalidated_analyses: string[];
+    previous_analyses: { type: string; status: string; summary: Record<string, unknown>; analyzed_at: string | null }[];
+    previous_execution: { title: string; status: string; outcome: string; evidence_note: string }[];
+  }[];
   status: "reviewing" | "shortlisted" | "rejected" | "selected";
   notes: string;
   history_id: number | null;
@@ -206,6 +216,15 @@ export interface CaseProperty {
     review_progress: number;
   created: string;
   updated: string;
+}
+
+export interface ListingSourceStatus {
+  status: "current" | "changed" | "needs_confirmation" | "missing";
+  listing_id: number;
+  needs_confirmation: boolean;
+  changes: Record<string, { saved: unknown; current: unknown }>;
+  saved: Record<string, unknown>;
+  current: (Record<string, unknown> & { revision_id?: number; confirmed_at?: string }) | null;
 }
 
 export interface CandidateNextAction {
@@ -262,6 +281,7 @@ export interface PurchaseCase {
   purpose: "purchase";
   budget_min: number | null;
   budget_max: number | null;
+  buyer_profile: BuyerProfile;
   target_regions: string[];
   notes: string;
   created: string;
@@ -281,6 +301,33 @@ export interface PurchaseCase {
   };
 }
 
+export interface BuyerProfile {
+  cash_available: number | null; emergency_reserve: number;
+  monthly_payment_limit: number | null; annual_income: number | null;
+  existing_loan_annual_payment: number; loan_ratio: number | null;
+  annual_interest_rate: number | null; loan_years: number | null;
+  owned_homes: number | null; adjusted_area: boolean | null;
+  min_area_sqm: number | null; min_build_year: number | null;
+  property_types: string[]; priority: "cash" | "monthly" | "value" | "liquidity" | "age";
+}
+
+export interface CaseFundingScenarioResult {
+  case_id: number; persisted: false;
+  scenario_inputs: { price_delta_won: number; interest_delta_pct: number; reserve_delta_won: number };
+  rows: { property_id: number; name: string; asking_price: number | null; source_status: string | null;
+    baseline: { status: string; missing?: string[]; summary?: Record<string, unknown>; warnings?: string[] };
+    scenario: { status: string; missing?: string[]; summary?: Record<string, unknown>; warnings?: string[] };
+    deltas: Record<string, number | null> }[];
+}
+
+export interface ComplexRecommendation {
+  complex_name:string; dong:string; avg_price:number; avg_per_sqm:number;
+  avg_area_m2:number; deal_count:number; build_year:number; last_deal_ym:string;
+  score:number; reasons:string[]; score_factors?:Record<string,number>;
+  score_weights?:Record<string,number>;
+  road_address?:string|null;jibun_address?:string|null;
+}
+
 export interface CaseCandidateComparisonRow {
   property_id: number;
   name: string;
@@ -289,12 +336,17 @@ export interface CaseCandidateComparisonRow {
   asking_price: number | null;
   area_sqm: number | null;
   estimated_value: number | null;
+  appraisal_confidence: number | null;
+  appraisal_match_level: string | null;
+  appraisal_comparable_count: number | null;
+  source_status: ListingSourceStatus | null;
   price_gap: number | null;
   price_gap_ratio: number | null;
   funding: Record<string, unknown> | null;
   rights: Record<string, unknown> | null;
   analysis_status: Record<"appraisal" | "simulation" | "rights", "completed" | "stale" | "missing" | "pending" | "failed">;
   review_progress: number;
+  review_stage: "exploration" | "comparison" | "detailed" | "precontract" | "excluded";
   missing: string[];
   warnings: string[];
   highlights: string[];
@@ -405,7 +457,16 @@ export interface ChatSource {
   origin?: string;
 }
 
-export interface ConciergeComplex {
+export interface ComplexAddress {
+  complex_id?: number;
+  road_address?: string;
+  jibun_address?: string;
+  address_status?: "matched" | "unresolved" | "ambiguous" | "unavailable";
+  address_source?: string;
+  address_checked_at?: string | null;
+}
+
+export interface ConciergeComplex extends ComplexAddress {
   complex_name: string;
   dong: string;
   avg_price: number;

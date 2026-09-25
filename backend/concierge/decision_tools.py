@@ -43,7 +43,13 @@ def simulate_investment(criteria, user_id, candidate_context=None, *, funding=No
     if not candidate:
         return ConciergeToolResult(tool=tool, status="needs_input", missing_fields=["candidate"],
                                    data={"answer": "자금을 분석할 케이스와 후보를 선택해주세요."})
-    values = ConciergeFunding.model_validate(funding or {}).model_dump(exclude_none=True)
+    # 케이스 공통 조건을 기본값으로 쓰되 대화에서 지정한 값이 우선한다.
+    profile = (case or {}).get("buyer_profile") or {}
+    profile_funding = {key: profile[key] for key in FUNDING_LABELS if profile.get(key) is not None}
+    profile_funding.setdefault("repayment_type", "equal_payment")
+    values = ConciergeFunding.model_validate({**profile_funding, **(funding or {})}).model_dump(exclude_none=True)
+    if "cash_available" in profile_funding and "cash_available" not in (funding or {}):
+        values["cash_available"] = profile_funding["cash_available"] - profile.get("emergency_reserve", 0)
     required = ["cash_available", "loan_ratio", "owned_homes", "adjusted_area"]
     if values.get("loan_ratio", 1) > 0:
         required += ["annual_interest_rate", "loan_years", "repayment_type", "existing_loan_annual_payment"]

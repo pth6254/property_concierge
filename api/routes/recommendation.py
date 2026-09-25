@@ -40,11 +40,17 @@ class ComplexRecommendRequest(BaseModel):
     region_code: str | None = Field(default=None, pattern=r"^\d{10}$")
     """실거래 기반 단지 추천 (전국) — 금액 단위: 만원"""
     region: str
-    budget_min: int = 0
-    budget_max: int = 0
-    area_m2: float = 0.0
-    months: int = 6
-    limit: int = 5
+    budget_min: int = Field(0, ge=0)
+    budget_max: int = Field(0, ge=0)
+    area_m2: float = Field(0, ge=0, allow_inf_nan=False)
+    months: int = Field(6, ge=1, le=24)
+    limit: int = Field(5, ge=1, le=20)
+
+    @model_validator(mode="after")
+    def validate_budget(self):
+        if self.budget_max and self.budget_min > self.budget_max:
+            raise ValueError("최소 예산은 최대 예산보다 클 수 없습니다")
+        return self
 
 
 @router.post("/recommendation/complexes")

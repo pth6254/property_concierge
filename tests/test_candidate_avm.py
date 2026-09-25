@@ -75,7 +75,8 @@ def test_chat_runs_owned_candidate_and_persists_result(client, monkeypatch):
     def fake_appraisal(query, building_name, **kwargs):
         captured.update(kwargs)
         captured["query"] = query
-        return {"analysis_result": {"estimated_value": 87_000, "value_unit": "만원"}, "final_report": "평가용 결과"}
+        return {"analysis_result": {"estimated_value": 87_000, "value_unit": "만원",
+                "comparable_count": 1, "comparables": [], "used_months": 13}, "final_report": "평가용 결과"}
     monkeypatch.setattr(router, "run_appraisal", fake_appraisal)
     response = client.post("/api/concierge/messages", json={"message": "이 후보 시세를 추정해줘", "case_id": case_id, "candidate_id": candidate_id})
     assert response.status_code == 200
@@ -87,6 +88,10 @@ def test_chat_runs_owned_candidate_and_persists_result(client, monkeypatch):
     value = client.get(f"/api/cases/{case_id}").json()["properties"][0]
     assert value["appraisal"]["estimated_value"] == 870_000_000
     assert value["history_id"] == job["history_id"]
+    comparison = client.get(f"/api/cases/{case_id}/comparison").json()["rows"][0]
+    assert comparison["appraisal_confidence"] < 0.5
+    assert comparison["appraisal_comparable_count"] == 1
+    assert comparison["price_gap_ratio"] is None
 
 
 def test_chat_requires_explicit_candidate_and_checks_owner_before_llm(client, monkeypatch):

@@ -17,15 +17,20 @@ from schemas.listing_import import ListingInput
 STALE_SECONDS = 7 * 86400
 
 
-def _view(row, session):
+def _view(row, session, observation_cache=None):
     observation = None
     first_seen = last_seen = None
     from backend.services.naver_listing_collector import canonical_url
     try:
         _, article = canonical_url(row.payload.get("source_url") or "")
-        filters = [ListingObservation.user_id == row.user_id, ListingObservation.external_id == article]
-        observation = session.scalar(select(ListingObservation).where(*filters).order_by(ListingObservation.fetched_at.desc()).limit(1))
-        first_seen, last_seen = session.execute(select(func.min(ListingObservation.fetched_at), func.max(ListingObservation.fetched_at)).where(*filters, ListingObservation.outcome == "observed")).one()
+        if observation_cache is not None:
+            observation, first_seen, last_seen = observation_cache.get(article, (None, None, None))
+        else:
+            filters = [ListingObservation.user_id == row.user_id, ListingObservation.external_id == article]
+            observation = session.scalar(select(ListingObservation).where(*filters).order_by(
+                ListingObservation.fetched_at.desc(), ListingObservation.id.desc()).limit(1))
+            first_seen, last_seen = session.execute(select(func.min(ListingObservation.fetched_at),
+                func.max(ListingObservation.fetched_at)).where(*filters, ListingObservation.outcome == "observed")).one()
     except ValueError:
         pass
     return {**row.payload, "id": row.id, "source_name": row.source_name,
@@ -160,7 +165,31 @@ def search_listings(user_id, *, region_code=None, property_type=None, transactio
             ).exists())
         count = session.scalar(select(func.count()).select_from(ImportedListing).where(*filters))
         rows = session.scalars(select(ImportedListing).where(*filters).order_by(ImportedListing.confirmed_at.desc(), ImportedListing.id.desc()).offset((page-1)*page_size).limit(page_size)).all()
-        return {"items": [_view(row, session) for row in rows], "total": count, "page": page, "page_size": page_size}
+        from backend.services.naver_listing_collector import canonical_url
+
+        articles = set()
+        for row in rows:
+            try:
+                _, article = canonical_url(row.payload.get("source_url") or "")
+                articles.add(article)
+            except ValueError:
+                pass
+        observation_cache = {}
+        if articles:
+            ranked = select(ListingObservation.id.label("id"),
+                func.row_number().over(partition_by=ListingObservation.external_id,
+                    order_by=(ListingObservation.fetched_at.desc(), ListingObservation.id.desc())).label("position")
+            ).where(ListingObservation.user_id == user_id, ListingObservation.external_id.in_(articles)).subquery()
+            latest = {row.external_id: row for row in session.scalars(select(ListingObservation).join(
+                ranked, ranked.c.id == ListingObservation.id).where(ranked.c.position == 1))}
+            observed = {article: (first, last) for article, first, last in session.execute(
+                select(ListingObservation.external_id, func.min(ListingObservation.fetched_at),
+                       func.max(ListingObservation.fetched_at)).where(
+                    ListingObservation.user_id == user_id, ListingObservation.external_id.in_(articles),
+                    ListingObservation.outcome == "observed").group_by(ListingObservation.external_id))}
+            observation_cache = {article: (latest.get(article), *observed.get(article, (None, None))) for article in articles}
+        return {"items": [_view(row, session, observation_cache) for row in rows],
+                "total": count, "page": page, "page_size": page_size}
 
 
 def get_listing(user_id, listing_id):

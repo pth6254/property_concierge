@@ -32,6 +32,7 @@ for _p in [_BACKEND_DIR, _PROJECT_ROOT]:
         sys.path.insert(0, _p)
 
 from cache_db import get_lawd_code
+from services.complex_address_service import enrich_complex_addresses
 from price_engine import (
     MOLIT_API_KEY,
     MOLIT_BASE_URL,
@@ -69,14 +70,14 @@ def _load_samples(lawd_code: str, months: int) -> list[dict]:
 
 def _aggregate_complexes(samples: list[dict]) -> list[dict]:
     """시점수정된 샘플 → 단지별 통계."""
-    groups: dict[str, list[dict]] = {}
+    groups: dict[tuple[str, str], list[dict]] = {}
     for s in samples:
         name = (s.get("apt_name") or "").strip()
         if name and (s.get("price") or 0) > 0 and (s.get("area_sqm") or 0) > 0:
-            groups.setdefault(name, []).append(s)
+            groups.setdefault(((s.get("dong") or "").strip(), name), []).append(s)
 
     complexes = []
-    for name, deals in groups.items():
+    for (_, name), deals in groups.items():
         if len(deals) < MIN_DEALS_PER_COMPLEX:
             continue
         per_sqms = [d["per_sqm"] for d in deals if (d.get("per_sqm") or 0) > 0]
@@ -103,10 +104,15 @@ def _aggregate_complexes(samples: list[dict]) -> list[dict]:
 # ─────────────────────────────────────────
 
 def _score_complex(c: dict, region_avg_per_sqm: float,
-                   budget_min: int, budget_max: int) -> tuple[float, list[str]]:
+                   budget_min: int, budget_max: int, priority: str | None = None) -> tuple[float, list[str]]:
     reasons: list[str] = []
     has_budget = budget_max > 0
     weights = dict(_WEIGHTS)
+    if priority in {"value", "liquidity", "age"}:
+        # 사용자가 고른 축의 비중을 높이되 모든 축의 합은 1을 유지한다.
+        remaining = 1 - weights[priority]
+        for key in weights:
+            weights[key] = weights[key] * (remaining - 0.2) / remaining if key != priority else weights[key] + 0.2
     if not has_budget:   # 예산 미입력 → 예산 가중치를 가격·유동성에 재배분
         weights["value"]     += weights["budget"] * 0.6
         weights["liquidity"] += weights["budget"] * 0.4
@@ -150,6 +156,9 @@ def _score_complex(c: dict, region_avg_per_sqm: float,
              + value_score * weights["value"]
              + liquidity_score * weights["liquidity"]
              + age_score   * weights["age"])
+    c["score_factors"] = {"budget": round(budget_score, 2), "value": round(value_score, 2),
+                          "liquidity": round(liquidity_score, 2), "age": round(age_score, 2)}
+    c["score_weights"] = {key: round(value, 3) for key, value in weights.items()}
     return round(total, 2), reasons
 
 
@@ -165,7 +174,7 @@ def recommend_complexes(
     months: int = 6,
     limit: int = 5,
     *, region_code: str | None = None, area_min_sqm: float = 0,
-    strict_budget: bool = False,
+    strict_budget: bool = False, min_build_year: int = 0, priority: str | None = None,
 ) -> dict:
     """
     실거래 기반 단지 추천.
@@ -218,6 +227,8 @@ def recommend_complexes(
 
     samples, _ = _apply_time_adjustment(samples, "주거용", "", region)
     complexes  = _aggregate_complexes(samples)
+    if min_build_year:
+        complexes = [c for c in complexes if c["build_year"] and c["build_year"] >= min_build_year]
     if not complexes:
         return {"error": "집계 가능한 단지 없음 (단지당 최소 2건 거래 필요)", "results": []}
 
@@ -234,9 +245,12 @@ def recommend_complexes(
                     "results": [], "region_avg_per_sqm": region_avg_per_sqm}
 
     for c in pool:
-        c["score"], c["reasons"] = _score_complex(c, region_avg_per_sqm, budget_min, budget_max)
+        c["score"], c["reasons"] = _score_complex(c, region_avg_per_sqm, budget_min, budget_max, priority)
+        if priority in {"cash", "monthly"}:
+            c["reasons"].append("필요 현금·월 상환액은 후보를 저장한 뒤 자금 조건으로 비교하세요")
     pool.sort(key=lambda c: c["score"], reverse=True)
     results = pool[:limit]
+    enrich_complex_addresses(results, region, lawd)
 
     # ── 마크다운 리포트 ──
     lines = [
@@ -256,6 +270,7 @@ def recommend_complexes(
             f"| {c['build_year'] or '—'} | {c['score']} |")
     lines.append("")
     for i, c in enumerate(results, 1):
+        lines.append(f"**{c['complex_name']} 주소** — 도로명: {c.get('road_address') or '확인되지 않음'} / 지번: {c.get('jibun_address') or '확인되지 않음'}")
         if c["reasons"]:
             lines.append(f"**{i}. {c['complex_name']}** — " + " · ".join(c["reasons"]))
 

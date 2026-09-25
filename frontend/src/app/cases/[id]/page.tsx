@@ -6,6 +6,9 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Circle, FileSearch, MapPinned, Plus, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import CandidateNextActions from "@/components/CandidateNextActions";
+import CaseBuyerProfile from "@/components/CaseBuyerProfile";
+import DecisionJourney from "@/components/DecisionJourney";
+import { listingEntryHref } from "@/lib/listingNavigation";
 import { setSessionValue } from "@/lib/sessionStore";
 import type { CandidateAnalysis, CaseProperty, HistoryItem, PurchaseCase, PurchaseCaseStatus } from "@/lib/types";
 
@@ -92,11 +95,15 @@ export default function CaseDetailPage() {
   const properties = item.properties ?? [];
 
   return <div className="mx-auto max-w-6xl space-y-5">
+    <DecisionJourney current="cases" caseId={String(caseId)} />
     <Link href="/cases" className="text-sm font-medium text-primary hover:underline">← 매수 검토 목록</Link>
+    <Link href={`/cases/${caseId}/summary`} className="ml-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">매수 검토 요약</Link>
     <header className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
       <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Purchase workspace</p><h1 className="text-2xl font-bold text-slate-900">{item.title}</h1><p className="mt-1 text-sm text-slate-500">{item.target_regions.join(", ") || "선호 지역 미정"} · 최대 예산 {won(item.budget_max)}</p></div>
       <div className="flex flex-wrap gap-2">{item.selected_property_id && <Link href={`/cases/${caseId}/execution`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">실행 계획</Link>}{properties.length >= 1 && <Link href={`/cases/${caseId}/comparison`} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">후보 검토·최종 선택</Link>}<select value={item.status} onChange={async (event) => { await api.updateCase(caseId, { status: event.target.value as PurchaseCaseStatus }); await load(); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{CASE_STATUS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
     </header>
+    <CaseBuyerProfile key={item.updated} caseId={caseId} profile={item.buyer_profile} budgetMax={item.budget_max} onSaved={load} />
+    <Link href={`/listings?case_id=${caseId}#saved-listings`} className="inline-flex rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-primary hover:bg-emerald-50">보관함에서 후보 가져오기 →</Link>
 
     <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
       <div className="flex items-center justify-between text-sm"><strong>전체 검토 진행률</strong><strong className="text-primary">{item.workspace?.progress_percent ?? 0}%</strong></div>
@@ -121,9 +128,51 @@ export default function CaseDetailPage() {
 }
 
 function CandidateCard({ property, caseId, reload }: { property: CaseProperty; caseId: number; reload: () => Promise<void> }) {
+  const [sourceBusy, setSourceBusy] = useState(false);
+  const [sourceError, setSourceError] = useState("");
   const analyses = new Map(property.analyses.map((analysis) => [analysis.analysis_type, analysis]));
+  const source = property.source_status;
+  const sourceLabels: Record<string, string> = { name: "매물명", asking_price: "희망가", address: "주소", area_sqm: "면적", status: "거래 상태", legal_region_code: "법정동", property_type: "유형" };
+  const statusLabels: Record<string, string> = { active: "거래 가능", withdrawn: "철회", completed: "거래 완료", unknown: "미확인" };
+  const sourceValue = (field: string, value: unknown) => field === "asking_price"
+    ? won(typeof value === "number" ? value : null)
+    : field === "status" ? (statusLabels[String(value)] ?? "미확인")
+    : String(value ?? "미입력");
   return <article className={`rounded-xl border p-5 ${property.status === "rejected" ? "bg-slate-50 opacity-70" : "bg-white"}`}>
     <div className="flex flex-col justify-between gap-3 md:flex-row"><div><div className="flex items-center gap-2"><h3 className="font-bold">{property.name}</h3><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">검토 {property.review_progress}%</span></div><p className="mt-1 text-sm text-slate-500">{property.address || "주소 미입력"}{property.area_sqm ? ` · ${property.area_sqm}㎡` : ""} · 희망가 {won(property.asking_price)}</p></div><div className="flex gap-2"><select disabled={property.status === "selected"} value={property.status} onChange={async (event) => { await api.updateCaseProperty(caseId, property.id, { status: event.target.value as CaseProperty["status"] }); await reload(); }} className="rounded-lg border px-2 py-1 text-xs">{PROPERTY_STATUS.map((status) => <option disabled={status.value === "selected"} key={status.value} value={status.value}>{status.label}</option>)}</select><button disabled={property.status === "selected"} title={property.status === "selected" ? "최종 선택을 변경한 뒤 삭제할 수 있습니다" : "후보 삭제"} onClick={async () => { await api.deleteCaseProperty(caseId, property.id); await reload(); }} aria-label="후보 삭제" className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div></div>
+    {source && source.status !== "current" && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <strong>원본 매물 재확인 필요</strong>
+      <p className="mt-1">{source.status === "missing" ? "원본 매물을 더 이상 조회할 수 없습니다." : source.needs_confirmation ? "원본 매물의 거래 가능 상태 또는 확인 시각을 다시 확인해주세요." : "저장 당시와 원본 내용이 달라졌습니다."}</p>
+      {Object.entries(source.changes).map(([field, values]) => <p key={field} className="mt-1 text-xs">{sourceLabels[field] ?? field}: {sourceValue(field, values.saved)} → {sourceValue(field, values.current)}</p>)}
+      <Link href={listingEntryHref({caseId:String(caseId),listingId:String(property.source_listing_id ?? source.listing_id)})} className="mt-2 inline-block font-semibold underline">보관함에서 이 매물 확인</Link>
+      {source.status === "changed" && !source.needs_confirmation && source.current &&
+        typeof source.current.revision_id === "number" && typeof source.current.confirmed_at === "string" &&
+        <button disabled={sourceBusy} onClick={async () => {
+          setSourceBusy(true); setSourceError("");
+          try {
+            const result = await api.applyListingUpdate(caseId, property.id,
+              source.current!.revision_id!, source.current!.confirmed_at!);
+            await reload();
+            if (result.decision_reopened) setSourceError("이전 최종 선택이 해제되었습니다. 분석을 다시 확인한 뒤 선택해주세요.");
+          } catch { setSourceError("원본 반영에 실패했습니다. 매물의 최신 상태를 확인하고 다시 시도해주세요."); }
+          finally { setSourceBusy(false); }
+        }} className="ml-3 rounded bg-amber-900 px-3 py-1.5 font-semibold text-white disabled:opacity-50">{sourceBusy ? "반영 중…" : "확인한 변경사항 반영"}</button>}
+    </div>}
+    {sourceError && <p role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{sourceError}</p>}
+    {property.source_reviews.length > 0 && <details className="mt-3 rounded-lg border p-3 text-xs text-slate-600">
+      <summary className="cursor-pointer font-semibold">매물 변경·이전 판단 기록 {property.source_reviews.length}건</summary>
+      {property.source_reviews.map(review => <p key={review.id} className="mt-2 border-t pt-2">
+        {review.created} · 희망가 {won(numberValue(review.previous_snapshot.asking_price))} → {won(numberValue(review.applied_snapshot.asking_price))}
+        {review.previous_decision && <> · 이전 선택 근거: {review.previous_decision.reason}</>}
+        {review.invalidated_analyses.length > 0 && <> · 재분석: {review.invalidated_analyses.join(", ")}</>}
+        {review.previous_analyses.map((analysis, index) => <span key={`${analysis.type}-${index}`} className="mt-1 block">
+          변경 전 {ANALYSIS_LABEL[analysis.type as keyof typeof ANALYSIS_LABEL] ?? analysis.type} 분석:
+          {analysis.type === "appraisal" ? ` ${won(numberValue(analysis.summary.estimated_value))}` :
+           analysis.type === "simulation" ? ` 매수가 ${won(numberValue(analysis.summary.purchase_price))}` : ` ${analysis.status}`}
+        </span>)}
+        {review.previous_execution.length > 0 && <span className="mt-1 block">변경 전 실행 항목: {review.previous_execution.map(task => `${task.title}(${task.status}${task.outcome ? ` · ${task.outcome}` : ""})`).join(", ")}</span>}
+      </p>)}
+    </details>}
     <div className="mt-4 grid gap-2 md:grid-cols-3">{(["appraisal", "simulation", "rights"] as const).map((type) => {
       const analysis = analyses.get(type);
       const href = type === "appraisal" ? `/appraisal?caseId=${caseId}&candidateId=${property.id}` : `/${type}`;

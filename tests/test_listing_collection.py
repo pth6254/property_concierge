@@ -55,6 +55,16 @@ def test_parser_reads_live_page_label_layout_without_guessing_availability():
     assert result["fields"]["status"] == "unknown"
 
 
+def test_listing_address_is_not_replaced_by_broker_address():
+    text = ("매매 10억\n전용면적 84.9㎡\n소재지\n서울특별시 서초구 반포동 1\n"
+            "중개사 정보\n주소\n서울특별시 강남구 역삼동 2")
+    assert parse_page(text, "검증 아파트")["fields"]["address"] == "서울특별시 서초구 반포동 1"
+    ambiguous = "매매 10억\n전용면적 84.9㎡\n소재지 서울특별시 서초구 반포동 1\n소재지 서울특별시 서초구 서초동 2"
+    assert "address" not in parse_page(ambiguous, "검증 아파트")["fields"]
+    broker_only = "매매 10억\n전용면적 84.9㎡\n중개사 정보\n상호 강남중개\n대표 김검증\n소재지 서울특별시 강남구 역삼동 2"
+    assert "address" not in parse_page(broker_only, "검증 아파트")["fields"]
+
+
 def test_observation_failure_preserves_listing_and_blocks_fresh_recommendation(regions):
     from backend.services.listing_observations import record_observation, history
     from db.base import session_scope
@@ -82,6 +92,28 @@ def test_observation_failure_preserves_listing_and_blocks_fresh_recommendation(r
     assert regions.get("/api/listings?fresh_only=true").json()["total"] == 1
 
 
+def test_listing_page_fetches_observations_in_batches(regions):
+    from sqlalchemy import event
+    from db.base import get_engine
+
+    rows = [row(external_id=f"listing-{i}", source_url=f"https://fin.land.naver.com/articles/{123450+i}")
+            for i in range(5)]
+    assert upload(regions, rows).json()["created"] == 5
+    statements = []
+
+    def record(_connection, _cursor, statement, _parameters, _context, _many):
+        if "listing_observations" in statement:
+            statements.append(statement)
+
+    event.listen(get_engine(), "before_cursor_execute", record)
+    try:
+        response = regions.get("/api/listings")
+    finally:
+        event.remove(get_engine(), "before_cursor_execute", record)
+    assert response.status_code == 200 and response.json()["total"] == 5
+    assert len(statements) == 2
+
+
 def test_collection_job_and_owner_isolation(regions, monkeypatch):
     from backend.services import listing_observations
     from db.redis_client import get_redis
@@ -104,3 +136,21 @@ def test_collection_job_and_owner_isolation(regions, monkeypatch):
     assert regions.get(f"/api/listings/collection/jobs/{job}").status_code == 401
     assert regions.post("/api/auth/register",json={"email":"collector-other@example.com","password":"password-12345","name":"검증"}).status_code == 201
     assert regions.get(f"/api/listings/collection/jobs/{job}").status_code == 404
+
+
+def test_shared_wait_rejects_job_before_enqueue(regions, monkeypatch):
+    from backend.services import listing_collection_gate as gate
+    from db.redis_client import get_redis
+    from api import jobs
+    monkeypatch.setattr(gate, "KEY", "test:listing-collection:api-gate")
+    def unexpected(*args, **kwargs):
+        raise AssertionError("대기 중인 작업을 큐에 넣으면 안 됨")
+    monkeypatch.setattr(jobs, "create_task", unexpected)
+    try:
+        gate.postpone(900)
+        response = regions.post("/api/listings/collection/jobs", json={"source_url":"https://fin.land.naver.com/articles/123"})
+        assert response.status_code == 429
+        assert int(response.headers["Retry-After"]) > 0
+        assert "자동 재시도하지 않습니다" in response.json()["detail"]
+    finally:
+        get_redis().delete(gate.KEY)

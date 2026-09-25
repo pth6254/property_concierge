@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { removeSessionValue, setSessionValue, useSessionValue } from "@/lib/sessionStore";
@@ -24,6 +24,19 @@ type KakaoDoc = {
 };
 
 const STEPS = ["물건 종류", "주소 입력", "상세 정보"];
+const POLL_INTERVAL_MS = 2000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+const PENDING_JOB_KEY = "appraisalPendingJob";
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
+    }, { once: true });
+  });
+}
 
 export default function AppraisalForm({ caseId, candidateId }: { caseId?: number; candidateId?: number }) {
   const router = useRouter();
@@ -66,6 +79,8 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
   const [progressStep, setProgressStep] = useState(""); // 파이프라인 현재 노드명
+  const pendingJob = useSessionValue(PENDING_JOB_KEY);
+  const resumingRef = useRef(false);
 
   // 폴링 취소용 — 페이지를 벗어나면 진행 중인 요청과 대기를 즉시 중단한다.
   // (없으면 다른 메뉴로 이동해도 2초마다 API를 계속 호출하는 유령 폴링이 남는다)
@@ -151,21 +166,47 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
     return "";
   };
 
-  const POLL_INTERVAL_MS = 2000;
-  // 파이프라인은 보통 30초~2분이지만, 워커가 죽으면 job이 running 상태로 남는다
-  // (서버측 PENDING_TTL은 2시간). 클라이언트는 그보다 훨씬 짧게 끊어
-  // 사용자가 "진행 중" 화면에 무한정 갇히지 않게 한다.
-  const POLL_TIMEOUT_MS = 5 * 60 * 1000;
+  const pollJob = useCallback(async (jobId: string, query: string, signal: AbortSignal) => {
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      await sleep(POLL_INTERVAL_MS, signal);
+      const job = await api.appraisalJob(jobId, signal);
+      if (job.step) setProgressStep(job.step);
+      if (job.status === "done") {
+        removeSessionValue(PENDING_JOB_KEY);
+        if (job.result) {
+          setSessionValue("appraisalResult", JSON.stringify(job.result));
+          setSessionValue("appraisalQuery", query);
+        }
+        router.push(job.history_id ? `/report/${job.history_id}` : "/report");
+        return;
+      }
+      if (job.status === "error") {
+        removeSessionValue(PENDING_JOB_KEY);
+        setError(job.error || "시세추정 실패");
+        return;
+      }
+    }
+    setError("시세추정이 예상보다 오래 걸립니다. 새로고침하면 같은 작업을 다시 확인합니다.");
+  }, [router]);
 
-  /** abort 되면 즉시 깨어나는 sleep — 페이지 이탈 후 최대 2초를 더 기다리지 않도록 */
-  const sleep = (ms: number, signal: AbortSignal) =>
-    new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(resolve, ms);
-      signal.addEventListener("abort", () => {
-        clearTimeout(timer);
-        reject(signal.reason ?? new DOMException("Aborted", "AbortError"));
-      }, { once: true });
-    });
+  useEffect(() => {
+    if (!pendingJob || resumingRef.current) return;
+    let saved: { jobId: string; query: string; caseId?: number; candidateId?: number };
+    try { saved = JSON.parse(pendingJob); } catch { removeSessionValue(PENDING_JOB_KEY); return; }
+    if (saved.caseId !== caseId || saved.candidateId !== candidateId) return;
+    resumingRef.current = true;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    void Promise.resolve().then(() => {
+      if (controller.signal.aborted) return;
+      setLoading(true);
+      return pollJob(saved.jobId, saved.query, controller.signal);
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "작업 조회 실패");
+    }).finally(() => { resumingRef.current = false; if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [pendingJob, caseId, candidateId, pollJob]);
 
   const handleSubmit = async () => {
     if (prefillLoading || prefillError) return;
@@ -197,39 +238,15 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
         candidateId,
         areaSqm ? Number(areaSqm) : undefined,
       );
-
-      // 2) 완료까지 폴링 (진행 단계 표시)
-      const deadline = Date.now() + POLL_TIMEOUT_MS;
-      while (Date.now() < deadline) {
-        await sleep(POLL_INTERVAL_MS, signal);
-        const job = await api.appraisalJob(job_id, signal);
-        if (job.step) setProgressStep(job.step);
-
-        if (job.status === "done") {
-          if (job.result) {
-            setSessionValue("appraisalResult", JSON.stringify(job.result));
-            setSessionValue("appraisalQuery", userInput);
-          }
-          // 이력에 저장된 경우 영속 URL로, 아니면 세션 리포트로
-          router.push(job.history_id ? `/report/${job.history_id}` : "/report");
-          return;
-        }
-        if (job.status === "error") {
-          setError(job.error || "시세추정 실패");
-          return;
-        }
-      }
-
-      // 제한 시간 초과 — 작업 자체는 서버에서 계속 돌 수 있으므로 그 점을 안내한다
-      setError(
-        "시세추정이 예상보다 오래 걸리고 있습니다. 작업은 계속 진행 중일 수 있으니 " +
-        "잠시 후 이력 대시보드에서 결과를 확인해주세요."
-      );
+      resumingRef.current = true;
+      setSessionValue(PENDING_JOB_KEY, JSON.stringify({ jobId: job_id, query: userInput, caseId, candidateId }));
+      await pollJob(job_id, userInput, signal);
     } catch (e: unknown) {
       // 페이지 이탈로 인한 취소는 사용자에게 보여줄 오류가 아니다
       if (signal.aborted) return;
       setError(e instanceof Error ? e.message : "시세추정 실패");
     } finally {
+      resumingRef.current = false;
       if (!signal.aborted) setLoading(false);
     }
   };

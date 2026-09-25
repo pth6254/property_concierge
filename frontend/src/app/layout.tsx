@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${pretendard.className} h-full`}>
         <AuthProvider>
           <Navbar />
-          <main className="min-h-screen p-4 md:ml-[236px] md:p-6">{children}</main>
+          <main className="min-h-screen min-w-0 p-4 pb-24 md:ml-[236px] md:p-6 md:pb-24">{children}</main>
           <ConciergeWidget />
         </AuthProvider>
       </body>

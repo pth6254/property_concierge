@@ -10,6 +10,7 @@ try{
  async function ask(text){return resultAfter(async()=>{await page.getByPlaceholder('예산과 희망 지역을 말씀해 주세요').fill(text);await page.getByRole('button',{name:'메시지 보내기',exact:true}).click();});}
  let result=await ask('서울특별시 강남구 역삼동 8억 이하 아파트 매매 단지 추천해줘');assert.equal(result.tool_used,'select_properties');
  const item=result.data.results[0];const card=page.getByRole('article',{name:`${item.complex_name} 후보 저장`});
+ await card.getByRole('button',{name:'매물 링크 없이 후보 직접 입력'}).click();
  assert.equal(await card.getByLabel('확인한 희망가 (만원, 선택)').inputValue(),'');
  await card.getByLabel('실제 검토 전용면적 (㎡)').fill('49');await card.getByLabel('확인한 희망가 (만원, 선택)').fill('70000');
  await card.getByRole('button',{name:'후보 저장·선택'}).click();await page.getByText(/후보를 저장하고 선택했습니다/).waitFor();

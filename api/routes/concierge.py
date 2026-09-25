@@ -45,12 +45,4 @@ async def send_message(
 @router.post("/concierge/jobs")
 async def create_concierge_job(request: ConciergeMessageRequest, user: dict = Depends(get_current_user)):
     from api import jobs
-    def runner(set_step):
-        set_step("의도 확인 및 근거 검색")
-        try:
-            return asyncio.run(send_message(request, user)).model_dump(mode="json")
-        except HTTPException as exc:
-            return {"error": exc.detail}
-        except Exception:
-            return {"error": "요청 처리 중 오류가 발생했습니다."}
-    return {"job_id": jobs.create(runner, owner_id=user["id"])}
+    return {"job_id": jobs.create_task("concierge", {"request": request.model_dump(mode="json")}, owner_id=user["id"])}

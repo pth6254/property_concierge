@@ -3,6 +3,9 @@
 매수 의사결정 상태, AVM 백테스트, 종합 컨시어지 의도 추출, 계산 결과, RAG 검색, 실제 챗봇 대화를 같은 명령과 보고서 형식으로 평가한다.
 기존 `tests/` 회귀 테스트를 대체하지 않는다. 서비스의 공개 API에는 평가 추적 정보를 노출하지 않는다.
 
+실제 매물 원문의 호가·전용면적·주소 대조는 `python -m evaluation listing-check --live --dataset <정답 JSON>`으로 실행한다.
+최근 24시간 이내 사람이 확인한 정답이 필요하며 조회 실패도 분모에 포함한다. 형식과 검증 경계는 [운영 안내](../docs/operations.md)를 따른다.
+
 ## 빠른 실행
 
 저장소 루트에서 실행한다. 이 저장소에서는 아래 `python`을 WSL의 `./venv-wsl/bin/python`으로 바꾼다.
@@ -96,6 +99,16 @@ python -m evaluation run --suite chat --dataset my_chat_cases.json --live
 `tests/test_candidate_avm.py`는 소유자 격리·정보 부족·결과 연결·저장 실패·실제 파이프라인 모델 직렬화·금액 단위를 검증한다.
 
 실제 브라우저 재검증은 Chrome과 Playwright가 설치된 환경에서 `scripts/verify_candidate_avm_browser.cjs`로 실행한다.
+매물 CSV 저장부터 후보 연결·원본 가격 갱신 경고·비교·선택·새로고침까지의 실제 API와 브라우저 흐름은 `scripts/verify_listing_import_browser.cjs <격리 API 주소>`로 검증한다. 이 스크립트의 원문 수집 응답만 고정 입력이며, AVM 정확도는 별도 백테스트 대상이다.
+CI에서는 별도 PostgreSQL·Redis 서비스와 Chromium을 띄워 이 브라우저 흐름을 반복한다. 실제 AVM 실행 브라우저 검증과 네이버의 현재 유효 매물 추출 성공 여부는 이 CI 검사에 포함되지 않는다.
+
+### 거래 의사결정 전체 흐름 게이트
+
+`tests/test_decision_flow_integration.py`는 격리 PostgreSQL·Redis와 실제 FastAPI 경로를 통해 매물 등록 → 후보 연결 → AVM 작업 → 실제 자금 계산 → 비교 → 선택 → 매물 가격 변경 → 분석 무효화·선택 해제 → 재분석·재선택을 확인한다. AVM 출력만 고정 입력이므로 **기능 연결과 판단 상태 전이**의 회귀 검사이며 실제 AVM 가격 정확도 평가는 아니다.
+
+`scripts/verify_listing_import_browser.cjs`는 같은 거래 흐름의 화면 조작·새로고침 복원을 검증한다. 결과는 `evaluation-results/decision-flow-browser.json`과 화면 이미지에 기록된다. CI에서 백엔드 JUnit 결과와 함께 아티팩트로 보관한다. 브라우저 검증은 매물 원문 수집 응답 1건만 고정한다. 현재 유효한 네이버 매물 수집 성공, 실제 모델의 AVM·대화 품질, 외부 금융기관 계산 대조는 별도 평가 대상이다.
+
+배포 게이트는 전체 백엔드 테스트, 기존 고정 입력 평가, 브라우저 흐름의 성공 여부다. 해당 검사에서 실패가 있으면 게이트가 실패한다. 실제 사용자 운영 전에는 별도의 실데이터 AVM 백테스트와 대표 질문 사람 검토 결과도 확인해야 한다.
 `E2E_BASE_URL`에 최신 프론트엔드 주소를 지정하고, Playwright를 별도로 설치했다면 `PLAYWRIGHT_MODULE_PATH`에 해당 모듈 경로를 지정한다.
 개발 서버는 허용된 `localhost` 주소를 사용한다. 실행 중인 백엔드·PostgreSQL·Redis·모델·국토부 API 설정이 필요하다.
 

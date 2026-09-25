@@ -1,27 +1,13 @@
-"""
-jobs.py — 비동기 작업 매니저 (Redis 상태 저장 + 인프로세스 실행)
+"""Redis Stream 작업 입력·상태 저장과 사용자별 결과 조회.
 
-감정(시세추정) 파이프라인처럼 수십 초~수 분 걸리는 작업을
-HTTP 요청과 분리해 백그라운드 스레드로 실행하고,
-job_id로 진행 상태·결과를 조회한다.
-
-흐름:
-  POST /appraisal/jobs      → create() → {job_id}
-  GET  /appraisal/jobs/{id} → get()    → {status, step, history_id, result?}
-
-이전에는 상태를 프로세스 메모리 dict에 저장했다 — uvicorn을 --workers N 으로
-띄우면 워커 A가 만든 job을 워커 B가 폴링했을 때 찾지 못하는 문제가 있었다.
-이제 상태는 Redis에 저장해 워커가 몇 개든 공유한다.
-
-실제 작업 실행(runner)은 여전히 그 job을 만든 워커의 스레드에서 돈다 —
-바뀐 건 상태를 어디서 보느냐지, 어디서 실행하느냐가 아니다. MAX_CONCURRENT
-세마포어도 여전히 워커 프로세스마다 로컬이라, 워커 수만큼 전체 동시실행
-한도가 자연스럽게 늘어난다 (LLM·외부 API 부하는 워커당 4개로 계속 보호됨).
+실제 API 경로는 create_task()로 저장 가능한 입력을 기록하고 api.job_worker가 실행한다.
+create()는 callable을 직접 넘기는 기존 테스트·내부 호출의 호환 경로다.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 import uuid
@@ -32,9 +18,11 @@ from db.redis_client import get_redis
 
 FINISHED_TTL = 60 * 60       # 완료/실패 작업 Redis 보관 1시간
 PENDING_TTL  = 60 * 60 * 2   # queued/running 상태 안전망 TTL — 워커가 죽어도 영구 고아 키로 남지 않게
-MAX_CONCURRENT = 4           # 동시 실행 상한 (워커 프로세스당, LLM·외부 API 부하 보호)
+MAX_CONCURRENT = 4           # 별도 실행기 프로세스당 동시 실행 상한
 
 _SEMAPHORE = threading.Semaphore(MAX_CONCURRENT)
+STREAM = "property-jobs:pytest" if os.getenv("PYTEST_CURRENT_TEST") else "property-jobs"
+GROUP = "property-job-workers"
 
 
 def _key(job_id: str) -> str:
@@ -49,6 +37,31 @@ def _save(job_id: str, job: dict, ttl: int) -> None:
 def _load(job_id: str) -> Optional[dict]:
     raw = get_redis().get(_key(job_id))
     return json.loads(raw) if raw is not None else None
+
+
+def create_task(task_type: str, payload: dict, owner_id: int | None = None) -> str:
+    """재시작 후에도 실행할 수 있도록 작업 입력과 상태를 함께 Redis에 기록한다."""
+    job_id = uuid.uuid4().hex[:16]
+    job = {"id": job_id, "status": "queued", "step": "", "created_at": time.time(),
+           "finished_at": 0.0, "result": None, "error": "", "extra": {}, "owner_id": owner_id}
+    client = get_redis()
+    with client.pipeline(transaction=True) as pipe:
+        pipe.set(_key(job_id), json.dumps(job, ensure_ascii=False), ex=PENDING_TTL)
+        pipe.xadd(STREAM, {"job_id": job_id, "task_type": task_type,
+                           "payload": json.dumps(jsonable_encoder(payload), ensure_ascii=False)})
+        _, stream_id = pipe.execute()
+    if os.getenv("PYTEST_CURRENT_TEST"):
+        # API 단위 테스트는 별도 OS 프로세스 대신 동일한 실행기를 돌려 패치를 공유한다.
+        def _test_worker():
+            from api.job_worker import ensure_group, process_record
+            ensure_group()
+            try:
+                process_record(stream_id, {"job_id": job_id, "task_type": task_type,
+                                           "payload": json.dumps(payload, ensure_ascii=False)})
+            finally:
+                client.xdel(STREAM, stream_id)
+        threading.Thread(target=_test_worker, daemon=True).start()
+    return job_id
 
 
 def create(runner: Callable[[Callable[[str], None]], dict],

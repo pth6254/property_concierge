@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 // 별도 설치된 Playwright도 사용할 수 있게 해 앱의 런타임 의존성에 섞지 않는다.
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../frontend/node_modules/playwright');
 (async () => {
   const browser = await chromium.launch({channel:'chrome',headless:true});
   const context = await browser.newContext({baseURL:process.env.E2E_BASE_URL || 'http://localhost:3001'});
@@ -15,7 +15,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
   let registered=false;
   const evidence={mode:'live',model_mocked:false,stages:[]};
   const formFlow=process.argv.includes('--form');
-  evidence.flow=formFlow?'form':'chat';
+  const decisionFlow=process.argv.includes('--decision-flow');
+  evidence.flow=decisionFlow?'decision':formFlow?'form':'chat';
   let caseId;
   try {
     console.log('Browser live validation started');
@@ -91,6 +92,40 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
     evidence.stages.push('won_conversion_and_confirmed_area');
     evidence.history_id=job.history_id; evidence.estimated_value=linked.appraisal.estimated_value;
     evidence.stages.push('live_avm_saved_to_candidate');
+    if(decisionFlow){
+      await page.goto(`/cases/${caseId}`);
+      await page.getByRole('link').filter({hasText:'자금 분석'}).click();
+      await page.getByLabel('보유 현금 (원)',{exact:true}).fill('20억');
+      await page.getByLabel('월 대출 상환 한도 (원)',{exact:true}).fill('1000만');
+      await page.getByPlaceholder('예: 8000만').fill('3억');
+      const calculated=page.waitForResponse(r=>r.url().endsWith('/api/simulation')&&r.request().method()==='POST');
+      await page.getByRole('button',{name:'💰 시뮬레이션 계산',exact:true}).click();
+      const simulation=await(await calculated).json();
+      if(simulation.error||!simulation.candidate_funding)throw Error('실제 자금 계산 저장 실패');
+      evidence.stages.push('real_funding_calculated_and_saved');
+      // 두 번째 후보도 실제 계산기로 분석해 비교 값이 섞이지 않는지 확인한다.
+      const other=await(await context.request.post(`/api/cases/${caseId}/properties`,{data:{name:'비교용 직접 입력 후보',address:'서울특별시 서초구 반포동',category:'아파트',area_sqm:84.9,asking_price:3100000000}})).json();
+      const otherCalculation=await context.request.post('/api/simulation',{data:{case_id:caseId,candidate_id:other.id,purchase_price:3100000000,cash_available:2000000000,monthly_payment_limit:10000000,annual_income:300000000}});
+      if(otherCalculation.status()!==200)throw Error('두 번째 후보 계산 실패');
+      await page.goto(`/cases/${caseId}/comparison`);
+      await page.getByRole('button',{name:'이 후보를 최종 선택',exact:true}).first().click();
+      await page.locator('textarea').fill('검증용 선택: 실제 AVM·자금 결과를 비교했으며 권리서류 미확인 상태를 인지함');
+      await page.getByRole('button',{name:'선택 저장',exact:true}).click();
+      await page.getByText('최종 선택과 근거가 저장되었습니다. 남은 확인 사항은 거래 준비에서 이어가세요.',{exact:true}).waitFor();
+      await page.reload();
+      const persisted=await(await context.request.get(`/api/cases/${caseId}/summary`)).json();
+      if(persisted.case.selected_property_id!==candidate.id)throw Error('최종 선택 복원 실패');
+      const selected=persisted.comparison.rows.find(r=>r.property_id===candidate.id);
+      if(selected.funding.required_cash!==simulation.candidate_funding.required_cash)throw Error('자금 결과 비교 불일치');
+      if(selected.estimated_value!==expectedWon)throw Error('AVM 결과 비교 불일치');
+      if(!selected.missing.some(v=>v.includes('권리')))throw Error('미확인 위험 누락');
+      await page.goto(`/cases/${caseId}/summary`);
+      await page.getByRole('heading',{name:'매수 검토 요약',exact:true}).waitFor();
+      await page.getByText('권리서류 분석',{exact:true}).first().waitFor();
+      if(!(await page.getByRole('link',{name:'검토 항목 보기',exact:true}).first().getAttribute('href')).startsWith(`/cases/${caseId}#candidate-checklist-`))throw Error('요약의 체크리스트 이동 경로 오류');
+      await page.screenshot({path:'evaluation-results/decision-live-summary.png',fullPage:true});
+      evidence.stages.push('two_candidate_comparison','selection_and_reload','summary_matches_saved_analysis');
+    }
     await page.goto(`/cases/${caseId}`); await page.reload();
     await page.getByRole('link',{name:'시세추정 리포트 보기'}).waitFor();
     await page.screenshot({path:'evaluation-results/avm-browser.png',fullPage:true});

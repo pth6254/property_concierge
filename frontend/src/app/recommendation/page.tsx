@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { parseWon } from "@/lib/moneyInput";
 import { removeSessionValue, setSessionValue } from "@/lib/sessionStore";
-import type { RecommendationResult } from "@/lib/types";
+import type { ComplexAddress, RecommendationResult } from "@/lib/types";
+import ComplexAddressDetails from "@/components/ComplexAddressDetails";
+import ExternalListingLink from "@/components/ExternalListingLink";
 
 const REGIONS    = ["전체", "강남구", "마포구", "서초구", "송파구", "용산구", "성동구", "강동구", "영등포구"];
 const PROP_TYPES = ["전체", "주거용", "상업용", "업무용", "산업용", "토지"];
@@ -28,7 +30,7 @@ function ScoreBar({ score, max = 10 }: { score?: number; max?: number }) {
   );
 }
 
-type ComplexResult = {
+type ComplexResult = ComplexAddress & {
   complex_name: string; dong: string; avg_price: number;
   avg_per_sqm: number; avg_area_m2: number; deal_count: number;
   build_year: number; last_deal_ym: string; score: number; reasons: string[];
@@ -152,8 +154,9 @@ export default function RecommendationPage() {
       <div className="flex items-start gap-6">
         {/* 메인 */}
         <div className="flex-1">
-          <h1 className="text-2xl font-bold mb-1">매물 추천</h1>
-          <p className="text-slate-500 text-sm mb-4">조건을 입력하면 AI가 최적 매물·단지를 추천합니다.</p>
+          <h1 className="text-2xl font-bold mb-1">단지 추천·샘플</h1>
+          <p className="text-slate-500 text-sm mb-4">실거래 단지 추천과 가상 매물 체험 도구입니다. 실제 매수 검토는 동네 탐색과 매수 검토 케이스에서 진행하세요.</p>
+          <a href="/explore" className="mb-4 inline-block text-sm font-semibold text-primary underline">동네 탐색에서 매수 검토 시작 →</a>
 
           {/* 모드 토글 */}
           <div className="flex gap-1 mb-5 bg-slate-100 rounded-xl p-1 w-fit">
@@ -231,7 +234,7 @@ export default function RecommendationPage() {
               {cxResults.length > 0 && (
                 <div className="space-y-4">
                   {cxResults.map((c, i) => (
-                    <div key={c.complex_name} className="bg-white rounded-xl shadow p-5 border-l-4 border-emerald-500">
+                    <div key={`${c.dong}:${c.complex_name}`} className="bg-white rounded-xl shadow p-5 border-l-4 border-emerald-500">
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">{i + 1}위</span>
@@ -243,6 +246,8 @@ export default function RecommendationPage() {
                           <div className="text-xs text-slate-400">{c.avg_per_sqm.toLocaleString()}만원/㎡ · {c.deal_count}건</div>
                         </div>
                       </div>
+                      <ComplexAddressDetails item={c} />
+                      <ExternalListingLink context={{ name: c.complex_name, address: c.road_address || c.jibun_address || `${cxRegion} ${c.dong}`, propertyType: "apartment" }} compact />
                       <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs text-slate-500 w-14">종합 점수</span>
                         <ScoreBar score={c.score} />

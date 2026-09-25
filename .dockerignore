@@ -31,7 +31,12 @@ env/
 *.db-shm
 *.db-wal
 *.sqlite3
-data/
+backups/
+*.dump
+# 런타임에 필요한 공개 정적 자료만 포함하고 로컬 DB·수집 원문은 제외한다.
+data/*
+!data/sample_listings.csv
+!data/avm_calibration.json
 
 # Node
 frontend/node_modules
@@ -40,6 +45,7 @@ frontend/.turbo
 
 # 테스트 / 커버리지
 .pytest_cache/
+evaluation-results/
 .coverage
 htmlcov/
 .tox/

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import DecisionJourney from "@/components/DecisionJourney";
 import { useEffect, useState } from "react";
 import { BriefcaseBusiness, ChevronRight, Plus } from "lucide-react";
 import { api } from "@/lib/api";
@@ -50,6 +51,7 @@ export default function CasesPage() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      <DecisionJourney current="cases" />
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">매수 검토 케이스</h1>
@@ -77,6 +79,7 @@ export default function CasesPage() {
           <BriefcaseBusiness className="mx-auto mb-3 text-slate-300" size={36} />
           <p className="font-semibold text-slate-700">아직 검토 케이스가 없습니다.</p>
           <p className="mt-1 text-sm text-slate-400">매수 목표를 만들고 후보 부동산을 모아보세요.</p>
+          <Link href="/explore" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">동네 탐색부터 시작</Link>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

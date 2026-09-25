@@ -99,10 +99,102 @@ def test_search_candidates_and_ownership(regions,monkeypatch):
     assert answer['tool_used']=='search_listings' and '800,000,000원' in answer['answer']
     client.cookies.clear()
     assert client.get('/api/listings').status_code==401
+    assert client.get(f"/api/listings/{item['id']}").status_code==401
     assert client.post('/api/auth/register',json={'email':'listing-other@example.com','password':'listing-other-12345','name':'다른 사용자'}).status_code==201
     assert client.get('/api/listings').json()['total']==0
     assert client.get(f"/api/listings/{item['id']}/history").status_code==404
+    assert client.get(f"/api/listings/{item['id']}").status_code==404
     assert client.post(f"/api/listings/{item['id']}/candidate",json={'case_id':case['id']}).status_code==404
     assert upload(client,[recent]).json()['created']==1
     own=client.get('/api/listings').json()['items'][0]
+    detail=client.get(f"/api/listings/{own['id']}")
+    assert detail.status_code==200 and detail.json()['id']==own['id']
+    assert detail.json()['asking_price']==800000000
     assert client.post(f"/api/listings/{own['id']}/candidate",json={'case_id':case['id']}).status_code==404
+
+
+def test_source_listing_change_reaches_candidate_and_comparison(regions):
+    client = regions
+    assert upload(client, [row()]).json()["created"] == 1
+    listing = client.get("/api/listings").json()["items"][0]
+    case = client.post("/api/cases", json={"title": "원본 변경 확인"}).json()
+    endpoint = f"/api/listings/{listing['id']}/candidate"
+    saved = client.post(endpoint, json={"case_id": case["id"]})
+    assert saved.status_code == 201
+    candidate_id = saved.json()["id"]
+    assert saved.json()["source_status"]["status"] == "current"
+    duplicate = client.post(endpoint, json={"case_id": case["id"]})
+    assert duplicate.status_code == 200 and duplicate.json()["id"] == candidate_id
+    assert len(client.get(f"/api/cases/{case['id']}").json()["properties"]) == 1
+
+    changed = row(asking_price="900000000", confirmed_at=datetime.now(timezone.utc).isoformat())
+    assert upload(client, [changed]).json()["updated"] == 1
+    property = client.get(f"/api/cases/{case['id']}").json()["properties"][0]
+    assert property["asking_price"] == 800000000
+    assert property["source_status"]["status"] == "changed"
+    assert property["source_status"]["changes"]["asking_price"] == {"saved": 800000000, "current": 900000000}
+    assert "source_listing" in [action["code"] for action in property["next_actions"]]
+    comparison = client.get(f"/api/cases/{case['id']}/comparison").json()["rows"][0]
+    assert comparison["source_status"]["status"] == "changed"
+    assert any("원본 매물" in text for text in comparison["warnings"])
+
+
+def test_source_update_reopens_selection_and_requires_reanalysis(regions):
+    from api import case_db, history_db
+    from db.base import session_scope
+    from db.models import CandidateSourceReview, PurchaseCase
+    from sqlalchemy import select
+
+    client = regions
+    user_id = client.get("/api/auth/me").json()["id"]
+    assert upload(client, [row()]).json()["created"] == 1
+    listing = client.get("/api/listings").json()["items"][0]
+    case_id = client.post("/api/cases", json={"title": "변경 전 선택"}).json()["id"]
+    candidate_id = client.post(f"/api/listings/{listing['id']}/candidate",
+                               json={"case_id": case_id}).json()["id"]
+    old_inputs = case_db.candidate_inputs(case_id, candidate_id, user_id)
+    appraisal_result = {"analysis_result": {"estimated_value": 780000000}}
+    history_id = history_db.save("변경 전 입력", appraisal_result, user_id=user_id)
+    assert case_db.link_appraisal(case_id, candidate_id, history_id, user_id, appraisal_result)
+    assert case_db.link_candidate_analysis(case_id, candidate_id, user_id, "simulation",
+                                            {"purchase_price": 800000000, "cash_available": 500000000})
+    assert client.post(f"/api/cases/{case_id}/decision", json={
+        "property_id": candidate_id, "reason": "8억 기준 자금 계획으로 선택"}).status_code == 200
+
+    changed = row(asking_price="900000000", confirmed_at=datetime.now(timezone.utc).isoformat())
+    assert upload(client, [changed]).json()["updated"] == 1
+    candidate = client.get(f"/api/cases/{case_id}").json()["properties"][0]
+    current = candidate["source_status"]["current"]
+    endpoint = f"/api/cases/{case_id}/properties/{candidate_id}/source-update"
+    assert client.post(endpoint, json={"expected_revision_id": current["revision_id"] - 1,
+                                       "expected_confirmed_at": current["confirmed_at"]}).status_code == 422
+    assert client.post(f"/api/cases/{case_id}/decision", json={
+        "property_id": candidate_id, "reason": "변경 전 가격으로 재선택"}).status_code == 422
+    applied = client.post(endpoint, json={"expected_revision_id": current["revision_id"],
+                                          "expected_confirmed_at": current["confirmed_at"]})
+    assert applied.status_code == 200, applied.text
+    assert applied.json()["decision_reopened"]
+    after = client.get(f"/api/cases/{case_id}").json()
+    candidate = after["properties"][0]
+    assert after["selected_property_id"] is None and after["status"] == "reviewing"
+    assert candidate["asking_price"] == 900000000
+    assert candidate["source_status"]["status"] == "current"
+    assert {a["analysis_type"]: a["status"] for a in candidate["analyses"]} == {
+        "appraisal": "stale", "simulation": "stale"}
+    assert candidate["source_reviews"][0]["previous_decision"]["reason"] == "8억 기준 자금 계획으로 선택"
+    late_history = history_db.save("변경 전 늦게 끝난 AVM", appraisal_result, user_id=user_id)
+    with pytest.raises(ValueError, match="후보 정보가 바뀌었습니다"):
+        case_db.link_appraisal(case_id, candidate_id, late_history, user_id,
+                               appraisal_result, expected_inputs=old_inputs)
+    assert client.post(f"/api/cases/{case_id}/decision", json={
+        "property_id": candidate_id, "reason": "재분석 전 선택"}).status_code == 422
+    with session_scope() as session:
+        audit = session.scalar(select(CandidateSourceReview).where(CandidateSourceReview.property_id == candidate_id))
+        assert len(audit.previous_analyses) == 2
+        assert session.get(PurchaseCase, case_id).decision_reason == ""
+    new_history = history_db.save("변경 후 입력", appraisal_result, user_id=user_id)
+    assert case_db.link_appraisal(case_id, candidate_id, new_history, user_id, appraisal_result)
+    assert case_db.link_candidate_analysis(case_id, candidate_id, user_id, "simulation",
+                                            {"purchase_price": 900000000, "cash_available": 500000000})
+    assert client.post(f"/api/cases/{case_id}/decision", json={
+        "property_id": candidate_id, "reason": "9억 기준 재분석 후 선택"}).status_code == 200

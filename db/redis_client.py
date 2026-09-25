@@ -29,4 +29,4 @@ if not REDIS_URL:
 @lru_cache(maxsize=1)
 def get_redis() -> "redis.Redis":
     """프로세스당 커넥션 풀 1개를 재사용한다."""
-    return redis.Redis.from_url(REDIS_URL, decode_responses=True)
+    return redis.Redis.from_url(REDIS_URL, decode_responses=True, socket_connect_timeout=2, socket_timeout=5)

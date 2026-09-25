@@ -25,6 +25,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from api.routes import activity, appraisal, address, auth, cases, chat, comparison, concierge, history, listings, market, recommendation, rights, simulation
+from api.routes import operations
 from api import auth_db as _adb
 from api import history_db as _hdb
 from api import activity_db as _actdb
@@ -113,6 +114,7 @@ for _router in [
     address.router,
     rights.router,
     chat.router,
+    operations.router,
 ]:
     app.include_router(_router, prefix="/api")
 
@@ -120,3 +122,12 @@ for _router in [
 @app.get("/health", tags=["system"])
 def health():
     return {"status": "ok"}
+
+
+@app.get("/ready", tags=["system"])
+def readiness():
+    from fastapi.responses import JSONResponse
+    from api.operational_health import snapshot
+    state = snapshot()
+    # 공개 경로에는 내부 큐·인프라 정보를 노출하지 않는다.
+    return JSONResponse({"status": state["status"]}, status_code=200 if state["status"] == "ready" else 503)

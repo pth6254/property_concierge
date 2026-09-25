@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 import { useRouter } from "next/navigation";
 
 export interface AuthUser {
+  is_operator?: boolean;
   id: number;
   email: string;
   name: string;

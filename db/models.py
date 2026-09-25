@@ -17,6 +17,22 @@ from pgvector.sqlalchemy import Vector
 from db.base import Base
 
 
+class ComplexCatalog(Base):
+    """추천 표기와 검증된 단지 주소의 지속적인 대응 관계."""
+    __tablename__ = "complex_catalog"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lawd_code: Mapped[str] = mapped_column(String(5), nullable=False)
+    dong: Mapped[str] = mapped_column(String(50), nullable=False)
+    canonical_name: Mapped[str] = mapped_column(String(150), nullable=False)
+    name: Mapped[str] = mapped_column(String(150), nullable=False)
+    region: Mapped[str] = mapped_column(String(150), nullable=False)
+    aliases: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    address: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="unresolved")
+    checked_at: Mapped[float] = mapped_column(Float, nullable=False)
+    __table_args__ = (Index("uq_complex_catalog_identity", "lawd_code", "dong", "canonical_name", unique=True),)
+
+
 class LawCorpusDocument(Base):
     __tablename__ = "law_corpus_documents"
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -86,6 +102,7 @@ class HistoryRecord(Base):
     __tablename__ = "history"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    job_id: Mapped[str | None] = mapped_column(String(32), unique=True, default=None)
     query: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(String(50), default="")
     result: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -127,6 +144,7 @@ class PurchaseCase(Base):
     purpose: Mapped[str] = mapped_column(String(20), default="purchase", nullable=False)
     budget_min: Mapped[int | None] = mapped_column(BigInteger, default=None)
     budget_max: Mapped[int | None] = mapped_column(BigInteger, default=None)
+    buyer_profile: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
     target_regions: Mapped[list] = mapped_column(JSON, default=list)
     notes: Mapped[str] = mapped_column(Text, default="")
     selected_property_id: Mapped[int | None] = mapped_column(
@@ -159,12 +177,33 @@ class CaseProperty(Base):
     history_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("history.id", ondelete="SET NULL"), default=None, index=True
     )
+    source_listing_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("imported_listings.id", ondelete="SET NULL"), default=None, index=True
+    )
+    source_snapshot: Mapped[dict | None] = mapped_column(JSON, default=None)
     created: Mapped[str] = mapped_column(String(32), default=_now_str)
     updated: Mapped[str] = mapped_column(String(32), default=_now_str)
 
     __table_args__ = (
         Index("idx_case_properties_case_status", "case_id", "status"),
     )
+
+
+class CandidateSourceReview(Base):
+    """원본 매물 갱신 당시의 후보·선택 근거를 남겨 이후 판단의 출처를 보존한다."""
+    __tablename__ = "candidate_source_reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    case_id: Mapped[int] = mapped_column(Integer, ForeignKey("purchase_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    property_id: Mapped[int] = mapped_column(Integer, ForeignKey("case_properties.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    previous_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    applied_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
+    previous_decision: Mapped[dict | None] = mapped_column(JSON, default=None)
+    invalidated_analyses: Mapped[list] = mapped_column(JSON, default=list)
+    previous_analyses: Mapped[list] = mapped_column(JSON, default=list)
+    previous_execution: Mapped[list] = mapped_column(JSON, default=list)
+    created: Mapped[str] = mapped_column(String(32), default=_now_str)
 
 
 class CandidateAnalysis(Base):
@@ -450,6 +489,7 @@ class ListingObservation(Base):
     """실패도 남겨 마지막 성공과 마지막 시도를 구별하는 불변 수집 기록."""
     __tablename__ = "listing_observations"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[str | None] = mapped_column(String(32), unique=True, default=None)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     external_id: Mapped[str] = mapped_column(String(100), nullable=False)
     requested_at: Mapped[float] = mapped_column(Float, nullable=False)

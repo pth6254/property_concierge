@@ -1,7 +1,7 @@
 """국토부 매매 실거래가를 지역·원천·거래월 단위로 증분 수집한다.
 
-완료 이력은 ``ingest_log``에 남는다. 같은 범위를 다시 실행하면 완료된 조합은
-건너뛰고 실패했거나 중단된 조합만 재시도한다. ``--force``는 명시적인 재수집용이다.
+완료 이력은 ``ingest_log``에 남는다. 완료된 월은 TTL 내에서만 건너뛰고,
+정정·해제 가능성이 있는 월은 TTL 이후 다시 조회한다. ``--force``는 즉시 재수집용이다.
 """
 from __future__ import annotations
 
@@ -139,7 +139,7 @@ def main() -> None:
 
     print(f"수집 계획: {len(regions)}개 지역 × {len(endpoints)}개 원천 × {len(deal_months)}개월 = {len(jobs)}개 작업")
     print(f"수집 기간: {deal_months[0]} ~ {deal_months[-1]}")
-    print("완료 작업은 건너뛰며 실패·중단 작업만 다음 실행에서 재시도합니다.")
+    print("완료 작업은 TTL 내에서 건너뛰며 만료·실패·중단 작업을 다시 조회합니다.")
     if not args.yes and input("계속할까요? [y/N] ").strip().lower() != "y":
         sys.exit("중단")
 

@@ -20,8 +20,12 @@ const STAGES: Stage[] = [
     desc: "실거래 데이터 기반으로 조건에 맞는 단지를 찾아드립니다.",
     items: [
       {
-        href: "/recommendation", icon: MapPin, title: "매물 추천",
-        desc: "예산·지역·평형 조건에 맞는 최적의 단지를 추천합니다.", cta: "시작하기",
+        href: "/explore", icon: MapPin, title: "동네 탐색",
+        desc: "구·동별 실거래를 비교하고 관심 단지의 매물을 찾아보세요.", cta: "동네 찾아보기",
+      },
+      {
+        href: "/listings", icon: MapPin, title: "매물 보관함",
+        desc: "네이버에서 찾거나 직접 확인한 매물을 등록해 검토를 이어갑니다.", cta: "매물 등록·확인",
       },
     ],
   },
@@ -38,8 +42,8 @@ const STAGES: Stage[] = [
         desc: "대출·세금을 반영해 수익성을 시나리오별로 검토합니다.", cta: "시작하기",
       },
       {
-        href: "/comparison", icon: Columns2, title: "매물 비교",
-        desc: "후보 여러 곳을 점수 기준으로 한눈에 비교합니다.", cta: "시작하기",
+        href: "/cases", icon: Columns2, title: "후보 검토·비교",
+        desc: "케이스에 모은 후보의 시세·자금·위험을 비교하고 선택 근거를 남깁니다.", cta: "케이스에서 이어가기",
       },
     ],
   },

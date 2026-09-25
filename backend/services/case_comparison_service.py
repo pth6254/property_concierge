@@ -27,7 +27,9 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
         rights_summary = (rights or {}).get("summary") or {}
         asking = candidate.get("asking_price")
         estimated = appraisal_summary.get("estimated_value")
-        gap = asking - estimated if isinstance(asking, int) and isinstance(estimated, int) else None
+        confidence = appraisal_summary.get("confidence")
+        usable_estimate = (appraisal or {}).get("status") == "completed" and (confidence is None or confidence >= 0.5)
+        gap = asking - estimated if usable_estimate and isinstance(asking, int) and isinstance(estimated, int) else None
         gap_ratio = round(gap / estimated * 100, 1) if gap is not None and estimated else None
 
         missing = []
@@ -52,6 +54,8 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
             warnings.append("희망가가 추정가보다 5% 초과")
         elif gap_ratio is not None and gap_ratio <= 0:
             highlights.append("희망가가 추정가 이하")
+        if (appraisal or {}).get("status") == "completed" and isinstance(confidence, (int, float)) and confidence < 0.5:
+            warnings.append("AVM 추정 신뢰도가 낮아 가격 차이를 판단하지 않았습니다")
         rights_grade = rights_summary.get("risk_grade")
         if rights_grade in {"caution", "danger"}:
             warnings.append(f"권리 위험: {rights_summary.get('risk_label') or rights_grade}")
@@ -63,11 +67,26 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
         missing.extend(action["title"] for action in next_actions if action["priority"] != "warning")
         warnings.extend(action["title"] for action in next_actions if action["priority"] == "warning")
 
+        # 단계는 작업의 안내만 나타낸다. 최종 선택 가능 여부와 혼동하지 않는다.
+        if candidate.get("status") == "rejected":
+            review_stage = "excluded"
+        elif case.get("selected_property_id") == candidate["id"]:
+            review_stage = "precontract"
+        elif all((analysis or {}).get("status") == "completed" for analysis in (appraisal, simulation, rights)):
+            review_stage = "detailed"
+        elif asking is not None and len(case.get("properties") or []) >= 2:
+            review_stage = "comparison"
+        else:
+            review_stage = "exploration"
+
         rows.append({
             "property_id": candidate["id"], "name": candidate["name"],
             "address": candidate.get("address") or "", "status": candidate.get("status"),
             "asking_price": asking, "area_sqm": candidate.get("area_sqm"),
             "estimated_value": estimated, "price_gap": gap, "price_gap_ratio": gap_ratio,
+            "appraisal_confidence": confidence, "appraisal_match_level": appraisal_summary.get("match_level"),
+            "appraisal_comparable_count": appraisal_summary.get("comparable_count"),
+            "source_status": candidate.get("source_status"),
             "funding": simulation_summary if simulation else None,
             "rights": rights_summary if rights else None,
             "analysis_status": {
@@ -76,6 +95,7 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
                 "rights": (rights or {}).get("status", "missing"),
             },
             "review_progress": candidate.get("review_progress", 0),
+            "review_stage": review_stage,
             "missing": list(dict.fromkeys(missing)), "warnings": list(dict.fromkeys(warnings)),
             "highlights": list(dict.fromkeys(highlights)),
             "decision_ready": candidate.get("status") != "rejected" and not next_actions,

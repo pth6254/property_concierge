@@ -108,25 +108,11 @@ async def create_appraisal_job(request: Request, req: AppraisalRequest, user: Op
 
     logger.info("시세추정 요청(job) — %s / %s", req.user_input, req.building_name)
 
-    def runner(set_step):
-        return run_appraisal(
-            req.user_input,
-            req.building_name,
-            req.appraisal_date,
-            req.appraisal_purpose,
-            progress_cb=set_step,
-            address=req.address,
-            property_category=req.property_category,
-            property_detail=req.property_detail,
-            area_sqm=req.area_sqm,
-        )
-
-    job_id = jobs.create(
-        runner,
-        on_done=_save_history(req, user),
-        owner_id=user["id"] if user else None,
-        require_on_done=req.candidate_id is not None,
-    )
+    expected_inputs = (case_db.candidate_inputs(req.case_id, req.candidate_id, user["id"])
+                        if req.case_id is not None and req.candidate_id is not None and user else None)
+    job_id = jobs.create_task("appraisal", {"request": req.model_dump(mode="json"),
+                                                  "expected_candidate_inputs": expected_inputs},
+                              owner_id=user["id"] if user else None)
     return {"job_id": job_id}
 
 

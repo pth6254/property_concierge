@@ -11,6 +11,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from db.base import init_db, session_scope
 from db.models import HistoryRecord
@@ -33,10 +34,17 @@ def _serialize(obj):
     return obj
 
 
-def save(query: str, result: dict, user_id=None) -> int:
+def save(query: str, result: dict, user_id=None, job_id: str | None = None) -> int:
     ar       = result.get("analysis_result") or {}
     category = ar.get("agent_name", "") or result.get("category", "")
     with session_scope() as session:
+        if job_id:
+            stmt = pg_insert(HistoryRecord).values(query=query, category=category,
+                result=_serialize(result), user_id=user_id, job_id=job_id)
+            # 작업 재실행이 먼저 끝난 기록을 덮어쓰면 당시 분석 근거가 바뀐다.
+            stmt = stmt.on_conflict_do_update(index_elements=[HistoryRecord.job_id],
+                set_={"job_id": stmt.excluded.job_id}).returning(HistoryRecord.id)
+            return session.scalar(stmt)
         record = HistoryRecord(
             query=query, category=category,
             result=_serialize(result), user_id=user_id,

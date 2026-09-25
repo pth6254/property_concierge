@@ -13,6 +13,9 @@ def candidate_next_actions(case: dict, candidate: dict) -> list[dict]:
                             priority=priority, checklist_id=checklist_id))
 
     asking = candidate.get("asking_price")
+    source_status = candidate.get("source_status") or {}
+    if source_status.get("status") in {"changed", "needs_confirmation", "missing"}:
+        add("source_listing", "원본 매물 재확인", "저장 당시의 매물 정보와 현재 원본 또는 확인 상태가 다릅니다. 가격·거래 가능 여부를 다시 확인하세요.", "price", "warning")
     budget = case.get("budget_max")
     if asking is None:
         add("asking_price", "희망가 입력", "예산과 추정가를 비교할 가격이 없습니다.", "price", "input")
@@ -43,6 +46,9 @@ def candidate_next_actions(case: dict, candidate: dict) -> list[dict]:
                 add("rights_risk", "권리 위험 확인", "권리 위험 또는 미확인 결과가 있습니다. 분석 내용과 전문가 확인이 필요합니다.", kind, "warning")
 
     appraisal = analyses.get("appraisal") or {}
+    confidence = (appraisal.get("summary") or {}).get("confidence")
+    if appraisal.get("status") == "completed" and isinstance(confidence, (int, float)) and confidence < 0.5:
+        add("appraisal_confidence", "시세추정 근거 확인", "AVM 추정의 ±10% 적중 신뢰도가 낮습니다. 비교사례와 추정 근거를 확인하세요.", "appraisal", "warning")
     simulation = analyses.get("simulation") or {}
     if simulation.get("status") == "completed":
         for code, title, reason, priority in funding_issues(simulation.get("summary") or {}):
@@ -53,7 +59,7 @@ def candidate_next_actions(case: dict, candidate: dict) -> list[dict]:
         unresolved.add("simulation")
         add("simulation_price", "변경된 가격으로 자금 조건 확인", "자금분석의 매수가와 현재 희망가가 다릅니다. 적용할 가격을 확인하세요.", "simulation", "warning")
     estimated = (appraisal.get("summary") or {}).get("estimated_value")
-    if appraisal.get("status") == "completed" and isinstance(estimated, (int, float)) and estimated > 0 and asking is not None and asking > estimated * 1.05:
+    if appraisal.get("status") == "completed" and (confidence is None or confidence >= 0.5) and isinstance(estimated, (int, float)) and estimated > 0 and asking is not None and asking > estimated * 1.05:
         add("price_gap", "추정가 대비 희망가 확인", "희망가가 AVM 추정가보다 5% 넘게 높습니다. 가격 차이의 근거를 확인하세요.", "appraisal", "warning")
 
     category_analysis = {"price": "appraisal", "funding": "simulation", "rights": "rights"}

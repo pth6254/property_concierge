@@ -43,7 +43,8 @@ def get_engine() -> Engine:
             "(예: postgresql://postgres:password@localhost:5432/real_estate_db). "
             "로컬 개발은 `docker compose up pgvector` 로 컨테이너를 먼저 띄우세요."
         )
-    return create_engine(database_url, pool_pre_ping=True, future=True)
+    return create_engine(database_url, pool_pre_ping=True, future=True, pool_timeout=3,
+                         connect_args={"connect_timeout": 3})
 
 
 @lru_cache(maxsize=1)

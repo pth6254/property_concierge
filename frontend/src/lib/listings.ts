@@ -8,6 +8,7 @@ export type ImportedListing = {
 export type ListingObservation = {
   observation_id: number; source_url: string; external_id: string; fetched_at: number; requested_at: number;
   outcome: string; message: string;
+  reason_code?: string; upstream_status?: number; retry_after_seconds?: number; retry_at?: number; request_sent?: boolean;
   fields: { name?: string; address?: string; area_sqm?: number; transaction_type?: string; asking_price?: number; deposit?: number; monthly_rent?: number; source_confirmed_date?: string };
 };
 export type ListingImportResult = {
@@ -15,16 +16,22 @@ export type ListingImportResult = {
   errors: { row: number; message: string }[]; warnings: { row: number; message: string }[];
   preview: Omit<ImportedListing, "id" | "source_name" | "needs_confirmation" | "region_linked">[];
 };
+export class ListingRequestError extends Error {
+  constructor(message: string, public readonly retryAfterSeconds: number = 0) { super(message); }
+}
 async function request<T>(path: string, body?: object): Promise<T> {
   const response = await fetch(`/api/listings${path}`, { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(15000),
     ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
   if (!response.ok) {
     const error: { detail?: unknown } = await response.json().catch(() => ({}));
-    throw new Error(typeof error.detail === "string" ? error.detail : "매물 요청을 처리하지 못했습니다. 입력 내용을 확인해주세요.");
+    const retry = Number(response.headers.get("Retry-After"));
+    throw new ListingRequestError(typeof error.detail === "string" ? error.detail : "매물 요청을 처리하지 못했습니다. 입력 내용을 확인해주세요.",
+      response.status === 429 && Number.isFinite(retry) && retry > 0 ? retry : 0);
   }
   return response.json();
 }
 export const listingApi = {
+  get: (id: number) => request<ImportedListing>(`/${id}`),
   collect: (source_url: string) => request<{job_id:string}>("/collection/jobs", {source_url}),
   collectionJob: (id: string) => request<{status:string; error:string; result?:ListingObservation}>(`/collection/jobs/${encodeURIComponent(id)}`),
   observations: (source_url: string) => request<{items:ListingObservation[]}>(`/collection/history?${new URLSearchParams({source_url})}`),

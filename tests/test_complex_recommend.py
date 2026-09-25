@@ -28,6 +28,7 @@ MOCK_SAMPLES = (
 
 @pytest.fixture
 def mocked(monkeypatch):
+    monkeypatch.setattr(crs, "enrich_complex_addresses", lambda *args: None)
     monkeypatch.setattr(crs, "_load_samples", lambda lawd, months: list(MOCK_SAMPLES))
     monkeypatch.setattr(crs, "get_lawd_code", lambda r: "51110" if r == "춘천시" else "")
     # 시점수정 통과 (계수 1.0)

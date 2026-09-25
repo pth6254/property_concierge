@@ -82,6 +82,11 @@ def compare_reports(baseline: Path, current: Path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="부동산 컨시어지 계산·검색·대화 평가")
     sub = parser.add_subparsers(dest="command", required=True)
+    listing = sub.add_parser("listing-check", help="실제 매물 원문과 사람이 확인한 정답 대조")
+    listing.add_argument("--dataset", type=Path, required=True)
+    listing.add_argument("--live", action="store_true", required=True)
+    listing.add_argument("--max-cases", type=positive_int, default=3)
+    listing.add_argument("--output", type=Path, default=ROOT / "evaluation-results/listing-live.json")
     run = sub.add_parser("run", help="평가 실행과 JSON·HTML 보고서 생성")
     run.add_argument("--suite", choices=["decision", "avm", "intent", "calculator", "rag", "chat", "all"], default="calculator")
     run.add_argument("--dataset", type=Path)
@@ -107,6 +112,14 @@ def main(argv=None):
     review.add_argument("reviews", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "listing-check":
+            import asyncio
+            from evaluation.listing_live import evaluate
+            if args.max_cases > 10:
+                raise ValueError("한 번에 최대 10건까지 검증할 수 있습니다")
+            result = asyncio.run(evaluate(args.dataset, args.output, args.max_cases))
+            print(f"실제 매물 대조: {result['passed']}/{result['total']} 통과 · {args.output}")
+            return 0 if result["passed"] == result["total"] else 1
         if args.command == "import-rag":
             from evaluation.legacy import import_rag
             result = import_rag(args.source, question_key=args.question_key, titles_key=args.titles_key, variable=args.variable)

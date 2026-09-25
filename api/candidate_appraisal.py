@@ -16,7 +16,6 @@ PROPERTY_TYPES = {
 
 
 def start_candidate_appraisal(user_id: int, case_id: int, candidate_id: int) -> dict:
-    from backend.router import run_appraisal
     case = case_db.get_case(case_id, user_id)
     candidate = next((c for c in (case or {}).get("properties", []) if c["id"] == candidate_id), None)
     if candidate is None:
@@ -30,16 +29,13 @@ def start_candidate_appraisal(user_id: int, case_id: int, candidate_id: int) -> 
                 "input_url": f"/appraisal?caseId={case_id}&candidateId={candidate_id}"}
     query = f"{candidate['address']} {candidate['name']} {detail} {candidate['area_sqm']}㎡ 매매"
 
-    def runner(set_step):
-        return run_appraisal(query, candidate["name"], progress_cb=set_step,
-                             address=candidate["address"], property_category=category,
-                             property_detail=detail, area_sqm=candidate["area_sqm"])
-
-    def save(result):
-        history_id = history_db.save(query, result, user_id=user_id)
-        if not case_db.link_appraisal(case_id, candidate_id, history_id, user_id, result):
-            raise ValueError("candidate_link_failed")
-        return {"history_id": history_id, "case_id": case_id, "candidate_id": candidate_id}
-
-    return {"job_id": jobs.create(runner, on_done=save, owner_id=user_id, require_on_done=True),
+    return {"job_id": jobs.create_task("candidate_appraisal", {
+                "query": query, "building_name": candidate["name"], "address": candidate["address"],
+                "category": category, "detail": detail, "area_sqm": candidate["area_sqm"],
+                "case_id": case_id, "candidate_id": candidate_id,
+                "expected_candidate_inputs": {
+                    "address": candidate["address"], "area_sqm": candidate["area_sqm"],
+                    "category": candidate["category"], "asking_price": candidate["asking_price"],
+                    "source_revision_id": (candidate.get("source_status") or {}).get("saved", {}).get("revision_id"),
+                }}, owner_id=user_id),
             "case_id": case_id, "candidate_id": candidate_id, "candidate_name": candidate["name"]}

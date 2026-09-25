@@ -16,7 +16,7 @@
 Next.js 16 (App Router) :3000
    │ REST · JWT 쿠키
 FastAPI :8000  (uvicorn --workers 4)
-   ├── api/          라우터 · 인증 · 작업 큐
+   ├── api/          라우터 · 인증 · Redis Stream 작업 큐/별도 실행기
    ├── backend/      LangGraph 파이프라인 4종 + 도메인 로직
    ├── db/           SQLAlchemy 모델 13종 + Alembic + Redis 클라이언트
    └── schemas/      Pydantic 스키마 (단위: 원 · ㎡)
@@ -147,6 +147,16 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 
 회귀 테스트: `tests/test_cookie_config.py` (환경변수 → 실제 `Set-Cookie` 헤더 매핑까지 고정).
 
+### 2-9. 오래 걸리는 작업은 별도 실행기에서 처리한다
+
+API의 AVM·수집·채팅 경로는 `api/jobs.py`의 `create_task()`로 JSON 입력을 Redis Stream에
+기록한다. `api/job_worker.py`가 별도 컨테이너에서 실행한다. API 내부 스레드 실행으로
+되돌리면 서버 재시작 때 진행 중 작업이 사라진다. 운영 Redis의 AOF 설정과
+`job-worker` 서비스도 함께 유지할 것. AVM 이력·수집 기록은 `job_id`로 중복 저장을 막는다.
+
+실행 도중 죽은 채팅·종합 컨시어지 작업은 대화 중복을 피하려고 자동 재실행하지 않고
+사용자 재질문을 안내한다. 정확한 경계는 `docs/job-recovery.md`를 따른다.
+
 ---
 
 ## 3. 실측으로 확인한 함정
@@ -225,7 +235,7 @@ DISABLE_RATE_LIMIT=1 APP_ENV=development \
 JWT_SECRET_KEY=dev-secret \
 DATABASE_URL="postgresql://postgres:<pw>@localhost:5432/real_estate_db" \
 REDIS_URL="redis://localhost:6379/0" \
-./venv-wsl/bin/python -m pytest tests/ -q    # 전체 테스트 (현재 718개 통과)
+./venv-wsl/bin/python -m pytest tests/ -q    # 전체 테스트 (격리 DB에서 934개 통과, 2026-09-24)
 
 alembic upgrade head                          # 마이그레이션 적용
 
@@ -269,8 +279,8 @@ docker compose -f docker-compose.yml up -d --build   # 운영 (override 배제)
 
 기능을 고칠 때 **사실과 다르게 말하지 않도록** 알아둬야 하는 것들.
 
-- **매물추천 · 비교 · 시뮬레이션의 매물 데이터는 개발용 가상 데이터**
-  (`data/sample_listings.csv`, 43건). 실호가가 아니다.
+- **기본 매물추천 · 비교 · 시뮬레이션의 매물 데이터는 개발용 가상 데이터**
+  (`data/sample_listings.csv`, 43건). 사용자 제공 매물은 별도 저장소에 보관하며 출처·확인 시각을 표시한다. 실호가를 서비스가 독립 검증한 것은 아니다.
   반면 **시세추정은 국토부 실거래가 실데이터**를 쓴다.
 - **AVM 신뢰도 편차가 크다.** 백테스트(서초구 434건) 실측 기준 동일 단지 매칭은
   ±10% 적중률 69~84%지만 **동일동·구 매칭은 8~33%** 다.
@@ -295,7 +305,7 @@ docker compose -f docker-compose.yml up -d --build   # 운영 (override 배제)
 ## 8. 현재 알려진 부채
 
 **코드 쪽**
-- **프론트엔드 테스트 0건.** CI는 타입체크·린트·빌드만 검증한다.
+- **프론트엔드 단위 테스트 0건.** CI는 타입체크·린트·빌드와 매물 등록→후보→변경 재검토→재선택의 브라우저 흐름 1종을 검증한다.
 - 프리필 흐름(홈 → `/appraisal`, 추천 → `/simulation`)의 **런타임 동작은 브라우저로 검증되지
   않았다.** 타입·빌드·SSR만 확인된 상태다.
 
@@ -304,8 +314,7 @@ docker compose -f docker-compose.yml up -d --build   # 운영 (override 배제)
 - **Resend 도메인 인증 미완료** — 위 7절 참고. 그 전까지 재설정은 운영자가 로그의 링크를
   수동 전달하는 방식으로만 가능하다.
 - **Google OAuth 리다이렉트 URI 가 localhost 로만 등록**되어 있다. 실도메인 등록 필요.
-- **국토부 API 지역 시딩 미적용.** 현재는 요청 시점에 조회하므로 트래픽이 늘면 일일 쿼터를
-  소진할 수 있다. 주요 지역을 미리 적재해 두는 것이 정공법이다.
+- **국토부 API 지역 시딩은 서울 25개 구 매매 거래에 적용했다.** 매물 원문은 정기 수집하지 않는다. 실거래 배치 갱신은 `transaction-refresh` 유지보수 프로필을 활성화해야 시작된다.
 
 **제품 쪽**
 - 매물 데이터 제휴 없이는 추천·비교가 데모 수준을 벗어나기 어렵다.

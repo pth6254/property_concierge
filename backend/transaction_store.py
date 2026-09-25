@@ -54,24 +54,13 @@ def is_month_completed(endpoint: str, category: str, lawd_cd: str, deal_ym: str)
 
 
 def should_skip_batch_month(endpoint: str, category: str, lawd_cd: str, deal_ym: str) -> bool:
-    """증분 배치에서 이미 확보한 월을 다시 호출할지 판단한다.
-
-    신고·해제·정정이 계속 들어오는 당월과 전월은 TTL이 지난 경우 스냅샷을
-    갱신한다. 그보다 오래된 완료 월은 확정 데이터로 보고 영구적으로 건너뛴다.
-    실패하거나 실행 중 끊긴 월은 항상 다시 수집한다.
-    """
+    """완료 월도 TTL이 지나면 정정·해제 거래를 반영할 수 있게 재조회한다."""
     init_store()
     with session_scope() as session:
         log = session.get(IngestLog, (endpoint, category, lawd_cd, deal_ym))
         if not log or log.status != "completed":
             return False
-        now = datetime.now()
-        try:
-            month = datetime.strptime(deal_ym, "%Y%m")
-        except ValueError:
-            return False
-        months_ago = (now.year - month.year) * 12 + now.month - month.month
-        return months_ago >= 2 or _is_fresh(log.fetched_at, deal_ym)
+        return _is_fresh(log.fetched_at, deal_ym)
 
 
 def mark_month_started(endpoint: str, category: str, lawd_cd: str, deal_ym: str) -> None:

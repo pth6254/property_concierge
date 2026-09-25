@@ -11,7 +11,7 @@ jobs:
   # ────────────────────────────────────────────
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     # 앱 테이블·작업 큐·레이트 리밋이 전부 PostgreSQL/Redis 필수로 바뀌어
     # (SQLite/인프로세스 메모리 폴백 없음) 테스트도 실제 서비스 컨테이너가 필요하다.
@@ -73,11 +73,54 @@ jobs:
         run: alembic upgrade head
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v --junitxml=evaluation-results/backend-junit.xml
 
       # 실제 모델 호출은 수동 평가로 분리해 CI가 API 키·모델 응답에 의존하지 않게 한다.
       - name: Evaluate decision support and offline fixtures
         run: python -m evaluation run --suite all --timeout 30
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install browser verification dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Verify listing to decision browser flow
+        env:
+          BROWSER_TEST_DB: "1"
+          E2E_BROWSER: chromium
+          PLAYWRIGHT_MODULE_PATH: ${{ github.workspace }}/frontend/node_modules/playwright
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          python scripts/seed_browser_regions.py
+          uvicorn api.main:app --host 127.0.0.1 --port 8000 > /tmp/property-e2e-backend.log 2>&1 &
+          python -m api.job_worker > /tmp/property-e2e-worker.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8000/health >/dev/null
+          node scripts/verify_listing_import_browser.cjs http://127.0.0.1:8000
+          node scripts/verify_navigation_browser.cjs http://127.0.0.1:8000
+
+      - name: Save decision flow evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: decision-flow-evidence
+          path: |
+            evaluation-results/backend-junit.xml
+            evaluation-results/decision-flow-browser.json
+            evaluation-results/listing-import-browser.png
+            evaluation-results/navigation-browser.json
+            evaluation-results/navigation-*.png
+          if-no-files-found: ignore
 
   # ────────────────────────────────────────────
   #  프론트엔드 — 타입 체크 + 프로덕션 빌드
