@@ -453,9 +453,24 @@ LLM 프로바이더 (`model_factory.py`):
 
 | 환경변수 | 기본값 |
 |---------|--------|
-| `LLM_PROVIDER` | `ollama` (`openai` / `anthropic` / `google` 지원) |
+| `LLM_PROVIDER` | `ollama` (`openrouter` / `openai` / `anthropic` / `google` 지원) |
+| `CHAT_LLM_PROVIDER` | 빈 값. 챗봇·종합 컨시어지만 전환하려면 `openrouter` |
+| `APPRAISAL_INTENT_LLM_PROVIDER` | 빈 값. 시세추정의 주소·유형 자연어 추출을 전환하려면 `openrouter` |
+| `EMBED_PROVIDER` | `ollama` 유지 권장: 기존 pgvector 임베딩과 같은 모델을 사용해야 함 |
 | `OLLAMA_MODEL` | `qwen3.5:9b` |
+| `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` | OpenRouter 선택 시 필수. `openrouter/free` 또는 `:free` 모델만 허용 |
 | `OPENAI_MODEL` / `ANTHROPIC_MODEL` | 프로바이더 전환 시 |
+
+챗봇만 전환할 때는 `.env`에 `CHAT_LLM_PROVIDER=openrouter`, `OPENROUTER_API_KEY`와
+`OPENROUTER_MODEL`을 설정한 뒤 백엔드와 작업 실행기를 재시작한다. 기존 법령 RAG 검색은
+`EMBED_PROVIDER=ollama`와 원래 임베딩 모델을 유지한다. 검색으로 찾은 문서 조각과 질문은
+답변 생성을 위해 선택한 OpenRouter 모델에 전송된다. 키나 모델이 비어 있으면 OpenRouter
+호출을 시작하지 않고 설정 오류를 반환한다. OpenRouter 모델은 JSON 응답 형식을 지원하는지
+확인해야 챗봇의 도구 선택이 안정적으로 동작한다.
+시세추정에서도 주소·유형 검색 힌트를 추출하는 의도분석만 OpenRouter로 전환할 수 있다.
+좌표·법정동코드·지번은 LLM 출력으로 확정하지 않고 카카오 주소 검색과 검증 규칙을 따른다.
+유료 모델 ID를 넣으면 호출 전에 오류로 차단한다. 무료 라우터는 요청별로 지원 가능한 무료 모델을
+선택하므로 응답 품질이 달라질 수 있고, 무료 사용량 제한을 넘으면 요청이 실패할 수 있다.
 
 > **카카오 403 오류** 발생 시: 개발자 콘솔 → 플랫폼 → Web → `http://localhost` 등록
 

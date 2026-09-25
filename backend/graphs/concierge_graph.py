@@ -178,7 +178,7 @@ def _fallback_answer(result: ConciergeToolResult) -> str:
 
 def explain_node(state: ConciergeState) -> ConciergeState:
     import backend.opinion_guard as opinion_guard
-    from backend.model_factory import get_llm
+    from backend.model_factory import get_chat_llm
 
     result = state["tool_result"]
     if result.tool in {"simulate_investment", "compare_properties", "funding_validation", "select_properties", "search_listings"}:
@@ -194,7 +194,7 @@ def explain_node(state: ConciergeState) -> ConciergeState:
               "새 가격·비율·거래량을 만들지 말고, 실거래 출처와 기간을 밝히세요. "
               "현재 매물 호가라고 표현하지 마세요.\n" + context)
     try:
-        raw = str(get_llm().invoke([("system", prompt), ("human", state["message"])]).content).strip()
+        raw = str(get_chat_llm().invoke([("system", prompt), ("human", state["message"])]).content).strip()
         answer, blocked = opinion_guard.sanitize_text(raw, allowed)
     except Exception:
         answer, blocked = "", []

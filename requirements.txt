@@ -38,15 +38,15 @@ langchain-classic==1.0.7
 langchain-community==0.4.2
 langchain-core==1.4.0
 langchain-ollama==1.1.0
+langchain-openai==1.2.2
 langchain-protocol==0.0.16
 langchain-text-splitters==1.1.2
 langsmith==0.8.8
 
 # ── LLM 프로바이더 (선택) ─────────────────────────────────────
-# LLM_PROVIDER=openai    → pip install langchain-openai
+# LLM_PROVIDER=openrouter/openai → langchain-openai 설치됨
 # LLM_PROVIDER=anthropic → pip install langchain-anthropic
 # LLM_PROVIDER=google    → pip install langchain-google-genai
-# langchain-openai
 # langchain-anthropic
 # langchain-google-genai
 

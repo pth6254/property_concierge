@@ -1,6 +1,6 @@
 """
 DeepAgent 부동산 컨시어지 — Step 1: 의도 분석 에이전트
-Qwen / EXAONE / Solar / llama3.1 등 로컬 모델 대응
+로컬 모델 또는 OpenRouter 모델로 주소·유형 검색 힌트를 추출한다.
 
 변경사항:
   - category 값을 완전 한국어로 통일 (주거용/상업용/업무용/산업용/토지)
@@ -18,7 +18,7 @@ import re
 from typing import Optional
 from typing_extensions import TypedDict
 
-from model_factory import get_llm_json
+from model_factory import get_appraisal_intent_llm
 from langgraph.graph import END, StateGraph
 from pydantic import BaseModel, Field
 
@@ -101,7 +101,7 @@ class IntentState(TypedDict, total=False):
 # ─────────────────────────────────────────
 
 def get_llm():
-    return get_llm_json()
+    return get_appraisal_intent_llm()
 
 
 # ─────────────────────────────────────────
