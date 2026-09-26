@@ -458,7 +458,7 @@ LLM 프로바이더 (`model_factory.py`):
 | `APPRAISAL_INTENT_LLM_PROVIDER` | 빈 값. 시세추정의 주소·유형 자연어 추출을 전환하려면 `openrouter` |
 | `EMBED_PROVIDER` | `ollama` 유지 권장: 기존 pgvector 임베딩과 같은 모델을 사용해야 함 |
 | `OLLAMA_MODEL` | `qwen3.5:9b` |
-| `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` | OpenRouter 선택 시 필수. `openrouter/free` 또는 `:free` 모델만 허용 |
+| `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` | OpenRouter 선택 시 필수. 기본 모델 `openai/gpt-6-luna`(유료). 이 모델과 무료 모델만 허용 |
 | `OPENAI_MODEL` / `ANTHROPIC_MODEL` | 프로바이더 전환 시 |
 
 챗봇만 전환할 때는 `.env`에 `CHAT_LLM_PROVIDER=openrouter`, `OPENROUTER_API_KEY`와
@@ -469,8 +469,9 @@ LLM 프로바이더 (`model_factory.py`):
 확인해야 챗봇의 도구 선택이 안정적으로 동작한다.
 시세추정에서도 주소·유형 검색 힌트를 추출하는 의도분석만 OpenRouter로 전환할 수 있다.
 좌표·법정동코드·지번은 LLM 출력으로 확정하지 않고 카카오 주소 검색과 검증 규칙을 따른다.
-유료 모델 ID를 넣으면 호출 전에 오류로 차단한다. 무료 라우터는 요청별로 지원 가능한 무료 모델을
-선택하므로 응답 품질이 달라질 수 있고, 무료 사용량 제한을 넘으면 요청이 실패할 수 있다.
+`openai/gpt-6-luna`는 OpenRouter에서 토큰 사용량에 따라 과금되는 유료 모델이다. 이 모델 외의
+유료 모델 ID는 호출 전에 차단한다. 무료 라우터는 요청별로 지원 가능한 무료 모델을 선택하므로
+응답 품질이 달라질 수 있고, 무료 사용량 제한을 넘으면 요청이 실패할 수 있다.
 
 > **카카오 403 오류** 발생 시: 개발자 콘솔 → 플랫폼 → Web → `http://localhost` 등록
 

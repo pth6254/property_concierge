@@ -35,9 +35,9 @@ def _openrouter_llm(*, json_mode: bool = False, max_tokens: int | None = None):
     model = os.getenv("OPENROUTER_MODEL", "").strip()
     if not api_key or not model:
         raise RuntimeError("OpenRouter 사용에는 OPENROUTER_API_KEY와 OPENROUTER_MODEL이 모두 필요합니다")
-    # 유료 모델 ID를 실수로 지정해도 과금 요청을 보내지 않는다.
-    if model != "openrouter/free" and not model.endswith(":free"):
-        raise ValueError("OPENROUTER_MODEL은 openrouter/free 또는 :free 모델만 사용할 수 있습니다")
+    # 일반 유료 모델은 계속 차단하고, 사용자가 지정한 GPT-6 Luna만 과금 예외로 허용한다.
+    if model != "openai/gpt-6-luna" and model != "openrouter/free" and not model.endswith(":free"):
+        raise ValueError("OPENROUTER_MODEL은 openai/gpt-6-luna 또는 무료 모델만 사용할 수 있습니다")
     from langchain_openai import ChatOpenAI
     headers = {}
     if os.getenv("OPENROUTER_SITE_URL"):
@@ -48,6 +48,7 @@ def _openrouter_llm(*, json_mode: bool = False, max_tokens: int | None = None):
         model=model, api_key=api_key, base_url="https://openrouter.ai/api/v1",
         temperature=0, timeout=90, max_retries=1, max_tokens=max_tokens,
         default_headers=headers or None,
+        extra_body={"reasoning": {"enabled": False}},
         model_kwargs={"response_format": {"type": "json_object"}} if json_mode else {},
     )
 
