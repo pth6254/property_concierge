@@ -9,6 +9,15 @@ from db.models import LawCorpusDocument, LawCorpusChunk
 from backend.tools.embed_property_laws import Embedder
 
 
+def retrieve_chat_evidence(question: str, k=4, trace=None):
+    """서비스와 평가기가 동일한 공식 법령 우선 검색 경로를 사용한다."""
+    chunks = search_laws(question, k=k, trace=trace)
+    if chunks is None:
+        from backend import chat_corpus
+        return chat_corpus.search(question, k=k, trace=trace)
+    return chunks
+
+
 def search_laws(question: str, k=4, trace=None):
     with session_scope() as session:
         count = session.scalar(select(func.count()).select_from(LawCorpusDocument).where(

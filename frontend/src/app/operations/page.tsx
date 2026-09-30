@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { setSessionValue, useSessionValue } from "@/lib/sessionStore";
 import type { ComplexAddress } from "@/lib/types";
+import OperationsQualityPanel from "@/components/OperationsQualityPanel";
 
 type Health = {status:string; checks:Record<string,string>; queue:{waiting:number|null;in_progress:number|null;oldest_wait_seconds:number|null}; alerts:{id:string;status:string;at:string;checks:Record<string,string>}[]};
 type Catalog = {total:number;page:number;items:{id:number;name:string;dong:string;aliases:string[];status:string;address:ComplexAddress;checked_at:number}[]};
@@ -85,5 +86,6 @@ export default function OperationsPage(){
       <div className="max-h-96 overflow-auto"><table className="w-full min-w-[660px] text-left text-sm"><thead><tr><th>원천 / 유형</th><th>거래월</th><th>상태</th><th>건수</th><th>마지막 수집</th><th>작업</th></tr></thead><tbody>{ingestion?.items.map(i=><tr key={`${i.endpoint}:${i.month}`} className="border-t"><td className="py-2">{i.endpoint}<br/>{i.category}</td><td>{i.month}</td><td>{labels[i.status]||i.status}</td><td>{i.count}</td><td>{date(i.fetched_at)}</td><td>{["failed","missing","stale","interrupted"].includes(i.status)&&<button disabled={busy} className={button} onClick={()=>void enqueue("ingestion/retry",{lawd_code:scope,endpoint:i.endpoint,month:i.month})}>이 월 재수집</button>}</td></tr>)}</tbody></table></div>
     </section>
     <section className="rounded-xl border bg-white p-5"><h2 className="font-bold">매물 원문 수집 상태</h2><p className="my-2">{Object.entries(quality?.counts||{}).map(([key,n])=>`${key}: ${n}건`).join(" · ")||"수집 기록 없음"}</p><p className="text-sm text-slate-600">{quality?.notice}</p></section>
+    <OperationsQualityPanel />
   </div>;
 }

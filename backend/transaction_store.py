@@ -37,7 +37,7 @@ _INITIALIZED = False
 # 저장하는 샘플 필드 (price_engine._parse_items 출력과 1:1)
 SAMPLE_FIELDS = [
     "price", "area_sqm", "area_pyeong", "per_sqm",
-    "floor", "year_built", "dong", "apt_name",
+    "floor", "year_built", "dong", "apt_name", "jibun",
     "deal_year", "deal_month",
     "deal_day", "bjdong_code", "property_detail",
     "building_area_sqm", "land_area_sqm", "building_use", "jimok",

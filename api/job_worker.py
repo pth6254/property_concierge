@@ -120,6 +120,8 @@ def process_record(stream_id: str, fields: dict) -> None:
             job["error"] = "답변 생성 중 서버가 재시작됐습니다. 질문을 다시 보내주세요."
             job["finished_at"] = time.time()
             jobs._save(job_id, job, jobs.FINISHED_TTL)
+            from api.service_metrics import record_duration
+            record_duration(f"job:{fields['task_type']}", job["finished_at"]-job.get("created_at",job["finished_at"]), True, job_id=job_id)
             client.xack(jobs.STREAM, jobs.GROUP, stream_id)
             client.xdel(jobs.STREAM, stream_id)
             return
@@ -150,6 +152,8 @@ def process_record(stream_id: str, fields: dict) -> None:
             job["status"], job["error"] = "error", "작업을 완료하지 못했습니다. 다시 시도해주세요."
         job["finished_at"] = time.time()
         jobs._save(job_id, job, jobs.FINISHED_TTL)
+        from api.service_metrics import record_duration
+        record_duration(f"job:{fields['task_type']}", job["finished_at"] - job.get("created_at", job["finished_at"]), job["status"] == "error", job_id=job_id)
         client.xack(jobs.STREAM, jobs.GROUP, stream_id)
         client.xdel(jobs.STREAM, stream_id)
     finally:

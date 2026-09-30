@@ -84,6 +84,8 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       PG_CONNECTION_STRING: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./backups:/app/backups:ro
     ports:
       - "${API_BIND_PORT:-8002}:8000"
     # 소스 볼륨 마운트 없음 — 이미지에 COPY 된 코드만 실행한다 (Dockerfile.backend).
@@ -140,6 +142,23 @@ services:
       TRANSACTION_REFRESH_WORKERS: ${TRANSACTION_REFRESH_WORKERS:-2}
       TRANSACTION_REFRESH_SIDO: ${TRANSACTION_REFRESH_SIDO:-서울특별시}
     command: ["sh", "/app/scripts/run_transaction_refresh.sh"]
+
+  database-backup:
+    profiles: ["maintenance"]
+    image: ankane/pgvector:latest
+    restart: unless-stopped
+    depends_on:
+      pgvector:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-real_estate_db}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/run_scheduled_backup.sh:/run_scheduled_backup.sh:ro
+    entrypoint: ["sh", "/run_scheduled_backup.sh"]
 
   # ────────────────────────────────────────────
   #  Next.js 프론트엔드

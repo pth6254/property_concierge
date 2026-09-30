@@ -53,12 +53,19 @@ class BuyerProfile(BaseModel):
     owned_homes: int | None = Field(default=None, ge=1, le=100)
     adjusted_area: bool | None = None
     min_area_sqm: float | None = Field(default=None, gt=0, le=100000)
+    max_area_sqm: float | None = Field(default=None, gt=0, le=100000)
     min_build_year: int | None = Field(default=None, ge=1800, le=2100)
+    max_build_year: int | None = Field(default=None, ge=1800, le=2100)
+    market_months: int = Field(default=12, ge=1, le=60)
     property_types: list[Literal["apartment", "officetel", "row_house", "detached", "non_residential", "industrial", "land"]] = Field(default_factory=list, max_length=7)
     priority: Literal["cash", "monthly", "value", "liquidity", "age"] = "cash"
 
     @model_validator(mode="after")
     def validate_cash(self):
+        if self.min_area_sqm and self.max_area_sqm and self.min_area_sqm > self.max_area_sqm:
+            raise ValueError("최소 면적은 최대 면적보다 클 수 없습니다")
+        if self.min_build_year and self.max_build_year and self.min_build_year > self.max_build_year:
+            raise ValueError("준공연도 범위를 확인해주세요")
         if self.cash_available is not None and self.emergency_reserve > self.cash_available:
             raise ValueError("비상자금은 보유 현금보다 클 수 없습니다")
         return self

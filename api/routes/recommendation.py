@@ -37,17 +37,26 @@ class RecommendationRequest(BaseModel):
 
 
 class ComplexRecommendRequest(BaseModel):
+    area_min_sqm: float = Field(0, ge=0, le=100000)
+    area_max_sqm: float = Field(0, ge=0, le=100000)
+    min_build_year: int = Field(0, ge=0, le=2100)
+    max_build_year: int = Field(0, ge=0, le=2100)
     region_code: str | None = Field(default=None, pattern=r"^\d{10}$")
     """실거래 기반 단지 추천 (전국) — 금액 단위: 만원"""
     region: str
     budget_min: int = Field(0, ge=0)
     budget_max: int = Field(0, ge=0)
     area_m2: float = Field(0, ge=0, allow_inf_nan=False)
-    months: int = Field(6, ge=1, le=24)
+    months: int = Field(6, ge=1, le=60)
     limit: int = Field(5, ge=1, le=20)
+    require_complete_address: bool = False
 
     @model_validator(mode="after")
     def validate_budget(self):
+        if self.area_min_sqm and self.area_max_sqm and self.area_min_sqm > self.area_max_sqm:
+            raise ValueError("최소 면적은 최대 면적보다 클 수 없습니다")
+        if self.min_build_year and self.max_build_year and self.min_build_year > self.max_build_year:
+            raise ValueError("준공연도 범위를 확인해주세요")
         if self.budget_max and self.budget_min > self.budget_max:
             raise ValueError("최소 예산은 최대 예산보다 클 수 없습니다")
         return self
@@ -64,6 +73,9 @@ async def recommend_complexes_endpoint(req: ComplexRecommendRequest):
         recommend_complexes,
         req.region, req.budget_min, req.budget_max,
         req.area_m2, req.months, req.limit, region_code=req.region_code,
+        area_min_sqm=req.area_min_sqm, area_max_sqm=req.area_max_sqm,
+        min_build_year=req.min_build_year, max_build_year=req.max_build_year,
+        require_complete_address=req.require_complete_address,
     )
 
 

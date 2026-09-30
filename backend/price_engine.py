@@ -417,6 +417,7 @@ def _parse_items(items, category: str, property_detail: str = "", lawd_code: str
             "year_built":  item.findtext("buildYear", ""),
             "dong":        item.findtext("umdNm", ""),
             "apt_name":    apt_nm,
+            "jibun":       item.findtext("jibun", "").strip(),
             "deal_year":   item.findtext("dealYear", ""),
             "deal_month":  item.findtext("dealMonth", ""),
             "deal_day":    item.findtext("dealDay", ""),
@@ -485,7 +486,8 @@ def _fetch_one_month_api(url: str, safe_key: str, lawd_code: str,
         print(f"[molit] {deal_ymd} 타임아웃")
         return None
     except Exception as e:
-        print(f"[molit] {deal_ymd} 오류: {e}")
+        # requests 예외에는 serviceKey가 포함된 URL이 들어갈 수 있다.
+        print(f"[molit] {deal_ymd} 오류: {type(e).__name__}")
         return None
 
 

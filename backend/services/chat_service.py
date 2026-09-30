@@ -186,14 +186,12 @@ def answer_question(question: str, history: list[dict] | None = None, *, trace: 
     retrieval_trace = {} if trace is not None else None
     if trace is not None:
         trace["stage"] = "retrieval"
-    from backend.services.law_retrieval import search_laws
+    from backend.services.law_retrieval import retrieve_chat_evidence
     # 지시어가 있는 후속 질문은 사용자 발언으로 검색을 보완한다. 과거 AI 답변은 검색 근거가 아니다.
     followup = bool(re.match(r"^(그럼|그러면|그\s|그때|이\s*경우|이때|그것|그건|여기서|그렇다면|그러니까)", question))
     search_question = f"{user_context}\n{question}" if followup and user_context else question
     try:
-        chunks = search_laws(search_question, k=4, trace=retrieval_trace)
-        if chunks is None:
-            chunks = chat_corpus.search(search_question, k=4, trace=retrieval_trace)
+        chunks = retrieve_chat_evidence(search_question, k=4, trace=retrieval_trace)
     except Exception as exc:
         chunks = []
         if trace is not None:

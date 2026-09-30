@@ -33,10 +33,11 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../frontend/
       return route.fulfill({json:{source:'검증용 고정 집계',price_unit:'만원',period:{from:'202509',to:'202608'},items:[{
         region_name:district?'서울특별시 강남구':'서울특별시 강남구 역삼동',region_code:district?'1168000000':'1168010100',lawd_code:'11680',
         deal_count:20,sample_size:20,avg_price:80000,median_price:80000,price_q1:70000,price_q3:90000,
-        avg_per_sqm:1000,median_per_sqm:1000,asset_count:4,last_deal_ym:'202608',budget_fit_count:10,budget_fit_ratio:0.5,confidence:'medium'
+        avg_per_sqm:1000,median_per_sqm:1000,asset_count:4,last_deal_ym:'202608',budget_fit_count:10,budget_fit_ratio:0.5,confidence:'medium',comparison_eligible:true,warnings:[]
       }]}});
     });
     await page.route('**/api/recommendation/complexes',route=>route.fulfill({json:{results:[{complex_name:'화면검증단지',dong:'역삼동',road_address:'서울특별시 강남구 테헤란로 123',jibun_address:'서울특별시 강남구 역삼동 123',address_status:'matched',address_source:'검증용 주소',avg_price:80000,avg_per_sqm:1000,avg_area_m2:77.3,deal_count:20,build_year:2000,last_deal_ym:'202608',score:80,reasons:['검증용 집계']}]}}));
+    await page.route('**/api/cases/*/recommendations?*',route=>route.fulfill({json:{results:[{complex_name:'화면검증단지',dong:'역삼동',road_address:'서울특별시 강남구 테헤란로 123',jibun_address:'서울특별시 강남구 역삼동 123',address_status:'matched',address_source:'검증용 주소',avg_price:80000,avg_per_sqm:1000,avg_area_m2:77.3,deal_count:20,build_year:2000,last_deal_ym:'202608',score:80,reasons:['검증용 집계']}]}}));
     await page.goto('/explore');
     await page.getByLabel('검토할 케이스',{exact:true}).selectOption(String(target.id));
     await page.getByLabel('시·군·구',{exact:true}).selectOption('1168000000');
@@ -81,7 +82,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../frontend/
     assert.equal(await page.getByRole('link',{name:'찾은 매물 등록',exact:true}).count(),0);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(output,'navigation-register-mobile.png'),fullPage:true});
-    await page.getByLabel('네이버 매물 링크').fill('https://fin.land.naver.com/articles/9990001234');
+    await page.getByLabel('네이버 개별 매물 링크',{exact:true}).fill('https://fin.land.naver.com/articles/9990001234');
     await page.getByLabel('매물 이름',{exact:true}).fill('연결검증 가상 매물');
     await page.getByLabel('확인한 주소',{exact:true}).fill('서울특별시 강남구 역삼동 123');
     await page.getByLabel('확인한 면적 (㎡)').fill('84');

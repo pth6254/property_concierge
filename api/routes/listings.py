@@ -87,6 +87,7 @@ class CandidateTarget(BaseModel):
 def save_candidate(listing_id: int, body: CandidateTarget, response: Response,
                    user: dict = Depends(get_current_user)):
     from api import case_db
+    from api.service_metrics import record_step
     try:
         item = case_db.add_property(body.case_id, user["id"], {"source_listing_id": listing_id})
     except LookupError:
@@ -98,4 +99,5 @@ def save_candidate(listing_id: int, body: CandidateTarget, response: Response,
         raise HTTPException(404, "검토 케이스가 없습니다")
     if item.pop("_already_linked", False):
         response.status_code = 200
+    record_step("candidate_added", user["id"])
     return item

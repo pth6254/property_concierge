@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from fastapi import HTTPException
-from sqlalchemy import and_, or_, case, func, select
+from sqlalchemy import and_, or_, case, cast, Integer, func, select
 
 from db.base import session_scope
 from db.models import LegalRegion, Transaction
@@ -77,7 +77,15 @@ def get_region_market_summary(
     region_code: str | None = None,
     legacy_sido_name: str | None = None,
     group_level: str = "sigungu",
+    area_min_sqm: float | None = None,
+    area_max_sqm: float | None = None,
+    min_build_year: int | None = None,
+    max_build_year: int | None = None,
 ) -> dict:
+    if area_min_sqm and area_max_sqm and area_min_sqm > area_max_sqm:
+        raise HTTPException(422, "최소 면적은 최대 면적보다 클 수 없습니다")
+    if min_build_year and max_build_year and min_build_year > max_build_year:
+        raise HTTPException(422, "준공연도 범위를 확인해주세요")
     if property_type not in PROPERTY_ENDPOINTS:
         raise ValueError(f"지원하지 않는 부동산 유형: {property_type}")
     endpoint = PROPERTY_ENDPOINTS[property_type]
@@ -142,6 +150,16 @@ def get_region_market_summary(
             stmt = stmt.where(LegalRegion.full_name.like(f"{legacy_sido_name} %"))
         if endpoint:
             stmt = stmt.where(Transaction.endpoint == endpoint)
+        if area_min_sqm is not None:
+            stmt = stmt.where(Transaction.area_sqm >= area_min_sqm)
+        if area_max_sqm is not None:
+            stmt = stmt.where(Transaction.area_sqm <= area_max_sqm)
+        # 원천에는 빈 문자열·미상 연도가 있어 무조건 정수 변환하면 조회 전체가 실패한다.
+        build_year = case((Transaction.year_built.op("~")(r"^\d{4}$"), cast(Transaction.year_built, Integer)), else_=None)
+        if min_build_year is not None:
+            stmt = stmt.where(build_year >= min_build_year)
+        if max_build_year is not None:
+            stmt = stmt.where(build_year <= max_build_year)
         rows = session.execute(stmt).mappings().all()
 
     return {
@@ -152,6 +170,9 @@ def get_region_market_summary(
                    "full_name": selected_region.full_name, "level": selected_region.level}
                   if selected_region else None),
         "items": [_market_item(row) for row in rows],
+        "criteria": {"area_min_sqm": area_min_sqm, "area_max_sqm": area_max_sqm,
+                     "min_build_year": min_build_year, "max_build_year": max_build_year, "months": months},
+        "notice": "동일 조건의 신고 거래 분포입니다. 표본 수준은 거래 건수 기준이며 가격 예측 정확도가 아닙니다.",
     }
 
 
@@ -173,4 +194,6 @@ def _market_item(row) -> dict:
         "budget_fit_ratio": round(budget_fit_count / sample_size, 4) if sample_size else 0.0,
         # 지역 간 동일한 결정 규칙을 적용해 LLM이 신뢰도를 자의적으로 만들지 못하게 한다.
         "confidence": "high" if sample_size >= 100 else "medium" if sample_size >= 30 else "low",
+        "comparison_eligible": sample_size >= 5,
+        "warnings": ["표본 5건 미만: 지역 순위 판단에 사용하지 마세요"] if sample_size < 5 else [],
     }

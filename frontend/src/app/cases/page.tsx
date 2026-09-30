@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import DecisionJourney from "@/components/DecisionJourney";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BriefcaseBusiness, ChevronRight, Plus } from "lucide-react";
 import { api } from "@/lib/api";
@@ -12,6 +13,7 @@ const STATUS: Record<string, string> = {
 };
 
 export default function CasesPage() {
+  const router=useRouter();
   const [cases, setCases] = useState<PurchaseCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -37,13 +39,14 @@ export default function CasesPage() {
     event.preventDefault();
     setError("");
     try {
-      await api.createCase({
+      const created=await api.createCase({
         title: title.trim(),
         budget_max: budget ? Number(budget) * 10_000 : undefined,
         target_regions: region.trim() ? [region.trim()] : [],
       });
       setTitle(""); setRegion(""); setBudget(""); setOpen(false);
       await load();
+      router.push(`/cases/${created.id}#buyer-profile`);
     } catch {
       setError("케이스를 만들지 못했습니다. 입력값을 확인해주세요.");
     }

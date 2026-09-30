@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 from api import case_db, case_execution_db
 from api.deps import get_current_user
+from api.service_metrics import record_step
 from backend.services.market_service import get_region_market_summary
 from backend.services.case_comparison_service import compare_case_candidates
 from schemas.purchase_case import (
@@ -29,7 +30,9 @@ class FundingScenarioRequest(BaseModel):
 
 @router.post("/cases", status_code=status.HTTP_201_CREATED)
 def create_case(body: PurchaseCaseCreate, user: dict = Depends(get_current_user)):
-    return case_db.create_case(user["id"], body.model_dump())
+    result = case_db.create_case(user["id"], body.model_dump())
+    record_step("case_created", user["id"])
+    return result
 
 
 @router.get("/cases")
@@ -57,6 +60,7 @@ def compare_candidates(
     result = compare_case_candidates(case, property_id)
     if not result["rows"]:
         raise HTTPException(status_code=422, detail="검토할 후보를 1개 이상 선택해주세요")
+    record_step("comparison_viewed", user["id"])
     return result
 
 
@@ -85,6 +89,7 @@ def funding_scenarios(case_id: int, body: FundingScenarioRequest, user: dict = D
 
 @router.get("/cases/{case_id}/recommendations")
 def personalized_complexes(case_id: int, region_code: str = Query(pattern=r"^\d{10}$"),
+                           require_complete_address: bool = False,
                            user: dict = Depends(get_current_user)):
     from backend.services.complex_recommend_service import recommend_complexes
     case = case_db.get_case(case_id, user["id"])
@@ -93,14 +98,17 @@ def personalized_complexes(case_id: int, region_code: str = Query(pattern=r"^\d{
     profile = case.get("buyer_profile") or {}
     if profile.get("property_types") and "apartment" not in profile["property_types"]:
         return {"results": [], "error": "이 케이스의 희망 유형에 아파트가 없습니다.", "source": "case_profile"}
-    result = recommend_complexes("", region_code=region_code, months=12, limit=10,
+    result = recommend_complexes("", region_code=region_code, months=profile.get("market_months", 12), limit=10,
         budget_max=(case.get("budget_max") or 0)//10000,
         area_min_sqm=profile.get("min_area_sqm") or 0,
         min_build_year=profile.get("min_build_year") or 0,
-        strict_budget=True, priority=profile.get("priority"))
+        area_max_sqm=profile.get("max_area_sqm") or 0, max_build_year=profile.get("max_build_year") or 0,
+        buyer_profile=profile,
+        strict_budget=True, priority=profile.get("priority"), require_complete_address=require_complete_address)
     result["criteria"] = {"budget_max_won": case.get("budget_max"),
         "min_area_sqm": profile.get("min_area_sqm"), "min_build_year": profile.get("min_build_year"),
-        "priority": profile.get("priority")}
+        "max_area_sqm": profile.get("max_area_sqm"), "max_build_year": profile.get("max_build_year"),
+        "market_months": profile.get("market_months", 12), "priority": profile.get("priority")}
     return result
 
 
@@ -112,6 +120,7 @@ def select_final_candidate(case_id: int, body: CaseDecisionCreate, user: dict = 
         raise HTTPException(status_code=422, detail=str(exc)) from None
     if not result:
         raise HTTPException(status_code=404, detail="검토 후보가 없습니다")
+    record_step("candidate_selected", user["id"])
     return result
 
 
@@ -190,6 +199,8 @@ def update_case(case_id: int, body: PurchaseCaseUpdate, user: dict = Depends(get
     case = case_db.update_case(case_id, user["id"], body.model_dump(exclude_unset=True))
     if not case:
         raise HTTPException(status_code=404, detail="검토 케이스가 없습니다")
+    if "buyer_profile" in body.model_fields_set:
+        record_step("conditions_saved", user["id"])
     return case
 
 
@@ -210,6 +221,7 @@ def add_property(case_id: int, body: CasePropertyCreate, user: dict = Depends(ge
         raise HTTPException(status_code=422, detail=str(exc)) from None
     if not item:
         raise HTTPException(status_code=404, detail="검토 케이스가 없습니다")
+    record_step("candidate_added", user["id"])
     return item
 
 
@@ -246,17 +258,22 @@ def update_checklist(case_id: int, property_id: int, checklist_id: int, body: Ch
 @router.post("/cases/{case_id}/regions", status_code=status.HTTP_201_CREATED)
 def add_region(case_id: int, body: CaseRegionCreate, user: dict = Depends(get_current_user)):
     # 통계를 조회하기 전에 소유권을 확인해야 타인의 케이스 존재 여부와 작업을 모두 숨길 수 있다.
-    if not case_db.get_case(case_id, user["id"]):
+    case = case_db.get_case(case_id, user["id"])
+    if not case:
         raise HTTPException(status_code=404, detail="검토 케이스가 없습니다")
+    profile = case.get("buyer_profile") or {}
     summary = get_region_market_summary(
         region_code=body.region_code, property_type=body.property_type,
         months=body.months, budget_max_won=body.budget_max_won,
+        area_min_sqm=profile.get("min_area_sqm"), area_max_sqm=profile.get("max_area_sqm"),
+        min_build_year=profile.get("min_build_year"), max_build_year=profile.get("max_build_year"),
     )
     market_item = next(
         (item for item in summary.get("items", []) if item["region_code"] == body.region_code), None
     )
     if not market_item:
         raise HTTPException(status_code=422, detail="해당 지역에 저장할 수집 실거래 통계가 없습니다")
+    market_item["comparison_criteria"] = summary.get("criteria", {})
     period = summary.get("period") or {}
     try:
         item = case_db.add_region(case_id, user["id"], {

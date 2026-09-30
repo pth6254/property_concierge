@@ -27,6 +27,10 @@ def region_market_summary(
     months: int = Query(default=12, ge=1, le=60),
     property_type: str = Query(default="all", pattern=_PROPERTY_PATTERN),
     budget_max: int = Query(default=0, ge=0, description="만원 단위"),
+    area_min_sqm: float | None = Query(default=None, gt=0, le=100000),
+    area_max_sqm: float | None = Query(default=None, gt=0, le=100000),
+    min_build_year: int | None = Query(default=None, ge=1800, le=2100),
+    max_build_year: int | None = Query(default=None, ge=1800, le=2100),
     user: dict = Depends(get_current_user),
 ):
     del user
@@ -34,6 +38,8 @@ def region_market_summary(
         region_code=region_code, months=months, property_type=property_type,
         group_level=group_level,
         budget_max_won=budget_max * 10_000 if budget_max else None,
+        area_min_sqm=area_min_sqm, area_max_sqm=area_max_sqm,
+        min_build_year=min_build_year, max_build_year=max_build_year,
     )
 
 

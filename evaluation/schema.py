@@ -35,17 +35,28 @@ class CalculatorCase(StrictModel):
     reference: Reference
 
 
+class LawArticleReference(StrictModel):
+    law_id: str = Field(pattern=r"^\d{6}$")
+    article: str = Field(min_length=1)
+
+
 class RagCase(StrictModel):
     id: str = Field(min_length=1)
     question: str = Field(min_length=1)
     relevant_titles: list[str] = Field(default_factory=list)
+    relevant_articles: list[LawArticleReference] = Field(default_factory=list)
+    retrieval_backend: Literal["service", "chat_corpus"] = "service"
+    reference: Reference | None = None
+    require_official_law: bool = False
     expect_no_results: bool = False
     min_recall: float = Field(default=1, ge=0, le=1)
 
     @model_validator(mode="after")
     def require_judgment(self):
-        if bool(self.relevant_titles) == self.expect_no_results:
+        if bool(self.relevant_titles or self.relevant_articles) == self.expect_no_results:
             raise ValueError("정답 문서 또는 검색 결과 없음 중 하나를 지정하세요")
+        if self.relevant_titles and self.relevant_articles:
+            raise ValueError("조문 ID 정답과 제목 정답을 함께 지정하지 마세요")
         return self
 
 

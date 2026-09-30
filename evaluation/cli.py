@@ -44,10 +44,10 @@ def metadata(args, paths):
         commit = None
     provider = os.getenv("LLM_PROVIDER", "ollama").lower().strip()
     # 환경변수 전체를 기록하지 않는다. 인증키·접속 문자열은 평가 결과에 불필요하다.
-    config_keys = ["LLM_PROVIDER", "EMBED_PROVIDER", "OLLAMA_MODEL", "OLLAMA_EMBED_MODEL",
+    config_keys = ["LLM_PROVIDER", "CHAT_LLM_PROVIDER", "OPENROUTER_MODEL", "EMBED_PROVIDER", "OLLAMA_MODEL", "OLLAMA_EMBED_MODEL",
                    "OPENAI_MODEL", "OPENAI_EMBED_MODEL", "ANTHROPIC_MODEL", "GOOGLE_MODEL", "GOOGLE_EMBED_MODEL"]
     model_config = {key: os.environ[key] for key in config_keys if key in os.environ}
-    defaults = {"ollama": ("OLLAMA_MODEL", "qwen3.5:9b"), "openai": ("OPENAI_MODEL", "gpt-4o"),
+    defaults = {"openrouter": ("OPENROUTER_MODEL", "unknown"), "ollama": ("OLLAMA_MODEL", "qwen3.5:9b"), "openai": ("OPENAI_MODEL", "gpt-4o"),
                 "anthropic": ("ANTHROPIC_MODEL", "claude-opus-4-7"), "google": ("GOOGLE_MODEL", "gemini-2.0-flash")}
     model_key, default_model = defaults.get(provider, ("", "unknown"))
     model_config["effective_model"] = os.getenv(model_key, default_model)
@@ -60,6 +60,7 @@ def metadata(args, paths):
             "evaluator_sha256": hashlib.sha256(b"".join(path.read_bytes() for path in sorted(Path(__file__).parent.glob("*.py")))).hexdigest(),
             "implementation_sha256": {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()
                 for path in [ROOT / "backend/services/chat_service.py", ROOT / "backend/chat_corpus.py", ROOT / "backend/tax_rules.py",
+                             ROOT / "backend/services/law_retrieval.py",
                              ROOT / "backend/services/analysis_freshness.py", ROOT / "backend/services/case_comparison_service.py",
                              ROOT / "backend/services/candidate_next_actions.py", ROOT / "backend/services/execution_plan_service.py",
                              ROOT / "backend/tools/backtest_avm.py", ROOT / "backend/price_engine.py",
@@ -82,6 +83,13 @@ def compare_reports(baseline: Path, current: Path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="부동산 컨시어지 계산·검색·대화 평가")
     sub = parser.add_subparsers(dest="command", required=True)
+    avm_service = sub.add_parser("avm-service", help="저장 실거래로 실제 주거용 에이전트 가격 계산 재생")
+    avm_service.add_argument("--regions", nargs="+", default=["11650", "11680", "11350"])
+    avm_service.add_argument("--max-cases", type=positive_int, default=30)
+    avm_service.add_argument("--target-months", type=positive_int, default=3)
+    avm_service.add_argument("--min-coverage", type=float, default=.8)
+    avm_service.add_argument("--max-mape", type=float, default=.25)
+    avm_service.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     listing = sub.add_parser("listing-check", help="실제 매물 원문과 사람이 확인한 정답 대조")
     listing.add_argument("--dataset", type=Path, required=True)
     listing.add_argument("--live", action="store_true", required=True)
@@ -112,6 +120,21 @@ def main(argv=None):
     review.add_argument("reviews", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "avm-service":
+            import re
+            if not all(re.fullmatch(r"\d{5}", code) for code in args.regions) or not 1 <= args.max_cases <= 100 or not 1 <= args.target_months <= 12 or not 0 <= args.min_coverage <= 1 or not 0 <= args.max_mape <= 10:
+                raise ValueError("지역·표본 수·평가 기준을 확인하세요")
+            from dotenv import load_dotenv
+            load_dotenv(ROOT / ".env", override=False)
+            from evaluation.production_avm import evaluate
+            result = evaluate(args.regions, args.target_months, args.max_cases, args.min_coverage, args.max_mape)
+            result["repeat"] = 1
+            directory = args.output / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-avm-service-" + uuid.uuid4().hex[:8])
+            write_report(directory, {"run_id": directory.name, "live": True, "created_at":datetime.now(timezone.utc).isoformat(),
+                "regions": args.regions, "max_cases":args.max_cases, "target_months":args.target_months,
+                "min_coverage":args.min_coverage,"max_mape":args.max_mape}, [result])
+            print(f"{result['status']} · {result['metrics']} · {directory / 'report.html'}")
+            return 0 if result["status"] == "pass" else 1
         if args.command == "listing-check":
             import asyncio
             from evaluation.listing_live import evaluate
@@ -147,7 +170,7 @@ def main(argv=None):
         if args.dataset and args.suite == "all":
             parser.error("사용자 데이터셋은 개별 --suite와 함께 지정하세요")
         suites = (["decision", "avm", "calculator", "rag", "intent", "chat"] if args.live else ["decision", "avm", "calculator", "rag"]) if args.suite == "all" else [args.suite]
-        paths = [args.dataset or DATASETS / f"{suite}.json" for suite in suites]
+        paths = [args.dataset or DATASETS / ("law-rag.json" if args.live and suite == "rag" else f"{suite}.json") for suite in suites]
         jobs = []
         for suite, path in zip(suites, paths):
             dataset, cases = load_dataset(path)

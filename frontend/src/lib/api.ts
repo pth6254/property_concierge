@@ -120,13 +120,16 @@ export const api = {
     budget_min?: number;
     budget_max?: number;
     area_m2?: number;
+    area_min_sqm?: number; area_max_sqm?: number; min_build_year?: number; max_build_year?: number;
     months?: number;
     limit?: number;
+    require_complete_address?: boolean;
   }) =>
     req<{
       region: string;
       sample_count: number;
       complex_count: number;
+      address_pending?: import("@/lib/types").ComplexAddressPending[];
       region_avg_per_sqm: number;
       results: (ComplexAddress & {
         complex_name: string; dong: string; avg_price: number;
@@ -179,13 +182,16 @@ export const api = {
     }[] }>(`/market/regions?${query.toString()}`);
   },
 
-  regionMarket: (params: { region_code: string; group_level?: "sigungu" | "eup_myeon_dong"; months?: number; property_type?: string; budget_max?: number }) => {
+  regionMarket: (params: { region_code: string; group_level?: "sigungu" | "eup_myeon_dong"; months?: number; property_type?: string; budget_max?: number; area_min_sqm?: number; area_max_sqm?: number; min_build_year?: number; max_build_year?: number }) => {
     const query = new URLSearchParams();
     query.set("region_code", params.region_code);
     if (params.group_level) query.set("group_level", params.group_level);
     query.set("months", String(params.months ?? 12));
     query.set("property_type", params.property_type ?? "all");
     if (params.budget_max) query.set("budget_max", String(params.budget_max));
+    for (const key of ["area_min_sqm", "area_max_sqm", "min_build_year", "max_build_year"] as const) {
+      if (params[key] !== undefined) query.set(key, String(params[key]));
+    }
     return req<{
       source: string; price_unit: "만원"; period: { from: string; to: string } | null;
       scope: { code: string; name: string; full_name: string; level: string } | null;
@@ -194,6 +200,7 @@ export const api = {
         sample_size: number; median_price: number; price_q1: number; price_q3: number;
         avg_per_sqm: number; median_per_sqm: number; asset_count: number; last_deal_ym: string;
         budget_fit_count: number; budget_fit_ratio: number; confidence: "high" | "medium" | "low";
+        comparison_eligible: boolean; warnings: string[];
       }[];
     }>(`/market/regions/summary?${query.toString()}`);
   },
@@ -201,6 +208,7 @@ export const api = {
   createCase: (data: {
     title: string; budget_min?: number; budget_max?: number;
     target_regions?: string[]; notes?: string;
+    buyer_profile?: Partial<import("./types").BuyerProfile>;
   }) => req<PurchaseCase>("/cases", { method: "POST", body: JSON.stringify(data) }),
 
   caseOne: (id: number) => req<PurchaseCase>(`/cases/${id}`),
@@ -246,7 +254,10 @@ export const api = {
   }) => req<import("@/lib/types").CaseFundingScenarioResult>(`/cases/${caseId}/funding-scenarios`, {
     method: "POST", body: JSON.stringify(data),
   }),
-  caseRecommendations: (caseId:number,regionCode:string) => req<{results:import("@/lib/types").ComplexRecommendation[];error?:string}>(`/cases/${caseId}/recommendations?region_code=${encodeURIComponent(regionCode)}`),
+  caseRecommendations: (caseId:number,regionCode:string,requireCompleteAddress=false) => req<{
+    results:import("@/lib/types").ComplexRecommendation[];
+    address_pending?:import("@/lib/types").ComplexAddressPending[]; error?:string;
+  }>(`/cases/${caseId}/recommendations?region_code=${encodeURIComponent(regionCode)}&require_complete_address=${requireCompleteAddress}`),
 
   deleteCase: (id: number) => req<void>(`/cases/${id}`, { method: "DELETE" }),
 

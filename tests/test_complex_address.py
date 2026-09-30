@@ -82,3 +82,67 @@ def test_official_abbreviations_preserve_phase_numbers():
     assert service._name("초안1") == service._name("초안1단지아파트")
     assert service._name("초안1") != service._name("초안10단지아파트")
     assert service._name("현대1차") != service._name("현대2차")
+
+
+def test_official_parcel_resolves_abbreviation_without_keyword_guess(lookup, monkeypatch):
+    calls = []
+    def fetch(url, query):
+        calls.append((url, query))
+        assert url == service.KAKAO_ADDR_URL
+        return lookup["addresses"]
+    monkeypatch.setattr(service, "_request", fetch)
+    result = service.resolve_complex_address("서울특별시 노원구 상계동", "11350", "상계동", "주공10",
+                                              official_jibuns=["0666"])
+    assert service.is_complete_address(result)
+    assert calls == [(service.KAKAO_ADDR_URL, "서울특별시 노원구 상계동 666")]
+    assert "국토교통부" in result["address_source"]
+
+
+def test_road_address_missing_is_never_marked_matched(lookup):
+    lookup["addresses"][0]["road_address"] = None
+    result = resolve()
+    assert result["jibun_address"] and not result["road_address"]
+    assert result["address_status"] == "unresolved"
+    assert not service.is_complete_address(result)
+
+
+def test_multiple_official_parcels_require_review(lookup, monkeypatch):
+    monkeypatch.setattr(service, "_request", lambda *args: pytest.fail("대표 필지를 임의 선택하면 안 됩니다"))
+    result = service.resolve_complex_address("서울 노원구", "11350", "상계동", "현대", official_jibuns=["666", "667"])
+    assert result["address_status"] == "ambiguous"
+    assert not service.is_complete_address(result)
+
+
+def test_dong_prefix_is_allowed_but_other_brand_or_phase_is_not(lookup):
+    lookup["places"][0]["place_name"] = "상계주공10단지아파트"
+    assert service.resolve_complex_address("서울 노원구", "11350", "상계동", "주공10")["address_status"] == "matched"
+    assert not service._place_name_matches("학여울청구아파트", "청구", "하계동")
+    assert not service._place_name_matches("하계1차청구아파트", "하계2차청구", "하계동")
+
+
+def test_coordinate_fallback_rejects_neighboring_parcel(lookup, monkeypatch):
+    lookup["addresses"][0].update(x="127.0", y="37.0", road_address=None)
+    from types import SimpleNamespace
+    other = {"address": {"region_3depth_name": "상계동", "main_address_no": "667"},
+             "road_address": {"address_name": "서울 노원구 잘못된길 1"}}
+    monkeypatch.setattr(service.requests, "get", lambda *a, **kw: SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"documents": [other]}))
+    result = resolve()
+    assert result["road_address"] == "" and result["address_status"] == "unresolved"
+
+
+def test_coordinate_fallback_requires_forward_address_confirmation(lookup, monkeypatch):
+    import copy
+    from types import SimpleNamespace
+    document = lookup["addresses"][0]
+    document["address"]["region_2depth_name"] = "노원구"
+    verified = copy.deepcopy(document)
+    document.update(x="127.0", y="37.0", road_address=None)
+    reverse = {"address": {"region_2depth_name": "노원구", "region_3depth_name": "상계동", "main_address_no": "666"},
+               "road_address": verified["road_address"]}
+    monkeypatch.setattr(service.requests, "get", lambda *a, **kw: SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"documents": [reverse]}))
+    def request(url, query):
+        if url == service.KAKAO_KWD_URL:
+            return lookup["places"]
+        return [verified] if query == "서울 노원구 노원로 564" else [document]
+    monkeypatch.setattr(service, "_request", request)
+    assert service.is_complete_address(resolve())

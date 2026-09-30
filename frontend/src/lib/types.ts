@@ -308,6 +308,7 @@ export interface BuyerProfile {
   annual_interest_rate: number | null; loan_years: number | null;
   owned_homes: number | null; adjusted_area: boolean | null;
   min_area_sqm: number | null; min_build_year: number | null;
+  max_area_sqm?: number | null; max_build_year?: number | null; market_months?: number;
   property_types: string[]; priority: "cash" | "monthly" | "value" | "liquidity" | "age";
 }
 
@@ -320,7 +321,8 @@ export interface CaseFundingScenarioResult {
     deltas: Record<string, number | null> }[];
 }
 
-export interface ComplexRecommendation {
+export interface ComplexRecommendation extends Omit<ComplexAddress, "road_address" | "jibun_address"> {
+  funding_preview?: ConciergeComplex["funding_preview"];
   complex_name:string; dong:string; avg_price:number; avg_per_sqm:number;
   avg_area_m2:number; deal_count:number; build_year:number; last_deal_ym:string;
   score:number; reasons:string[]; score_factors?:Record<string,number>;
@@ -464,9 +466,21 @@ export interface ComplexAddress {
   address_status?: "matched" | "unresolved" | "ambiguous" | "unavailable";
   address_source?: string;
   address_checked_at?: string | null;
+  address_reason?: string;
+}
+
+export interface ComplexAddressPending {
+  complex_name: string;
+  dong: string;
+  address_status: ComplexAddress["address_status"];
+  reason: string;
 }
 
 export interface ConciergeComplex extends ComplexAddress {
+  funding_preview?: { status: string; missing?: string[]; basis?: string; summary?: {
+    required_cash?: number; monthly_payment?: number; cash_shortfall?: number;
+    monthly_payment_exceeded?: boolean; cash_available?: number; monthly_payment_limit?: number;
+  }; warnings?: string[] };
   complex_name: string;
   dong: string;
   avg_price: number;

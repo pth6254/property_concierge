@@ -1,0 +1,534 @@
+{
+  "version": "1.0",
+  "suite": "rag",
+  "cases": [
+    {
+      "id": "official-law-1",
+      "question": "전입신고와 주택 인도를 마친 세입자의 대항력은 어느 조문에서 확인하나요?",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제3조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-2",
+      "question": "주택 보증금을 경매에서 회수하는 우선변제권의 근거 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제3조의2"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-3",
+      "question": "주택 보증금을 돌려받지 못하고 이사해야 해요. 임차권등기명령 신청 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제3조의3"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-4",
+      "question": "주택 임대차 확정일자 부여와 임대차 정보 제공 관련 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제3조의6"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-5",
+      "question": "주택 계약 전에 임대인이 제시해야 하는 정보의 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제3조의7"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-6",
+      "question": "주택 임대차기간과 보증금 반환 전 계약 존속 관련 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제4조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-7",
+      "question": "주택 임대차 계약의 묵시적 갱신 관련 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제6조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-8",
+      "question": "묵시적으로 갱신된 주택 계약을 세입자가 해지하는 근거 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제6조의2"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-9",
+      "question": "주택 세입자의 계약갱신 요구권 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제6조의3"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-10",
+      "question": "주택 임대료 증액 청구 제한은 어느 조문에 있나요?",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제7조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-11",
+      "question": "주택 전세보증금을 월세로 전환할 때 산정률 제한 관련 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제7조의2"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-12",
+      "question": "주택 소액임차인 보증금 중 일정액 보호 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001248",
+          "article": "제8조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=276291&efYd=20260102",
+        "as_of": "2026-09-10",
+        "explanation": "주택임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 e0e5f62b4e06d5e82c176570ec4723bb2d5719fe0919a27e0a1198a1249a38e0. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-13",
+      "question": "공인중개사의 중개대상물 확인 설명 의무 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001654",
+          "article": "제25조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=283713&efYd=20260828",
+        "as_of": "2026-09-10",
+        "explanation": "공인중개사법의 수집 원문에서 조문 존재 확인. SHA256 20f665fb326c9d88da964eb32820512470fbda05d016fb3f8ad7a18b7190f6cf. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-14",
+      "question": "공인중개사가 거래계약서를 작성하고 보관해야 하는 근거 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "001654",
+          "article": "제26조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=283713&efYd=20260828",
+        "as_of": "2026-09-10",
+        "explanation": "공인중개사법의 수집 원문에서 조문 존재 확인. SHA256 20f665fb326c9d88da964eb32820512470fbda05d016fb3f8ad7a18b7190f6cf. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-15",
+      "question": "중개사가 손해배상 책임을 보장하는 보증보험 관련 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001654",
+          "article": "제30조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=283713&efYd=20260828",
+        "as_of": "2026-09-10",
+        "explanation": "공인중개사법의 수집 원문에서 조문 존재 확인. SHA256 20f665fb326c9d88da964eb32820512470fbda05d016fb3f8ad7a18b7190f6cf. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-16",
+      "question": "공인중개사 중개보수와 실비 관련 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001654",
+          "article": "제32조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=283713&efYd=20260828",
+        "as_of": "2026-09-10",
+        "explanation": "공인중개사법의 수집 원문에서 조문 존재 확인. SHA256 20f665fb326c9d88da964eb32820512470fbda05d016fb3f8ad7a18b7190f6cf. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-17",
+      "question": "개업공인중개사의 금지행위 관련 근거 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001654",
+          "article": "제33조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=283713&efYd=20260828",
+        "as_of": "2026-09-10",
+        "explanation": "공인중개사법의 수집 원문에서 조문 존재 확인. SHA256 20f665fb326c9d88da964eb32820512470fbda05d016fb3f8ad7a18b7190f6cf. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-18",
+      "question": "공인중개사가 인터넷에 중개대상물을 표시 광고할 때 준수할 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "001654",
+          "article": "제18조의2"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=283713&efYd=20260828",
+        "as_of": "2026-09-10",
+        "explanation": "공인중개사법의 수집 원문에서 조문 존재 확인. SHA256 20f665fb326c9d88da964eb32820512470fbda05d016fb3f8ad7a18b7190f6cf. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-19",
+      "question": "상가 세입자의 대항력 관련 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "009276",
+          "article": "제3조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=279651&efYd=20260512",
+        "as_of": "2026-09-10",
+        "explanation": "상가건물 임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 6252916eb95dbc00c3ec2d71885522c238c4bc5c5dfec87e5c93cf4e85dde0eb. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-20",
+      "question": "상가 보증금 회수와 우선변제권 근거 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "009276",
+          "article": "제5조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=279651&efYd=20260512",
+        "as_of": "2026-09-10",
+        "explanation": "상가건물 임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 6252916eb95dbc00c3ec2d71885522c238c4bc5c5dfec87e5c93cf4e85dde0eb. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-21",
+      "question": "상가 보증금을 돌려받지 못했을 때 임차권등기명령 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "009276",
+          "article": "제6조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=279651&efYd=20260512",
+        "as_of": "2026-09-10",
+        "explanation": "상가건물 임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 6252916eb95dbc00c3ec2d71885522c238c4bc5c5dfec87e5c93cf4e85dde0eb. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-22",
+      "question": "상가 임대차 계약갱신 요구 관련 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "009276",
+          "article": "제10조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=279651&efYd=20260512",
+        "as_of": "2026-09-10",
+        "explanation": "상가건물 임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 6252916eb95dbc00c3ec2d71885522c238c4bc5c5dfec87e5c93cf4e85dde0eb. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-23",
+      "question": "상가 임차인의 권리금 회수기회 보호 근거 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "009276",
+          "article": "제10조의4"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=279651&efYd=20260512",
+        "as_of": "2026-09-10",
+        "explanation": "상가건물 임대차보호법의 수집 원문에서 조문 존재 확인. SHA256 6252916eb95dbc00c3ec2d71885522c238c4bc5c5dfec87e5c93cf4e85dde0eb. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-24",
+      "question": "부동산 매매 계약 거래신고 의무 근거 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "012480",
+          "article": "제3조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=259641&efYd=20240517",
+        "as_of": "2026-09-10",
+        "explanation": "부동산 거래신고 등에 관한 법률의 수집 원문에서 조문 존재 확인. SHA256 93003c7a65720a16715b72fa96a6d45d578b325e5bab00c281ef4277685b5002. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-25",
+      "question": "부동산 거래 계약을 해제했을 때 신고하는 근거 조문은?",
+      "relevant_articles": [
+        {
+          "law_id": "012480",
+          "article": "제3조의2"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=259641&efYd=20240517",
+        "as_of": "2026-09-10",
+        "explanation": "부동산 거래신고 등에 관한 법률의 수집 원문에서 조문 존재 확인. SHA256 93003c7a65720a16715b72fa96a6d45d578b325e5bab00c281ef4277685b5002. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-26",
+      "question": "주택 임대차 계약 신고 의무 근거 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "012480",
+          "article": "제6조의2"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=259641&efYd=20240517",
+        "as_of": "2026-09-10",
+        "explanation": "부동산 거래신고 등에 관한 법률의 수집 원문에서 조문 존재 확인. SHA256 93003c7a65720a16715b72fa96a6d45d578b325e5bab00c281ef4277685b5002. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-27",
+      "question": "토지거래허가구역 안에서 계약 허가 관련 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "012480",
+          "article": "제11조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=259641&efYd=20240517",
+        "as_of": "2026-09-10",
+        "explanation": "부동산 거래신고 등에 관한 법률의 수집 원문에서 조문 존재 확인. SHA256 93003c7a65720a16715b72fa96a6d45d578b325e5bab00c281ef4277685b5002. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-28",
+      "question": "부동산 실권리자 명의 등기 의무 근거를 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001178",
+          "article": "제3조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=215759&efYd=20200324",
+        "as_of": "2026-09-10",
+        "explanation": "부동산 실권리자명의 등기에 관한 법률의 수집 원문에서 조문 존재 확인. SHA256 cb94506562626a239171d340de905ddf5a73e8c74b61563e084aa86a0d182b32. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-law-29",
+      "question": "부동산 명의신탁약정의 효력 관련 조문을 찾아줘",
+      "relevant_articles": [
+        {
+          "law_id": "001178",
+          "article": "제4조"
+        }
+      ],
+      "require_official_law": true,
+      "reference": {
+        "basis": "official_reference",
+        "source": "https://www.law.go.kr/LSW/lsInfoP.do?lsiSeq=215759&efYd=20200324",
+        "as_of": "2026-09-10",
+        "explanation": "부동산 실권리자명의 등기에 관한 법률의 수집 원문에서 조문 존재 확인. SHA256 cb94506562626a239171d340de905ddf5a73e8c74b61563e084aa86a0d182b32. 의미적 정답의 독립 전문가 검토는 미완료.",
+        "independently_verified": false
+      }
+    },
+    {
+      "id": "official-out-of-domain",
+      "question": "파이썬 딕셔너리 정렬 코드 알려줘",
+      "expect_no_results": true,
+      "require_official_law": true
+    }
+  ]
+}

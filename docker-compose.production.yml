@@ -1,0 +1,46 @@
+# 운영 배포에서는 development override 대신 이 파일을 명시적으로 사용한다.
+services:
+  api:
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      FORWARDED_ALLOW_IPS: 172.30.92.2,172.30.92.3
+      COOKIE_SAMESITE: lax
+      FRONTEND_URL: https://${SERVICE_DOMAIN:?SERVICE_DOMAIN을 설정하세요}
+      CORS_ORIGINS: https://${SERVICE_DOMAIN:?}
+    networks:
+      default:
+      ingress:
+        ipv4_address: 172.30.92.4
+  frontend:
+    ports: !reset []
+    networks:
+      default:
+      ingress:
+        ipv4_address: 172.30.92.3
+  gateway:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    environment:
+      SERVICE_DOMAIN: ${SERVICE_DOMAIN:?}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - gateway_data:/data
+      - gateway_config:/config
+    networks:
+      ingress:
+        ipv4_address: 172.30.92.2
+networks:
+  ingress:
+    ipam:
+      config:
+        - subnet: 172.30.92.0/24
+volumes:
+  gateway_data:
+  gateway_config:

@@ -94,6 +94,18 @@ class User(Base):
     password_changed_at: Mapped[str | None] = mapped_column(String(32), default=None)
 
 
+class ServiceFeedback(Base):
+    """문제 신고는 계정에 귀속시키고 탈퇴 시 함께 삭제한다."""
+    __tablename__ = "service_feedback"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    feature: Mapped[str] = mapped_column(String(30))
+    category: Mapped[str] = mapped_column(String(30))
+    message: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(20), default="open")
+    created: Mapped[str] = mapped_column(String(32), default=_now_str)
+
+
 # ─────────────────────────────────────────
 #  시세추정 이력 (구 api/history_db.py)
 # ─────────────────────────────────────────
@@ -407,6 +419,8 @@ class Transaction(Base):
     year_built: Mapped[str | None] = mapped_column(String(10), default=None)
     dong: Mapped[str | None] = mapped_column(String(50), default=None)
     apt_name: Mapped[str | None] = mapped_column(String(100), default=None)
+    # 단지명 약칭으로 다른 건물을 찾지 않도록 국토부 원문의 필지 번호를 보존한다.
+    jibun: Mapped[str | None] = mapped_column(String(50), default=None)
     deal_year: Mapped[str | None] = mapped_column(String(10), default=None)
     deal_month: Mapped[str | None] = mapped_column(String(10), default=None)
     deal_day: Mapped[str | None] = mapped_column(String(10), default=None)

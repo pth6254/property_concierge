@@ -1,5 +1,7 @@
 """운영 권한이 있는 기존 계정만 시스템 현황과 재처리를 조회·실행한다."""
 import json
+import time
+from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select, func
@@ -11,6 +13,25 @@ from db.models import ComplexCatalog, ListingObservation
 from db.redis_client import get_redis
 
 router = APIRouter(prefix="/operations", tags=["operations"], dependencies=[Depends(require_operator)])
+
+
+@router.get("/metrics")
+def metrics(days: int = Query(7, ge=1, le=30)):
+    from api.service_metrics import summary
+    return summary(days)
+
+
+@router.get("/backup")
+def backup():
+    path = Path(__file__).resolve().parents[2] / "backups" / "backup-status.json"
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+        checked = float(value["checked_at"])
+        return {"status": "stale" if value["status"] == "ok" and time.time()-checked > 26*3600 else value["status"],
+                "checked_at":checked,"bytes":int(value["bytes"]),
+                "notice":"백업 파일 생성·목록 읽기 검사입니다. 실제 복원 성공은 격리 DB 복원으로 별도 확인해야 합니다."}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {"status":"unknown","checked_at":None,"bytes":None,"notice":"정기 백업 기록이 없습니다. maintenance 프로필의 database-backup을 활성화하세요."}
 
 
 @router.get("/status")

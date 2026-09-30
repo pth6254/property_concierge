@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle2, Circle, FileSearch, MapPinned, Plus, Trash
 import { api } from "@/lib/api";
 import CandidateNextActions from "@/components/CandidateNextActions";
 import CaseBuyerProfile from "@/components/CaseBuyerProfile";
+import CaseProgressGuide from "@/components/CaseProgressGuide";
 import DecisionJourney from "@/components/DecisionJourney";
 import { listingEntryHref } from "@/lib/listingNavigation";
 import { setSessionValue } from "@/lib/sessionStore";
@@ -51,6 +52,7 @@ function analysisSummary(analysis: CandidateAnalysis): string {
 export default function CaseDetailPage() {
   const caseId = Number(useParams<{ id: string }>().id);
   const [item, setItem] = useState<PurchaseCase | null>(null);
+  const [profileNotice, setProfileNotice] = useState("");
   const [histories, setHistories] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -102,7 +104,10 @@ export default function CaseDetailPage() {
       <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Purchase workspace</p><h1 className="text-2xl font-bold text-slate-900">{item.title}</h1><p className="mt-1 text-sm text-slate-500">{item.target_regions.join(", ") || "선호 지역 미정"} · 최대 예산 {won(item.budget_max)}</p></div>
       <div className="flex flex-wrap gap-2">{item.selected_property_id && <Link href={`/cases/${caseId}/execution`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">실행 계획</Link>}{properties.length >= 1 && <Link href={`/cases/${caseId}/comparison`} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">후보 검토·최종 선택</Link>}<select value={item.status} onChange={async (event) => { await api.updateCase(caseId, { status: event.target.value as PurchaseCaseStatus }); await load(); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{CASE_STATUS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
     </header>
-    <CaseBuyerProfile key={item.updated} caseId={caseId} profile={item.buyer_profile} budgetMax={item.budget_max} onSaved={load} />
+    <CaseProgressGuide item={item} />
+    <div id="buyer-profile"><CaseBuyerProfile key={item.updated} caseId={caseId} profile={item.buyer_profile} budgetMax={item.budget_max} onSaving={()=>setProfileNotice("")} onSaved={async()=>{await load();setProfileNotice("매수 조건을 저장했습니다. 후보 시나리오와 추천에 적용됩니다.");}} /></div>
+    {profileNotice && <p role="status" className="text-sm text-primary">{profileNotice}</p>}
+    <div id="candidates" />
     <Link href={`/listings?case_id=${caseId}#saved-listings`} className="inline-flex rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-primary hover:bg-emerald-50">보관함에서 후보 가져오기 →</Link>
 
     <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">

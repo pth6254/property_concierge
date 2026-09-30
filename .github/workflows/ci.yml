@@ -100,7 +100,7 @@ jobs:
           PLAYWRIGHT_MODULE_PATH: ${{ github.workspace }}/frontend/node_modules/playwright
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
-          python scripts/seed_browser_regions.py
+          python scripts/seed_browser_regions.py --transactions
           uvicorn api.main:app --host 127.0.0.1 --port 8000 > /tmp/property-e2e-backend.log 2>&1 &
           python -m api.job_worker > /tmp/property-e2e-worker.log 2>&1 &
           for attempt in $(seq 1 60); do
@@ -110,6 +110,7 @@ jobs:
           curl -fsS http://127.0.0.1:8000/health >/dev/null
           node scripts/verify_listing_import_browser.cjs http://127.0.0.1:8000
           node scripts/verify_navigation_browser.cjs http://127.0.0.1:8000
+          node scripts/verify_service_quality_browser.cjs http://127.0.0.1:8000
 
       - name: Save decision flow evidence
         if: always()
@@ -122,6 +123,8 @@ jobs:
             evaluation-results/listing-import-browser.png
             evaluation-results/navigation-browser.json
             evaluation-results/navigation-*.png
+            evaluation-results/service-quality-browser.json
+            evaluation-results/service-quality-*.png
           if-no-files-found: ignore
 
   # ────────────────────────────────────────────

@@ -37,6 +37,14 @@ export default function ConciergeComplexCard({ item, region, disabled, onSave, c
     <ExternalListingLink context={{ name: item.complex_name, address, propertyType: "apartment", caseId }} compact />
     <p className="text-slate-500">실거래 시점수정 평균 {item.avg_price.toLocaleString()}만원 · 평균 면적 {item.avg_area_m2}㎡</p>
     <p className="text-xs text-slate-500">단지의 실거래 집계입니다. 현재 매물 호가·실제 검토 면적은 별도로 확인하세요.</p>
+    {item.funding_preview && <div className="rounded-lg bg-emerald-50 p-3 text-xs leading-5">
+      <strong>내 자금 기준 참고 계산</strong>
+      {item.funding_preview.status === "calculated" ? <>
+        <p>예상 필요 현금 {(item.funding_preview.summary?.required_cash ?? 0).toLocaleString()}원 · 월 상환액 {(item.funding_preview.summary?.monthly_payment ?? 0).toLocaleString()}원</p>
+        {(item.funding_preview.warnings ?? []).map(warning => <p key={warning} className="text-amber-800">{warning}</p>)}
+      </> : item.funding_preview.status === "needs_input" ? <p>공통 매수 조건의 현금·상환 한도·금리·대출 비율·주택 수를 입력하면 비교할 수 있습니다.</p> : <p>자금 계산을 완료하지 못했습니다. 공통 매수 조건을 확인한 뒤 다시 조회해주세요.</p>}
+      <p className="text-slate-500">{item.funding_preview.basis}</p>
+    </div>}
     <button type="button" aria-expanded={open} onClick={()=>setOpen(!open)} disabled={saved} className="text-sm font-semibold text-primary underline disabled:text-slate-400">{saved ? "이 케이스에 후보 저장됨" : open ? "직접 입력 닫기" : "매물 링크 없이 후보 직접 입력"}</button>
     {open && <div className="space-y-3 border-t border-slate-100 pt-3">
     <label className="block">검토 주소<input value={address} onChange={(e) => setAddress(e.target.value)} disabled={disabled || saving} className="mt-1 w-full rounded border border-slate-300 p-2" /></label>

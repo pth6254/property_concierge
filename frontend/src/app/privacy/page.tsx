@@ -8,6 +8,7 @@ const SECTIONS = [
     body: [
       "회원가입 시: 이메일 주소, 이름(선택), 비밀번호(단방향 암호화 저장). Google 계정으로 가입 시 Google이 제공하는 이메일·이름·프로필 사진 URL.",
       "서비스 이용 과정에서: 시세추정 조회 내역, 권리 점검·상담 이용 기록(아래 최소화 원칙 적용), 접속 로그.",
+      "문제·개선 의견 접수 시: 계정 식별자, 이용 기능, 의견 종류·내용, 접수 시각·처리 상태. 의견에 주소·연락처·금융 정보 등 개인정보를 입력하지 마세요.",
     ],
   },
   {
@@ -24,13 +25,15 @@ const SECTIONS = [
       "회원 식별 및 로그인 세션 유지 (JWT 쿠키).",
       "본인의 시세추정 이력·이용 기록 제공 (다른 사용자에게 공개되지 않음).",
       "서비스 남용 방지 (요청 횟수 제한).",
+      "문제·개선 의견의 운영자 검토와 서비스 개선. 사용 단계·실패·처리 시간은 집계 지표로 관리하며, 지표에는 요청 본문·IP·상세 주소를 저장하지 않습니다.",
     ],
   },
   {
     title: "4. 보유 기간 및 파기",
     body: [
-      "회원 정보와 이용 기록은 회원 탈퇴 시 즉시 삭제됩니다 (복구 불가).",
+      "회원 정보·이용 기록·접수 의견은 회원 탈퇴 시 서비스 데이터베이스에서 삭제됩니다.",
       "사이드바의 “회원 탈퇴” 기능으로 계정·시세추정 이력·활동 기록 전체를 직접 삭제할 수 있습니다.",
+      "운영 집계 지표는 35일 후 만료됩니다. 장애 복구용 데이터베이스 백업은 운영자가 별도로 관리하며, 이미 생성된 백업의 보관·파기는 서비스 데이터베이스 삭제와 별개로 처리됩니다.",
     ],
   },
   {
@@ -54,7 +57,7 @@ export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <h1 className="text-2xl font-extrabold tracking-tight text-ink mb-1">개인정보처리방침</h1>
-      <p className="text-xs text-ink-faint mb-6">시행일: 2026년 7월 11일</p>
+      <p className="text-xs text-ink-faint mb-6">최종 수정일: 2026년 9월 30일</p>
       <div className="space-y-5">
         {SECTIONS.map(s => (
           <section key={s.title} className="rounded-xl border border-line bg-surface p-5">

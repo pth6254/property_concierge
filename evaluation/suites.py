@@ -42,10 +42,16 @@ def rag(case: RagCase, *, live: bool, k: int) -> dict:
     started = perf_counter()
     if live:
         retrieval_trace = {}
-        chunks = chat_corpus.search(case.question, k=k, trace=retrieval_trace)
+        if case.retrieval_backend == "service":
+            from backend.services.law_retrieval import retrieve_chat_evidence
+            chunks = retrieve_chat_evidence(case.question, k=k, trace=retrieval_trace)
+        else:
+            chunks = chat_corpus.search(case.question, k=k, trace=retrieval_trace)
         mode = retrieval_trace["mode"]
         corpus_hash = retrieval_trace.get("corpus_sha256")
     else:
+        if case.relevant_articles or case.require_official_law:
+            raise ValueError("공식 조문 검색 평가는 --live가 필요합니다")
         # 서비스의 키워드 점수를 동일하게 사용하되 DB를 만들거나 메모리 DB 폴백을 도입하지 않는다.
         ranked = [dict(chunk, score=chat_corpus._keyword_score(case.question, chunk["title"] + " " + chunk["text"]))
                   for chunk in chat_corpus.SEED_CHUNKS]
@@ -53,13 +59,19 @@ def rag(case: RagCase, *, live: bool, k: int) -> dict:
         mode = "seed_keyword_only"
         retrieval_trace = {}
         corpus_hash = fingerprint(chat_corpus.SEED_CHUNKS)
-    titles = [chunk["title"] for chunk in chunks]
-    metrics = retrieval_metrics(titles, case.relevant_titles, k)
+    titles = [f"{chunk.get('law_id')}:{chunk.get('article')}" for chunk in chunks] if case.relevant_articles else [chunk["title"] for chunk in chunks]
+    gold = [f"{item.law_id}:{item.article}" for item in case.relevant_articles] if case.relevant_articles else case.relevant_titles
+    metrics = retrieval_metrics(titles, gold, k)
     check = Check(name="no_results" if case.expect_no_results else "recall_threshold",
                   passed=not chunks if case.expect_no_results else metrics["recall_at_k"] >= case.min_recall,
                   expected=0 if case.expect_no_results else case.min_recall,
                   actual=len(chunks) if case.expect_no_results else metrics["recall_at_k"])
-    return finish(case.id, "rag", started, [check.model_dump()], {"question": case.question,
+    checks = [check.model_dump()]
+    if case.require_official_law:
+        checks.append(Check(name="official_law_path", passed=retrieval_trace.get("mode") == "pgvector_law", actual=retrieval_trace.get("mode")).model_dump())
+    return finish(case.id, "rag", started, checks, {"question": case.question,
+                  "relevant_articles": [item.model_dump() for item in case.relevant_articles],
+                  "reference": case.reference.model_dump() if case.reference else None,
                   "relevant_titles": case.relevant_titles, "retrieved": chunks, "mode": mode,
                   "corpus_sha256": corpus_hash, "retrieval": retrieval_trace}, metrics)
 

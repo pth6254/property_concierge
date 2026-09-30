@@ -6,16 +6,22 @@ from db.base import session_scope
 from db.models import ComplexCatalog
 
 
-def lookup(region: str, lawd_code: str, dong: str, name: str, *, force=False) -> dict:
-    from services.complex_address_service import _name, resolve_complex_address
+def lookup(region: str, lawd_code: str, dong: str, name: str, *, force=False, official_jibuns=None) -> dict:
+    from services.complex_address_service import ADDRESS_VERSION, _name, is_complete_address, resolve_complex_address
+    from services.complex_parcel_service import known_parcels
+    parcels = known_parcels(lawd_code, dong, name) if official_jibuns is None else official_jibuns
     identity = dict(lawd_code=lawd_code, dong=dong, canonical_name=_name(name))
     with session_scope() as session:
         row = session.scalar(select(ComplexCatalog).filter_by(**identity))
-        if row and not force and time.time() - row.checked_at < (604800 if row.status == "matched" else 3600):
+        fresh = row and time.time() - row.checked_at < (604800 if row.status == "matched" else 3600)
+        same_parcels = row and (not parcels or row.address.get("official_jibuns") == parcels)
+        usable = row and (is_complete_address(row.address) or
+                          (row.status != "matched" and row.address.get("address_version") == ADDRESS_VERSION))
+        if fresh and usable and same_parcels and not force:
             if name not in row.aliases:
                 row.aliases = [*row.aliases, name]
             return {**row.address, "complex_id": row.id}
-    result = resolve_complex_address(region, lawd_code, dong, name, force=force)
+    result = resolve_complex_address(region, lawd_code, dong, name, force=force, official_jibuns=parcels)
     with session_scope() as session:
         session.execute(insert(ComplexCatalog).values(**identity, name=name, region=region,
             aliases=[name], address=result, status=result["address_status"], checked_at=time.time())

@@ -32,7 +32,8 @@ for _p in [_BACKEND_DIR, _PROJECT_ROOT]:
         sys.path.insert(0, _p)
 
 from cache_db import get_lawd_code
-from services.complex_address_service import enrich_complex_addresses
+from services.complex_address_service import enrich_complex_addresses, is_complete_address
+from services.complex_parcel_service import normalize_parcel
 from price_engine import (
     MOLIT_API_KEY,
     MOLIT_BASE_URL,
@@ -95,6 +96,7 @@ def _aggregate_complexes(samples: list[dict]) -> list[dict]:
             "build_year":    max(years) if years else 0,
             "last_deal_ym":  max(f"{d.get('deal_year','')}{int(d.get('deal_month') or 0):02d}"
                                  for d in deals),
+            "official_jibuns": sorted({parcel for d in deals if (parcel := normalize_parcel(d.get("jibun")))}),
         })
     return complexes
 
@@ -175,6 +177,8 @@ def recommend_complexes(
     limit: int = 5,
     *, region_code: str | None = None, area_min_sqm: float = 0,
     strict_budget: bool = False, min_build_year: int = 0, priority: str | None = None,
+    area_max_sqm: float = 0, max_build_year: int = 0, buyer_profile: dict | None = None,
+    require_complete_address: bool = False,
 ) -> dict:
     """
     실거래 기반 단지 추천.
@@ -216,6 +220,12 @@ def recommend_complexes(
 
     if area_min_sqm > 0:
         samples = [s for s in samples if (s.get("area_sqm") or 0) >= area_min_sqm]
+    if area_max_sqm > 0:
+        samples = [s for s in samples if 0 < (s.get("area_sqm") or 0) <= area_max_sqm]
+    if min_build_year or max_build_year:
+        samples = [s for s in samples if str(s.get("year_built") or "").isdigit()
+                   and (not min_build_year or int(s["year_built"]) >= min_build_year)
+                   and (not max_build_year or int(s["year_built"]) <= max_build_year)]
     # 면적 필터 (거래 단위) → 시점수정 → 단지 집계
     if area_m2 > 0:
         samples = [s for s in samples
@@ -246,11 +256,45 @@ def recommend_complexes(
 
     for c in pool:
         c["score"], c["reasons"] = _score_complex(c, region_avg_per_sqm, budget_min, budget_max, priority)
-        if priority in {"cash", "monthly"}:
-            c["reasons"].append("필요 현금·월 상환액은 후보를 저장한 뒤 자금 조건으로 비교하세요")
-    pool.sort(key=lambda c: c["score"], reverse=True)
-    results = pool[:limit]
-    enrich_complex_addresses(results, region, lawd)
+        if buyer_profile is not None:
+            from backend.services.case_funding_scenarios import _calculate
+            # 희망가를 만들지 않고 실거래 집계가를 이용한 탐색용 시나리오만 붙인다.
+            c["funding_preview"] = _calculate({"asking_price": c["avg_price"] * 10000, "category": "아파트"}, buyer_profile)
+            c["funding_preview"]["basis"] = "실거래 시점수정 평균가를 매수가로 가정한 참고 계산. 실제 호가·대출 승인 결과가 아닙니다."
+    def ranking(item):
+        preview = item.get("funding_preview") or {}
+        summary = preview.get("summary") or {}
+        if priority in {"cash", "monthly"} and preview.get("status") == "calculated":
+            feasible = not summary.get("cash_shortfall") and not summary.get("monthly_payment_exceeded")
+            finance = summary.get("finance_check") or {}
+            feasible = feasible and not finance.get("ltv_exceeded") and not finance.get("dsr_exceeded")
+            if (summary.get("loan_amount") or 0) > 0 and finance.get("dsr") is None:
+                feasible = False
+            key = "required_cash" if priority == "cash" else "monthly_payment"
+            return (0 if feasible else 1, summary.get(key, float("inf")), -item["score"])
+        return (2, 0, -item["score"])
+    pool.sort(key=ranking)
+    address_pending = []
+    inspected = []
+    results = []
+    # 주소 없는 상위 후보를 제외한 경우 다음 후보를 확인해 요청한 개수를 채운다.
+    # 전체 지역에 외부 조회가 몰리지 않도록 한 요청의 확인 범위는 제한한다.
+    max_checks = min(len(pool), max(limit, min(limit * 3, 60))) if require_complete_address else min(len(pool), limit)
+    for offset in range(0, max_checks, limit):
+        batch = pool[offset:min(offset + limit, max_checks)]
+        enrich_complex_addresses(batch, region, lawd)
+        inspected.extend(batch)
+        if require_complete_address:
+            results.extend(item for item in batch if is_complete_address(item))
+            address_pending.extend({"complex_name": item["complex_name"], "dong": item["dong"],
+                                    "address_status": item.get("address_status", "unresolved"),
+                                    "reason": item.get("address_reason") or "지번·도로명 주소 대조가 완료되지 않았습니다."}
+                                   for item in batch if not is_complete_address(item))
+        else:
+            results.extend(batch)
+        if len(results) >= limit:
+            break
+    results = results[:limit]
 
     # ── 마크다운 리포트 ──
     lines = [
@@ -259,6 +303,7 @@ def recommend_complexes(
         f"> 최근 {months}개월 아파트 실거래 {len(samples)}건 · 단지 {len(complexes)}개 분석"
         f" · 지역 평균 평단가 {region_avg_per_sqm:,}만원/㎡",
         "> 가격은 실거래 기반 추정 시세이며 호가·매물 존재 여부는 별도 확인이 필요합니다.",
+        *([f"> 주소 확인 대기 {len(address_pending)}개 단지는 확정 후보에서 제외했습니다."] if address_pending else []),
         "",
         "| 순위 | 단지명 | 동 | 평균 실거래가 | 평단가 | 거래 | 연식 | 점수 |",
         "|---|---|---|---|---|---|---|---|",
@@ -282,6 +327,9 @@ def recommend_complexes(
         "complex_count":       len(complexes),
         "region_avg_per_sqm":  region_avg_per_sqm,
         "results":             results,
+        "address_pending":     address_pending,
+        "address_checked_count": len(inspected),
+        "address_policy":      "verified_only" if require_complete_address else "include_pending",
         "report":              "\n".join(lines),
         "error":               "",
     }

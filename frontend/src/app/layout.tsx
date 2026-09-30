@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import ConciergeWidget from "@/components/ConciergeWidget";
 import { AuthProvider } from "@/lib/auth";
+import ServiceFeedbackForm from "@/components/ServiceFeedbackForm";
 
 const pretendard = localFont({
   src: "./fonts/PretendardVariable.woff2",
@@ -23,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${pretendard.className} h-full`}>
         <AuthProvider>
           <Navbar />
-          <main className="min-h-screen min-w-0 p-4 pb-24 md:ml-[236px] md:p-6 md:pb-24">{children}</main>
+          <main className="min-h-screen min-w-0 p-4 pb-24 md:ml-[236px] md:p-6 md:pb-24">{children}<ServiceFeedbackForm key="feedback" /></main>
           <ConciergeWidget />
         </AuthProvider>
       </body>

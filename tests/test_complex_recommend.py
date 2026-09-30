@@ -79,3 +79,29 @@ def test_liquidity_reason(mocked):
     r = mocked.recommend_complexes("춘천시")
     c = next(x for x in r["results"] if x["complex_name"] == "C단지")
     assert any("유동성" in reason for reason in c["reasons"])
+
+
+def test_verified_only_replaces_incomplete_higher_ranked_candidates(mocked, monkeypatch):
+    order = mocked.recommend_complexes("춘천시")["results"]
+    incomplete = order[0]["complex_name"]
+    def enrich(items, *args):
+        for item in items:
+            item.update(address_status="matched", jibun_address="강원 춘천시 교동 1",
+                        road_address="" if item["complex_name"] == incomplete else "강원 춘천시 검증로 1")
+    monkeypatch.setattr(mocked, "enrich_complex_addresses", enrich)
+    result = mocked.recommend_complexes("춘천시", limit=2, require_complete_address=True)
+    assert len(result["results"]) == 2
+    assert all(item["road_address"] and item["jibun_address"] for item in result["results"])
+    assert incomplete not in {item["complex_name"] for item in result["results"]}
+    assert result["address_pending"][0]["complex_name"] == incomplete
+    assert result["address_checked_count"] == 3
+    assert result["address_policy"] == "verified_only"
+
+
+def test_verified_only_returns_no_candidates_for_failed_recheck(mocked, monkeypatch):
+    def enrich(items, *args):
+        for item in items:
+            item.update(address_status="unavailable", jibun_address="이전 지번 1", road_address="이전 도로명 1")
+    monkeypatch.setattr(mocked, "enrich_complex_addresses", enrich)
+    result = mocked.recommend_complexes("춘천시", require_complete_address=True)
+    assert result["results"] == [] and len(result["address_pending"]) == 3

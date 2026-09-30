@@ -1,0 +1,25 @@
+name: External readiness
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/15 * * * *'
+permissions:
+  contents: read
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe deployed service
+        env:
+          EXTERNAL_READINESS_URL: ${{ secrets.EXTERNAL_READINESS_URL }}
+        run: |
+          if [ -n "$EXTERNAL_READINESS_URL" ]; then
+            python scripts/check_external_readiness.py --once
+          else
+            echo '배포 서비스 준비 상태 URL 미설정: 감시 비활성'
+          fi

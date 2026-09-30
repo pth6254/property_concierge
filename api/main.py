@@ -25,7 +25,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from api.routes import activity, appraisal, address, auth, cases, chat, comparison, concierge, history, listings, market, recommendation, rights, simulation
-from api.routes import operations
+from api.routes import operations, feedback
 from api import auth_db as _adb
 from api import history_db as _hdb
 from api import activity_db as _actdb
@@ -83,6 +83,24 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
+@app.middleware("http")
+async def measure_request(request, call_next):
+    import asyncio
+    from time import perf_counter
+    from api.service_metrics import record_duration
+    started, status_code = perf_counter(), 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    finally:
+        route = request.scope.get("route")
+        # 매물 ID·쿼리·주소가 포함된 실제 URL은 집계 키로 사용하지 않는다.
+        template = getattr(route, "path", None)
+        if template and template.startswith("/api/") and not template.startswith("/api/operations"):
+            await asyncio.to_thread(record_duration, f"http:{request.method}:{template}", perf_counter()-started, status_code >= 500)
+
 # 허용 오리진 — 배포 도메인은 CORS_ORIGINS 환경변수(콤마 구분)로 지정한다.
 # 자격증명(쿠키)을 주고받으므로 와일드카드는 사용할 수 없다.
 _DEFAULT_ORIGINS = "http://localhost:3000,http://frontend:3000"
@@ -115,6 +133,7 @@ for _router in [
     rights.router,
     chat.router,
     operations.router,
+    feedback.router,
 ]:
     app.include_router(_router, prefix="/api")
 
