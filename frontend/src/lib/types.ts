@@ -231,7 +231,7 @@ export interface CandidateNextAction {
   code: string;
   title: string;
   reason: string;
-  target: "price" | "appraisal" | "simulation" | "rights" | "checklist";
+  target: "price" | "appraisal" | "simulation" | "rights" | "checklist" | "listings";
   priority: "warning" | "input" | "normal";
   checklist_id: number | null;
 }

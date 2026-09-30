@@ -112,7 +112,7 @@ export default function CaseComparisonPage() {
             ["AI 추정가", (row: CaseCandidateComparisonRow) => won(row.estimated_value)],
             ["AVM 신뢰도", (row: CaseCandidateComparisonRow) => row.appraisal_confidence == null ? "근거 미확인" : `${Math.round(row.appraisal_confidence * 100)}% · 비교 ${row.appraisal_comparable_count ?? 0}건 · ${row.appraisal_match_level ?? "매칭 미확인"}`],
             ["추정가 차이", (row: CaseCandidateComparisonRow) => row.price_gap_ratio == null ? "판단 보류" : `${row.price_gap_ratio > 0 ? "+" : ""}${row.price_gap_ratio}%`],
-            ["원본 매물", (row: CaseCandidateComparisonRow) => row.source_status == null ? "직접 입력" : row.source_status.status === "current" ? "저장 당시와 동일" : row.source_status.status === "missing" ? "원본을 찾을 수 없음" : row.source_status.status === "changed" ? "저장 당시와 변경됨" : "재확인 필요"],
+            ["원본 매물", (row: CaseCandidateComparisonRow) => row.source_status == null ? "직접 입력 · 출처 미연결" : row.source_status.status === "current" ? "저장 당시와 동일" : row.source_status.status === "missing" ? "원본을 찾을 수 없음" : row.source_status.status === "changed" ? "저장 당시와 변경됨" : "재확인 필요"],
             ["필요 대출", (row: CaseCandidateComparisonRow) => won(numberValue(row.funding?.loan_amount))],
             ["취득비용 포함 필요 현금", (row: CaseCandidateComparisonRow) => won(numberValue(row.funding?.required_cash))],
             ["취득비용", (row: CaseCandidateComparisonRow) => won(numberValue(row.funding?.acquisition_cost))],
@@ -138,7 +138,7 @@ export default function CaseComparisonPage() {
         <button onClick={() => { setDecisionTarget(row.property_id); setReason(comparison.selected_property_id === row.property_id ? comparison.decision_reason : ""); }} className="mt-4 w-full rounded-lg border border-primary py-2 text-sm font-semibold text-primary hover:bg-emerald-50">이 후보를 최종 선택</button>
       </article>)}</section>
 
-      {decisionTarget != null && <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><h2 className="font-bold">최종 후보 선택 근거</h2><p className="mt-1 text-xs text-slate-600">미확인 항목이 있어도 선택할 수 있지만, 경고와 누락 자료를 확인한 근거를 남겨주세요.</p><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="예: 예산 범위 안이며 권리분석이 안전하고 출퇴근 조건이 가장 적합함" className="mt-3 w-full rounded-lg border border-emerald-200 p-3 text-sm" /><div className="mt-3 flex justify-end gap-2"><button onClick={() => { setDecisionTarget(null); setReason(""); }} className="rounded-lg border px-4 py-2 text-sm">취소</button><button disabled={saving} onClick={decide} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">선택 저장</button></div></section>}
+      {decisionTarget != null && <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><h2 className="font-bold">최종 후보 선택 근거</h2><p className="mt-1 text-xs text-slate-600">미확인 항목이 있어도 선호 후보로 저장할 수 있습니다. 이 선택은 거래 가능·자금 조달·권리 안전을 확인했다는 뜻이 아닙니다. 경고와 누락 자료를 확인할 계획을 근거에 남겨주세요.</p><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={3} placeholder="예: 예산 범위 안이며 권리분석이 안전하고 출퇴근 조건이 가장 적합함" className="mt-3 w-full rounded-lg border border-emerald-200 p-3 text-sm" /><div className="mt-3 flex justify-end gap-2"><button onClick={() => { setDecisionTarget(null); setReason(""); }} className="rounded-lg border px-4 py-2 text-sm">취소</button><button disabled={saving} onClick={decide} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">선택 저장</button></div></section>}
     </>}
   </div>;
 }

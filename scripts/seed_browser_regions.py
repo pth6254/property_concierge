@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from sqlalchemy.engine import make_url
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -11,7 +12,9 @@ from db.models import LegalRegion
 
 
 def main():
-    if os.getenv("BROWSER_TEST_DB") != "1" or os.getenv("APP_ENV") != "development":
+    database_url = os.getenv("DATABASE_URL", "")
+    if (os.getenv("BROWSER_TEST_DB") != "1" or os.getenv("APP_ENV") != "development"
+            or not database_url or make_url(database_url).database != "real_estate_test"):
         raise RuntimeError("격리 개발 DB에서만 브라우저용 지역을 준비할 수 있습니다")
     nodes = [
         ("1100000000", None, "11", "000", "000", "서울특별시", "서울특별시", "sido", 1),

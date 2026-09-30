@@ -9,7 +9,7 @@ def reviewed_candidate():
     return {
         "id": 1, "name": "후보", "status": "reviewing", "asking_price": 900_000_000,
         "analyses": [
-            {"analysis_type": "appraisal", "status": "completed", "summary": {"estimated_value": 900_000_000}},
+            {"analysis_type": "appraisal", "status": "completed", "summary": {"estimated_value": 900_000_000, "confidence": 0.8}},
             {"analysis_type": "simulation", "status": "completed", "summary": {
                 "purchase_price": 900_000_000, "loan_amount": 0, "required_cash": 920_000_000,
                 "monthly_payment": 0, "cash_available": 920_000_000, "cash_shortfall": 0,
@@ -74,3 +74,25 @@ def test_unknown_rights_grade_requires_confirmation():
     candidate = reviewed_candidate()
     candidate["analyses"][2]["summary"] = {}
     assert candidate_next_actions({}, candidate)[0]["code"] == "rights_risk"
+
+
+def test_manual_candidate_needs_source_and_unknown_avm_confidence_blocks_price_gap():
+    candidate = reviewed_candidate()
+    candidate.update(source="manual", source_listing_id=None)
+    candidate["analyses"][0]["summary"].pop("confidence")
+    candidate["asking_price"] = 1_000_000_000
+    case = {"id": 1, "title": "케이스", "properties": [candidate]}
+    row = compare_case_candidates(case)["rows"][0]
+    codes = {action["code"] for action in candidate_next_actions(case, candidate)}
+    assert {"source_unverified", "appraisal_confidence", "simulation_price"} <= codes
+    assert "price_gap" not in codes
+    assert row["price_gap"] is None
+    assert not row["decision_ready"]
+
+
+def test_sample_recommendation_never_becomes_decision_ready():
+    candidate = reviewed_candidate()
+    candidate.update(source="recommendation", source_listing_id=None)
+    row = compare_case_candidates({"id": 1, "title": "케이스", "properties": [candidate]})["rows"][0]
+    assert "demo_listing" in {action["code"] for action in candidate_next_actions({}, candidate)}
+    assert not row["decision_ready"]

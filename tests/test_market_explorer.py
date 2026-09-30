@@ -7,8 +7,6 @@ import pytest
 
 os.environ.setdefault("DISABLE_RATE_LIMIT", "1")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-market-explorer")
-os.environ.setdefault("DATABASE_URL", "postgresql://postgres:password@localhost:5432/real_estate_db")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 
 @pytest.fixture()
@@ -113,8 +111,7 @@ def test_concierge_routes_to_real_market_tool(client, monkeypatch):
             del messages
             return FakeResponse("국토교통부 실거래 자료를 기준으로 비교했습니다.")
 
-    monkeypatch.setattr(model_factory, "get_llm_json", lambda: FakeRouter())
-    monkeypatch.setattr(model_factory, "get_llm", lambda: FakeWriter())
+    monkeypatch.setattr(model_factory, "get_chat_llm", lambda **kwargs: FakeRouter() if kwargs.get("json_mode") else FakeWriter())
 
     response = client.post("/api/concierge/messages", json={
         "message": "서울에서 10억 이하 아파트 동네를 추천해줘",

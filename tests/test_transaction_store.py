@@ -9,7 +9,6 @@ import time
 
 import pytest
 
-os.environ.setdefault("DATABASE_URL", "postgresql://postgres:password@localhost:5432/real_estate_db")
 
 import transaction_store
 from price_engine import _endpoint_name

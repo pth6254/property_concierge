@@ -9,7 +9,7 @@ type Catalog = {total:number;page:number;items:{id:number;name:string;dong:strin
 type Ingestion = {region:string;counts:Record<string,number>;items:{endpoint:string;category:string;month:string;status:string;count:number;fetched_at:number|null}[]};
 type Quality = {counts:Record<string,number>;notice:string};
 type Job = {status:string;error?:string;step?:string};
-const labels:Record<string,string> = {ok:"정상",down:"연결 끊김",unknown:"미확인",delayed:"지연",ready:"정상",degraded:"점검 필요",database:"DB",redis:"Redis",worker:"작업 실행기",queue:"작업 큐",completed:"수집 완료",missing:"누락",failed:"실패",stale:"갱신 필요",running:"실행 중",interrupted:"중단 의심",matched:"주소 일치",unresolved:"미확인",ambiguous:"여러 주소",unavailable:"조회 실패"};
+const labels:Record<string,string> = {ok:"정상",down:"연결 끊김",unknown:"미확인",delayed:"지연",ready:"정상",degraded:"점검 필요",database:"DB",legal_regions:"서울 법정동 기준정보",redis:"Redis",worker:"작업 실행기",queue:"작업 큐",completed:"수집 완료",missing:"누락",failed:"실패",stale:"갱신 필요",running:"실행 중",interrupted:"중단 의심",matched:"주소 일치",unresolved:"미확인",ambiguous:"여러 주소",unavailable:"조회 실패"};
 async function request<T>(path:string, body?:object):Promise<T> {
   const response=await fetch(`/api/operations/${path}`,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(15000)});
   if(!response.ok){const value=await response.json().catch(()=>null);throw new Error(value?.detail || `요청 실패 (${response.status})`);}

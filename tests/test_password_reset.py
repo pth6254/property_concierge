@@ -15,8 +15,6 @@ import pytest
 
 os.environ.setdefault("DISABLE_RATE_LIMIT", "1")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-password-reset")
-os.environ.setdefault("DATABASE_URL", "postgresql://postgres:password@localhost:5432/real_estate_db")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 EMAIL    = "reset-target@example.com"
 PASSWORD = "original-pass-1234"

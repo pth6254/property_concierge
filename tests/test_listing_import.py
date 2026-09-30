@@ -65,6 +65,21 @@ def test_duplicate_unlinked_and_empty_csv(regions):
     assert upload(client,[]).status_code==422
 
 
+def test_manual_listing_without_url_can_be_saved_as_candidate(regions):
+    client = regions
+    manual = row(external_id="manual-test-1", source_url="", legal_region_code="")
+    imported = upload(client, [manual], source="중개사 전화 확인")
+    assert imported.status_code == 200, imported.text
+    assert imported.json()["created"] == 1
+    listing = client.get("/api/listings").json()["items"][0]
+    assert listing["source_name"] == "중개사 전화 확인"
+    assert listing["source_url"] is None
+    case_id = client.post("/api/cases", json={"title": "직접 확인 매물"}).json()["id"]
+    saved = client.post(f"/api/listings/{listing['id']}/candidate", json={"case_id": case_id})
+    assert saved.status_code == 201, saved.text
+    assert saved.json()["source_status"]["status"] == "current"
+
+
 def test_missing_status_is_unknown_and_conflict_rolls_back_batch(regions):
     client=regions; original=row(status="")
     assert upload(client,[original]).json()['created']==1

@@ -23,6 +23,8 @@ def test_readiness_detects_dead_worker_and_alert_transitions(client):
     from api.operational_health import WORKERS, ALERTS, snapshot, record_transition
     from api.job_worker import ensure_group
     from db.redis_client import get_redis
+    from db.base import session_scope
+    from db.models import LegalRegion
     redis = get_redis()
     ensure_group()
     redis.delete(WORKERS, ALERTS, f'{ALERTS}:state')
@@ -30,8 +32,15 @@ def test_readiness_detects_dead_worker_and_alert_transitions(client):
     assert client.get('/ready').status_code == 503
     state = snapshot()
     assert state['checks']['worker'] == 'down'
+    assert state['checks']['legal_regions'] == 'missing'
     record_transition(state);record_transition(state)
     assert redis.xlen(ALERTS) == 1
+    with session_scope() as session:
+        session.add(LegalRegion(code='1168010100', parent_code='1168000000', sido_code='11',
+            sigungu_code='680', eup_myeon_dong_code='101', ri_code='00', name='역삼동',
+            full_name='서울특별시 강남구 역삼동', level='eup_myeon_dong', depth=3,
+            lawd_code='11680', resident_code='', cadastral_code='', sort_order=1,
+            remarks='', is_active=True, synced_at=time.time()))
     redis.zadd(WORKERS, {'test-worker':time.time()})
     assert client.get('/ready').status_code == 200
     record_transition(snapshot())

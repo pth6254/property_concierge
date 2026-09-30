@@ -125,7 +125,7 @@ def test_intent_model_failure_is_error_not_a_successful_fallback(monkeypatch):
     from backend.graphs.concierge_graph import decide_node
     def unavailable():
         raise RuntimeError("down")
-    monkeypatch.setattr(model_factory, "get_llm_json", unavailable)
+    monkeypatch.setattr(model_factory, "get_chat_llm", lambda **_: unavailable())
     state = decide_node({"message": "지역 추천", "previous_criteria": {"budget_max_won": 1000000000}})
     assert state["routing_error"] == "RuntimeError"
     case = IntentCase.model_validate({"id": "down", "turns": [{"message": "지역 추천", "expected_intent": "find_region"}]})

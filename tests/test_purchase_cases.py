@@ -6,8 +6,6 @@ import pytest
 
 os.environ.setdefault("DISABLE_RATE_LIMIT", "1")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-purchase-cases")
-os.environ.setdefault("DATABASE_URL", "postgresql://postgres:password@localhost:5432/real_estate_db")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 
 
 @pytest.fixture()
@@ -381,7 +379,7 @@ def test_purchase_journey_from_budget_to_recorded_preparation_completion(client)
     case = client.post("/api/cases", json={"title": "매수 흐름 검증", "budget_max": 900_000_000}).json()
     path = f"/api/cases/{case['id']}"
     candidate = client.post(f"{path}/properties", json={"name": "가상 후보", "asking_price": 950_000_000}).json()
-    assert client.get(path).json()["properties"][0]["next_actions"][0]["code"] == "budget"
+    assert {item["code"] for item in client.get(path).json()["properties"][0]["next_actions"]} >= {"budget", "source_unverified"}
     assert client.patch(f"{path}/properties/{candidate['id']}", json={"asking_price": 880_000_000}).status_code == 200
     comparison = client.get(f"{path}/comparison").json()["rows"][0]
     assert not comparison["decision_ready"]
@@ -409,11 +407,11 @@ def test_next_actions_refresh_after_price_edit_and_enforce_ownership(client):
     candidate_id = client.post(f"/api/cases/{case_id}/properties", json={"name": "후보"}).json()["id"]
     def actions():
         return client.get(f"/api/cases/{case_id}").json()["properties"][0]["next_actions"]
-    assert actions()[0]["code"] == "asking_price"
+    assert {item["code"] for item in actions()} >= {"asking_price", "source_unverified"}
     endpoint = f"/api/cases/{case_id}/properties/{candidate_id}"
     assert client.patch(endpoint, json={"asking_price": -1}).status_code == 422
     assert client.patch(endpoint, json={"asking_price": 1_000_000_000}).status_code == 200
-    assert actions()[0]["code"] == "budget"
+    assert {item["code"] for item in actions()} >= {"budget", "source_unverified"}
     assert "asking_price" not in {item["code"] for item in actions()}
     assert client.patch(endpoint, json={"status": "rejected"}).status_code == 200
     assert actions() == []

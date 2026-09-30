@@ -8,13 +8,23 @@ ID는 로컬 `.env`에만 저장한다. 로그인 후 메뉴 하단의 **운영 
 ## 준비 상태와 알림
 
 - `/health`: API 기동 확인. Docker 시작 순서에 사용한다.
-- `/ready`: DB·Redis·실행기·큐가 정상일 때 200, 그 외 503. 공개 응답에는 상태만 반환한다.
+- `/ready`: DB·서울 법정동 기준정보·Redis·실행기·큐가 정상일 때 200, 그 외 503. 공개 응답에는 상태만 반환한다.
 - 실행기는 5초마다 Redis에 생존 신호를 기록한다. 30초 이상 없으면 중단으로 판단한다.
 - 미전달 대기 100건 초과 또는 가장 오래된 대기 작업이 120초 초과이면 지연으로 표시한다.
 - 별도 `operations-monitor` 컨테이너가 15초마다 확인하고 상태 전환을 Redis 알림함(최근 200개)과 로그에 남긴다.
   외부 메일·메신저는 발송하지 않는다. Redis 장애는 로그에만 기록할 수 있다.
 - 호스트 전체 종료는 자체 모니터로 감지할 수 없다. 외부 `/ready` 감시와 HTTPS 배포는 별도 운영 설정이 필요하다.
   `/ready`를 API 기동 의존성으로 바꾸면 실행기 시작과 순환 대기가 생기므로 `/health`를 유지한다.
+
+법정동 기준정보가 누락되면 주소가 있는 매물도 등록·후보 저장에 실패한다. 새 DB나 백업을
+적용한 뒤 아래 순서로 전체 목록을 검증하고 동기화한다. 서비스 DB를 쓰는 pytest는
+데이터를 지울 수 있으므로 `scripts/run_isolated_tests.py`로만 실행한다.
+
+```bash
+docker exec property_concierge_backend python -m backend.tools.sync_legal_regions --dry-run
+./scripts/backup_db.sh
+docker exec property_concierge_backend python -m backend.tools.sync_legal_regions
+```
 
 ## 단지 기준정보
 
@@ -30,6 +40,11 @@ ID는 로컬 `.env`에만 저장한다. 로그인 후 메뉴 하단의 **운영 
 1시간 넘은 실행 중 기록은 중단 의심으로 표시하며 동일 재수집 요청은 10분 동안 차단한다.
 전체 지역 주기 수집은 [transaction-refresh.md](transaction-refresh.md)의 maintenance 프로필로 별도 활성화한다.
 매물 수집 현황은 사용자 주소·URL 없이 상태별 건수만 제공하며 사람의 정답 대조 성공률과 구분한다.
+
+로컬 Docker 환경에서는 2026-09-27에 `maintenance` 프로필을 활성화했다. 첫 실행은
+서울 25개 구·7개 원천·12개월 2,100개 조합 중 348개를 재수집하고 1,752개를
+TTL 내 자료로 건너뛰었으며 실패는 0건이었다. 저장된 실거래는 149,746건이다.
+이는 해당 실행의 기록이며 다른 배포 환경은 프로필을 별도로 활성화해야 한다.
 
 ## 실제 매물 대조
 

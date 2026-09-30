@@ -28,7 +28,7 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
         asking = candidate.get("asking_price")
         estimated = appraisal_summary.get("estimated_value")
         confidence = appraisal_summary.get("confidence")
-        usable_estimate = (appraisal or {}).get("status") == "completed" and (confidence is None or confidence >= 0.5)
+        usable_estimate = (appraisal or {}).get("status") == "completed" and isinstance(confidence, (int, float)) and confidence >= 0.5
         gap = asking - estimated if usable_estimate and isinstance(asking, int) and isinstance(estimated, int) else None
         gap_ratio = round(gap / estimated * 100, 1) if gap is not None and estimated else None
 
@@ -54,8 +54,8 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
             warnings.append("희망가가 추정가보다 5% 초과")
         elif gap_ratio is not None and gap_ratio <= 0:
             highlights.append("희망가가 추정가 이하")
-        if (appraisal or {}).get("status") == "completed" and isinstance(confidence, (int, float)) and confidence < 0.5:
-            warnings.append("AVM 추정 신뢰도가 낮아 가격 차이를 판단하지 않았습니다")
+        if (appraisal or {}).get("status") == "completed" and (not isinstance(confidence, (int, float)) or confidence < 0.5):
+            warnings.append("AVM 추정 신뢰도가 낮거나 미확인되어 가격 차이를 판단하지 않았습니다")
         rights_grade = rights_summary.get("risk_grade")
         if rights_grade in {"caution", "danger"}:
             warnings.append(f"권리 위험: {rights_summary.get('risk_label') or rights_grade}")

@@ -25,12 +25,16 @@ def worker_heartbeat(consumer: str) -> None:
 
 
 def snapshot() -> dict:
-    checks = {"database": "down", "redis": "down", "worker": "down", "queue": "unknown"}
+    checks = {"database": "down", "legal_regions": "missing", "redis": "down", "worker": "down", "queue": "unknown"}
     queue = {"waiting": None, "in_progress": None, "oldest_wait_seconds": None}
     try:
         with get_engine().connect() as connection:
             connection.execute(text("SET LOCAL statement_timeout = '2000ms'"))
             connection.execute(text("SELECT 1"))
+            # DB 연결만으로는 매물 주소 연결이 가능한지 알 수 없다. 동 기준정보가
+            # 비어 있으면 등록·후보 저장이 실패하므로 준비 상태에서 드러낸다.
+            if connection.scalar(text("SELECT EXISTS (SELECT 1 FROM legal_regions WHERE is_active AND level = 'eup_myeon_dong' AND sido_code = '11')")):
+                checks["legal_regions"] = "ok"
         checks["database"] = "ok"
     except Exception:
         pass

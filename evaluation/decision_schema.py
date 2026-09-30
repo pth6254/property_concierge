@@ -28,6 +28,9 @@ class CandidateState(StrictModel):
     name: str
     asking_price: int | None = Field(default=None, ge=0)
     status: Literal["reviewing", "shortlisted", "rejected", "selected"] = "reviewing"
+    source: Literal["manual", "recommendation", "appraisal"] | None = None
+    source_listing_id: int | None = Field(default=None, gt=0)
+    source_status: dict | None = None
     analyses: list[AnalysisState] = Field(default_factory=list)
     checklist: list[ChecklistState] = Field(min_length=1)
 

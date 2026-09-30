@@ -17,8 +17,7 @@ def test_official_context_and_sources(monkeypatch):
     def invoke(messages):
         contexts.append(messages)
         return SimpleNamespace(content="임차권등기명령을 신청할 수 있습니다.")
-    monkeypatch.setattr(model_factory, "get_llm_json", lambda: SimpleNamespace(invoke=lambda _: SimpleNamespace(content='{"tool":"none"}')))
-    monkeypatch.setattr(model_factory, "get_llm", lambda: SimpleNamespace(invoke=invoke))
+    monkeypatch.setattr(model_factory, "get_chat_llm", lambda **kwargs: SimpleNamespace(invoke=(lambda _: SimpleNamespace(content='{"tool":"none"}')) if kwargs.get("json_mode") else invoke))
     result = chat_service.answer_question("보증금 미반환")
     assert result['sources'][0]['origin'] == 'official_law'
     assert result['sources'][0]['effective_date'] == '20260101'
@@ -29,8 +28,7 @@ def test_unavailable_official_store_does_not_invent_answer(monkeypatch):
     from backend.services import chat_service, law_retrieval
     import model_factory
     monkeypatch.setattr(law_retrieval, 'search_laws', lambda *a, **k: [])
-    monkeypatch.setattr(model_factory, 'get_llm_json', lambda: SimpleNamespace(invoke=lambda _: SimpleNamespace(content='{"tool":"none"}')))
-    monkeypatch.setattr(model_factory, 'get_llm', lambda: pytest.fail('근거 없는 생성'))
+    monkeypatch.setattr(model_factory, 'get_chat_llm', lambda **kwargs: SimpleNamespace(invoke=lambda _: SimpleNamespace(content='{"tool":"none"}')) if kwargs.get('json_mode') else pytest.fail('근거 없는 생성'))
     result = chat_service.answer_question('관계없는 질문')
     assert not result['sources'] and '자료를 찾지 못했습니다' in result['answer']
 

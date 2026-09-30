@@ -144,7 +144,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -232,7 +232,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -322,7 +322,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -394,7 +394,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -489,7 +489,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -561,7 +561,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -657,7 +657,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -741,7 +741,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -834,7 +834,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -927,7 +927,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1022,7 +1022,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1109,7 +1109,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1204,7 +1204,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   },
                   "status": "failed"
                 },
@@ -1300,7 +1300,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1396,7 +1396,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1483,7 +1483,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1577,7 +1577,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1675,7 +1675,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1788,7 +1788,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1887,7 +1887,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -1978,7 +1978,7 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000
+                    "estimated_value": 900000000, "confidence": 0.8
                   }
                 },
                 {
@@ -2056,6 +2056,71 @@
           },
           "selected_property_id": null,
           "execution_tasks": []
+        }
+      ]
+    },
+    {
+      "id": "source-and-avm-confidence",
+      "rationale": "출처가 없는 직접 입력 후보와 신뢰도가 없는 AVM 결과는 검토 완료 또는 가격 차이 판단으로 처리하지 않는다.",
+      "steps": [
+        {
+          "name": "직접 입력 및 신뢰도 미확인",
+          "as_of": "2026-09-02T12:00:00",
+          "candidates": [
+            {
+              "id": 1,
+              "name": "가상 후보",
+              "source": "manual",
+              "asking_price": 900000000,
+              "analyses": [
+                {"analysis_type": "appraisal", "analyzed_at": "2026-09-01T12:00:00", "summary": {"estimated_value": 900000000}},
+                {"analysis_type": "simulation", "analyzed_at": "2026-09-01T12:00:00", "summary": {"purchase_price": 900000000, "loan_amount": 0, "required_cash": 920000000, "monthly_payment": 0, "cash_available": 920000000, "cash_shortfall": 0}},
+                {"analysis_type": "rights", "analyzed_at": "2026-09-01T12:00:00", "summary": {"risk_grade": "safe"}}
+              ],
+              "checklist": [{"id": 1, "category": "site", "title": "현장 확인", "status": "done"}]
+            }
+          ],
+          "expected": {"ready_ids": [], "required_actions": {"1": ["source_unverified", "appraisal_confidence"]}, "comparison_values": {"1": {"price_gap": null, "decision_ready": false}}}
+        },
+        {
+          "name": "출처 연결 및 신뢰도 확인",
+          "as_of": "2026-09-02T12:00:00",
+          "candidates": [
+            {
+              "id": 1,
+              "name": "가상 후보",
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {"status": "current"},
+              "asking_price": 900000000,
+              "analyses": [
+                {"analysis_type": "appraisal", "analyzed_at": "2026-09-01T12:00:00", "summary": {"estimated_value": 900000000, "confidence": 0.8}},
+                {"analysis_type": "simulation", "analyzed_at": "2026-09-01T12:00:00", "summary": {"purchase_price": 900000000, "loan_amount": 0, "required_cash": 920000000, "monthly_payment": 0, "cash_available": 920000000, "cash_shortfall": 0}},
+                {"analysis_type": "rights", "analyzed_at": "2026-09-01T12:00:00", "summary": {"risk_grade": "safe"}}
+              ],
+              "checklist": [{"id": 1, "category": "site", "title": "현장 확인", "status": "done"}]
+            }
+          ],
+          "expected": {"ready_ids": [1], "forbidden_actions": {"1": ["source_unverified", "appraisal_confidence"]}, "comparison_values": {"1": {"price_gap": 0, "decision_ready": true}}}
+        },
+        {
+          "name": "가상 추천 매물은 검토 완료 아님",
+          "as_of": "2026-09-02T12:00:00",
+          "candidates": [
+            {
+              "id": 1,
+              "name": "개발용 가상 매물",
+              "source": "recommendation",
+              "asking_price": 900000000,
+              "analyses": [
+                {"analysis_type": "appraisal", "analyzed_at": "2026-09-01T12:00:00", "summary": {"estimated_value": 900000000, "confidence": 0.8}},
+                {"analysis_type": "simulation", "analyzed_at": "2026-09-01T12:00:00", "summary": {"purchase_price": 900000000, "loan_amount": 0, "required_cash": 920000000, "monthly_payment": 0, "cash_available": 920000000, "cash_shortfall": 0}},
+                {"analysis_type": "rights", "analyzed_at": "2026-09-01T12:00:00", "summary": {"risk_grade": "safe"}}
+              ],
+              "checklist": [{"id": 1, "category": "site", "title": "현장 확인", "status": "done"}]
+            }
+          ],
+          "expected": {"ready_ids": [], "required_actions": {"1": ["demo_listing"]}, "comparison_values": {"1": {"decision_ready": false}}}
         }
       ]
     }

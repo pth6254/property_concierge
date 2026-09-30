@@ -85,7 +85,7 @@ services:
       PG_CONNECTION_STRING: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
     ports:
-      - "${API_BIND_PORT:-8000}:8000"
+      - "${API_BIND_PORT:-8002}:8000"
     # 소스 볼륨 마운트 없음 — 이미지에 COPY 된 코드만 실행한다 (Dockerfile.backend).
     # 워커 수(UVICORN_WORKERS, 기본 4)는 Dockerfile ENV 로 정의되며 .env 에서 재정의 가능.
     healthcheck:
@@ -157,7 +157,7 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://api:8000
     ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+      - "${FRONTEND_PORT:-3002}:3000"
 
 volumes:
   pgvector_data:

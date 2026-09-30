@@ -8,7 +8,6 @@ import os
 
 import pytest
 
-os.environ.setdefault("DATABASE_URL", "postgresql://postgres:password@localhost:5432/real_estate_db")
 
 import services.rights_analysis_service as ras
 from tax_rules import calc_gift_tax, calc_inheritance_tax
@@ -147,9 +146,8 @@ class TestChatService:
     def test_tool_call_with_number_guard(self, monkeypatch):
         import model_factory
         import services.chat_service as cs
-        monkeypatch.setattr(model_factory, "get_llm_json", lambda: _FakeLLM(
-            '{"tool": "gift_tax", "params": {"gift_value": 500000000, "relation": "직계존속"}}'))
-        monkeypatch.setattr(model_factory, "get_llm", lambda: _FakeLLM(
+        monkeypatch.setattr(model_factory, "get_chat_llm", lambda **kwargs: _FakeLLM(
+            '{"tool": "gift_tax", "params": {"gift_value": 500000000, "relation": "직계존속"}}' if kwargs.get("json_mode") else
             "증여세는 약 77,600,000원입니다. 세액은 88,123,456원까지 오를 수 있습니다. 전문가 확인이 필요합니다."))
         out = cs.answer_question("성인 자녀에게 5억 증여하면 증여세?")
         assert out["tool_used"] == "증여세 계산"
@@ -159,8 +157,8 @@ class TestChatService:
     def test_rag_only_question(self, monkeypatch):
         import model_factory
         import services.chat_service as cs
-        monkeypatch.setattr(model_factory, "get_llm_json", lambda: _FakeLLM('{"tool": "none", "params": {}}'))
-        monkeypatch.setattr(model_factory, "get_llm", lambda: _FakeLLM(
+        monkeypatch.setattr(model_factory, "get_chat_llm", lambda **kwargs: _FakeLLM(
+            '{"tool": "none", "params": {}}' if kwargs.get("json_mode") else
             "묵시적 갱신 시 임차인은 해지 통지 3개월 후 나갈 수 있습니다. 전문가 확인이 필요합니다."))
         out = cs.answer_question("묵시적 갱신되면 언제 나갈 수 있나요?")
         assert out["tool_used"] is None and out["sources"]
@@ -168,17 +166,16 @@ class TestChatService:
     def test_llm_down_fallback(self, monkeypatch):
         import model_factory
         import services.chat_service as cs
-        def boom(): raise RuntimeError("down")
-        monkeypatch.setattr(model_factory, "get_llm_json", boom)
-        monkeypatch.setattr(model_factory, "get_llm", boom)
+        def boom(**_): raise RuntimeError("down")
+        monkeypatch.setattr(model_factory, "get_chat_llm", boom)
         out = cs.answer_question("전세 보증금 못 받으면?")
         assert out["answer"] and out["disclaimer"]
 
     def test_evaluation_trace_is_opt_in_and_not_exposed_in_response(self, monkeypatch):
         import model_factory
         import services.chat_service as cs
-        monkeypatch.setattr(model_factory, "get_llm_json", lambda: _FakeLLM('{"tool":"none","params":{}}'))
-        monkeypatch.setattr(model_factory, "get_llm", lambda: _FakeLLM("관련 자료를 확인하세요."))
+        monkeypatch.setattr(model_factory, "get_chat_llm", lambda **kwargs: _FakeLLM(
+            '{"tool":"none","params":{}}' if kwargs.get("json_mode") else "관련 자료를 확인하세요."))
         trace = {}
         output = cs.answer_question("묵시적 갱신", trace=trace)
         assert set(output) == {"answer", "sources", "tool_used", "disclaimer", "blocked"}
@@ -190,10 +187,9 @@ class TestChatService:
     def test_evaluation_trace_marks_llm_failure_even_with_fallback_answer(self, monkeypatch):
         import model_factory
         import services.chat_service as cs
-        def boom():
+        def boom(**_):
             raise RuntimeError("down")
-        monkeypatch.setattr(model_factory, "get_llm_json", boom)
-        monkeypatch.setattr(model_factory, "get_llm", boom)
+        monkeypatch.setattr(model_factory, "get_chat_llm", boom)
         trace = {}
         output = cs.answer_question("묵시적 갱신", trace=trace)
         assert output["answer"]

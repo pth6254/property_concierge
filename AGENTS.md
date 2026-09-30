@@ -157,6 +157,15 @@ API의 AVM·수집·채팅 경로는 `api/jobs.py`의 `create_task()`로 JSON �
 실행 도중 죽은 채팅·종합 컨시어지 작업은 대화 중복을 피하려고 자동 재실행하지 않고
 사용자 재질문을 안내한다. 정확한 경계는 `docs/job-recovery.md`를 따른다.
 
+### 2-10. pytest는 서비스 DB·Redis에 절대 연결하지 않는다
+
+일부 통합 테스트는 `users`·`transactions`·`legal_regions` 등을 비운다. 2026-09-27에
+테스트 기본 접속 주소가 실행 중인 서비스 DB를 가리켜 실데이터가 지워졌고 백업으로
+복구했다. `tests/conftest.py`는 명시적인 `TEST_DATABASE_URL`의 DB 이름이
+`real_estate_test`, `TEST_REDIS_URL`의 DB 번호가 `15`인지 확인하고, 아니면 테스트를
+시작하지 않는다. 로컬에서는 `scripts/run_isolated_tests.py`를 사용한다. 이 보호를
+우회하거나 테스트 파일에 서비스 DB 주소를 기본값으로 넣지 말 것.
+
 ---
 
 ## 3. 실측으로 확인한 함정
@@ -231,11 +240,7 @@ Windows에서 띄운 서버를 WSL curl로 때리면 연결되지 않는다.
 # ── 백엔드 ──────────────────────────────────────────────
 docker compose up -d pgvector redis          # DB·캐시 먼저
 
-DISABLE_RATE_LIMIT=1 APP_ENV=development \
-JWT_SECRET_KEY=dev-secret \
-DATABASE_URL="postgresql://postgres:<pw>@localhost:5432/real_estate_db" \
-REDIS_URL="redis://localhost:6379/0" \
-./venv-wsl/bin/python -m pytest tests/ -q    # 전체 테스트 (격리 DB에서 934개 통과, 2026-09-24)
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 
 alembic upgrade head                          # 마이그레이션 적용
 
@@ -314,7 +319,7 @@ docker compose -f docker-compose.yml up -d --build   # 운영 (override 배제)
 - **Resend 도메인 인증 미완료** — 위 7절 참고. 그 전까지 재설정은 운영자가 로그의 링크를
   수동 전달하는 방식으로만 가능하다.
 - **Google OAuth 리다이렉트 URI 가 localhost 로만 등록**되어 있다. 실도메인 등록 필요.
-- **국토부 API 지역 시딩은 서울 25개 구 매매 거래에 적용했다.** 매물 원문은 정기 수집하지 않는다. 실거래 배치 갱신은 `transaction-refresh` 유지보수 프로필을 활성화해야 시작된다.
+- **국토부 API 지역 시딩은 서울 25개 구 매매 거래에 적용했다.** 매물 원문은 정기 수집하지 않는다. 로컬 Docker의 실거래 갱신은 2026-09-27에 `transaction-refresh` 유지보수 프로필을 활성화했다. 다른 배포 환경에서는 별도로 활성화해야 한다.
 
 **제품 쪽**
 - 매물 데이터 제휴 없이는 추천·비교가 데모 수준을 벗어나기 어렵다.

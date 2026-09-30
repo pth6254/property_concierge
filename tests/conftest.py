@@ -7,6 +7,21 @@ backend/와 프로젝트 루트를 sys.path에 추가해
 
 import sys
 import os
+from urllib.parse import urlsplit, unquote
+
+
+# 일부 통합 테스트가 테이블을 비운다. 기본 서비스 DB를 암묵적으로 사용하면
+# 실거래·법령·사용자 데이터까지 삭제되므로 명시적인 격리 DB만 허용한다.
+_test_database_url = os.getenv("TEST_DATABASE_URL", "")
+_test_redis_url = os.getenv("TEST_REDIS_URL", "")
+_database = urlsplit(_test_database_url)
+_redis = urlsplit(_test_redis_url)
+if _database.scheme not in {"postgresql", "postgresql+psycopg2"} or unquote(_database.path.lstrip("/")) != "real_estate_test":
+    raise RuntimeError("pytest는 TEST_DATABASE_URL=postgresql://.../real_estate_test 격리 DB가 필요합니다.")
+if _redis.scheme not in {"redis", "rediss"} or _redis.path != "/15":
+    raise RuntimeError("pytest는 TEST_REDIS_URL=redis://.../15 격리 Redis DB가 필요합니다.")
+os.environ["DATABASE_URL"] = _test_database_url
+os.environ["REDIS_URL"] = _test_redis_url
 
 _root    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _backend = os.path.join(_root, "backend")

@@ -91,9 +91,9 @@ cp .env.example .env
 docker compose up --build
 
 # 서비스 주소
-# 프론트엔드: http://localhost:3000
-# 백엔드 API: http://localhost:8000
-# API 문서:   http://localhost:8000/docs
+# 프론트엔드: http://localhost:3002
+# 백엔드 API: http://localhost:8002
+# API 문서:   http://localhost:8002/docs
 ```
 
 `-f` 없이 실행하면 Compose가 `docker-compose.yml`(운영 기준 베이스)과
@@ -132,13 +132,13 @@ ollama pull nomic-embed-text
 cp .env.example .env
 
 # 5. FastAPI 백엔드 실행
-uvicorn api.main:app --reload --port 8000
+uvicorn api.main:app --reload --port 8002
 
 # 6. Next.js 프론트엔드 실행 (별도 터미널)
 cd frontend
 npm install
-npm run dev
-# http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:8002 npm run dev -- -p 3002
+# http://localhost:3002
 ```
 
 ### 실거래가 배치 수집 (선택 — 응답 속도 대폭 개선)
@@ -290,7 +290,7 @@ property_concierge/
 ├── schemas/                        Pydantic 스키마 (단위: 원·㎡)
 ├── data/
 │   └── sample_listings.csv         개발·테스트용 가상 매물 43건 (유일하게 파일로 남은 데이터 — 나머지는 전부 PostgreSQL)
-├── tests/                          pytest 테스트 (30개 파일, 743개 — 접근제어·시장탐색·케이스 소유권·실행 계획 등 포함)
+├── tests/                          pytest 테스트 (접근제어·시장탐색·케이스 소유권·실행 계획 등)
 ├── docker/init.sql                 PostgreSQL 초기화 스크립트 (vector 익스텐션·pgvector 테이블)
 ├── Dockerfile.backend / .frontend  서비스 이미지
 ├── docker-compose.yml              pgvector(app 테이블 겸 RAG 벡터스토어) + redis + api + frontend
@@ -328,7 +328,7 @@ property_concierge/
 | `POST` | `/api/rights/analyze` | 등기부·건축물대장 PDF 권리 위험 점검 (base64) |
 | `POST` | `/api/chat` | 법률·세금 AI 정보 안내 챗봇 |
 
-> 전체 API 명세: `http://localhost:8000/docs` (Swagger UI)
+> 전체 API 명세: `http://localhost:8002/docs` (Swagger UI)
 
 ---
 
@@ -707,27 +707,19 @@ alembic이 다루는 변경은 반영하지 못하므로, 그런 변경은 반�
 ## 테스트
 
 ```bash
-# DB·Redis 필요 테스트(test_access_control.py, test_transaction_store.py,
-# test_rights_and_chat.py 일부)를 돌리려면 먼저 컨테이너를 띄운다.
+# 테스트는 테이블을 비우므로 실행 중인 서비스 DB가 아닌 격리 DB를 사용한다.
 docker compose up -d pgvector redis
 
-pytest tests/                              # 전체 실행
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q  # 격리 DB 생성·마이그레이션·전체 테스트
 
 # 주요 파일
-pytest tests/test_price_engine_calc.py    # 가격 계산
-pytest tests/test_transaction_store.py    # 실거래가 로컬 스토어 (TTL·멱등·동시성, PostgreSQL 필요)
-pytest tests/test_simulation_service.py   # 시뮬레이션
-pytest tests/test_comparison_service.py   # 비교
-pytest tests/test_rights_and_chat.py      # 권리관계 위험 점검 · 법률·세금 챗봇
-pytest tests/test_access_control.py       # 이력·작업 소유자 격리 (타인 리포트 열람 차단, PostgreSQL·Redis 필요)
-pytest tests/test_password_reset.py       # 비밀번호 재설정 + 세션 무효화 (계정 열거 방지 포함, PostgreSQL·Redis 필요)
-pytest tests/test_cookie_config.py        # 쿠키 SameSite/Secure 설정 → 실제 Set-Cookie 헤더 매핑
-pytest tests/test_geocoding_rules.py      # LLM 후보와 결정론적 주소·유형 확정 경계
-pytest tests/test_purchase_cases.py       # 케이스·후보 비교·최종 선택·거래 실행 계획
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/test_price_engine_calc.py
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/test_transaction_store.py
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/test_rights_and_chat.py
 ```
 
-DB에 접근하지 않는 테스트는 Postgres·Redis 없이도 동작한다 —
-`db/base.py`가 엔진을 지연 생성해 실제로 DB를 쓰는 시점에만 `DATABASE_URL`을 확인하기 때문이다.
+`tests/conftest.py`는 `real_estate_test`와 Redis DB 15가 아니면 실행을 거부한다.
+직접 `pytest`를 실행할 때도 `TEST_DATABASE_URL`과 `TEST_REDIS_URL`을 명시해야 한다.
 
 GitHub Actions(`.github/workflows/ci.yml`)에서 push·PR마다 postgres·redis 서비스 컨테이너와
 함께 전체 스위트를 실행한다.

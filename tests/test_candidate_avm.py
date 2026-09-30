@@ -31,7 +31,7 @@ def test_explicit_appraisal_command_does_not_wait_for_model(monkeypatch):
     from backend.graphs.concierge_graph import decide_node
     def unavailable():
         raise RuntimeError("model unavailable")
-    monkeypatch.setattr(model_factory, "get_llm_json", unavailable)
+    monkeypatch.setattr(model_factory, "get_chat_llm", lambda **_: unavailable())
     assert decide_node({"message": "선택한 후보의 AVM 시세를 추정해줘"})["decision"].intent.value == "appraise"
     assert decide_node({"message": "선택한 후보의 AVM 시세를 추정하지 마"}).get("routing_error")
 
@@ -64,7 +64,7 @@ def wait_job(client, job_id):
 
 def route_appraisal(monkeypatch):
     from backend import model_factory
-    monkeypatch.setattr(model_factory, "get_llm_json", lambda: SimpleNamespace(invoke=lambda _: SimpleNamespace(content='{"intent":"appraise","criteria":{}}')))
+    monkeypatch.setattr(model_factory, "get_chat_llm", lambda **_: SimpleNamespace(invoke=lambda _: SimpleNamespace(content='{"intent":"appraise","criteria":{}}')))
 
 
 def test_chat_runs_owned_candidate_and_persists_result(client, monkeypatch):

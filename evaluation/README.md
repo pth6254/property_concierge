@@ -204,8 +204,8 @@ node scripts/verify_candidate_funding_browser.cjs
 기존 Docker 프론트 이미지는 자동으로 갱신되지 않으므로 최신 화면을 사용하려면 재빌드가 필요하다.
 
 ```bash
-python -m pytest tests/test_evaluation.py tests/test_rights_and_chat.py -q
-python -m pytest tests/test_decision_evaluation.py -q
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/test_evaluation.py tests/test_rights_and_chat.py -q
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/test_decision_evaluation.py -q
 ```
 
 평가기 테스트는 잘못된 기대값·금액/불리언 혼동·후속 이력·계산과 답변 수치 불일치·중복 검색 결과·폴백·시간 초과·HTML 이스케이프를 확인한다.

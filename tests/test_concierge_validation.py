@@ -11,7 +11,7 @@ from tests.test_market_explorer import client
 def route(monkeypatch, output, *, previous=None, message="조건을 변경해줘"):
     from backend import model_factory
     raw = output if isinstance(output, str) else json.dumps(output, ensure_ascii=False)
-    monkeypatch.setattr(model_factory, "get_llm_json", lambda: SimpleNamespace(
+    monkeypatch.setattr(model_factory, "get_chat_llm", lambda **_: SimpleNamespace(
         invoke=lambda _: SimpleNamespace(content=raw)))
     return decide_node({"user_id": 1, "message": message, "previous_criteria": previous or {}})
 
@@ -86,8 +86,7 @@ def test_api_followup_merges_saved_criteria_and_clear(client, monkeypatch):
         {"intent": "find_region", "criteria": {"transaction_type": "매매", "budget_max_won": None}},
         {"intent": "find_region", "criteria": {}, "clear_fields": ["budget_max_won"]},
     ])
-    monkeypatch.setattr(model_factory, "get_llm_json", lambda: SimpleNamespace(invoke=lambda _: SimpleNamespace(content=json.dumps(next(outputs)))))
-    monkeypatch.setattr(model_factory, "get_llm", lambda: SimpleNamespace(invoke=lambda _: SimpleNamespace(content="실거래 자료입니다.")))
+    monkeypatch.setattr(model_factory, "get_chat_llm", lambda **kwargs: SimpleNamespace(invoke=lambda _: SimpleNamespace(content=json.dumps(next(outputs)) if kwargs.get("json_mode") else "실거래 자료입니다.")))
     first = client.post('/api/concierge/messages', json={"message": "서울 아파트 8억 이하 추천"}).json()
     assert first["status"] == "needs_input" and first["missing_fields"] == ["transaction_type"]
     second = client.post('/api/concierge/messages', json={"message": "매매로", "conversation_id": first["conversation_id"]}).json()
