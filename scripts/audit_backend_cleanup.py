@@ -1,6 +1,13 @@
 """대체된 Python 구현 제거와 실행 중 API·워커의 코드 일치를 확인한다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import argparse
 import ast
 import hashlib
@@ -21,6 +28,7 @@ MODULES = [
     'schemas/purchase_case.py', 'schemas/listing_import.py',
     *['api/routes/' + name + '.py' for name in ('chat', 'appraisal', 'concierge', 'rights', 'comparison', 'recommendation')],
 ]
+MODULES = ["services/intelligence/" + name for name in MODULES]
 
 # 호스트 3.12와 컨테이너 3.11의 AST 차이를 제거하되 실행 코드와 상수는 모두 비교한다.
 FINGERPRINT_CODE = '''

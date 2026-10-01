@@ -40,7 +40,7 @@
 
 1. `/articles/2648400245` → HTTP 307 → `/map?layer=…`.
 2. 지도 페이지 HTML과 JavaScript는 HTTP 200으로 로드된다. 잠시 ‘매물 상세 / 로딩중’이 보인다.
-3. 내부 `/front-api/v1/data-service/transport?itemType=article&itemId=2648400245` 및 매물 관련 API들이 HTTP 429를 반환한다. 응답 본문은 `{"detailCode":"TOO_MANY_REQUESTS","message":""}`다.
+3. 내부 `/front-services/intelligence/api/v1/data-service/transport?itemType=article&itemId=2648400245` 및 매물 관련 API들이 HTTP 429를 반환한다. 응답 본문은 `{"detailCode":"TOO_MANY_REQUESTS","message":""}`다.
 4. 이후 `/404` → HTTP 302 → `financial.pstatic.net/404.html`로 이동한다. 최종 오류 페이지 자체는 HTTP 200이다.
 
 따라서 이 재현의 직접 원인은 상세 데이터 요청에 대한 네이버의 요청 제한이다. IP 기준 제한인지, 자동화 탐지인지, 일시적 정책인지까지 응답만으로 확정할 수 없다. 다른 4개 링크도 같은 내부 API 원인이라고 확대 해석하지 않는다. 실제 매물의 현재 유효성은 여전히 알 수 없다.

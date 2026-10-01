@@ -31,12 +31,12 @@ PC 종료·절전·로그아웃 중 서비스 제공을 보장하지 않으며, 
 이 PC의 3000·8000 포트는 다른 프로젝트가 사용하므로 아래 포트를 유지한다.
 
 ```powershell
-wsl -e env API_BIND_PORT=18001 FRONTEND_PORT=3001 docker compose -f docker-compose.yml up -d --build
-curl.exe -f http://localhost:3001/login
-curl.exe -f http://localhost:18001/health
+./scripts/compose.ps1 local up -d --build
+curl.exe -f http://localhost:3002/login
+curl.exe -f http://localhost:8002/health
 ```
 
-브라우저 접속: http://localhost:3001
+브라우저 접속: http://localhost:3002
 
 검증 시 일회성 WSL 명령을 추가 실행하지 않고 Windows HTTP 요청만 수 분간
 반복해 접속이 유지되는지 확인한다. WSL 명령 자체가 종료된 배포판을 다시 깨워

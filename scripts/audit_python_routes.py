@@ -1,6 +1,13 @@
 """Kotlin으로 이전한 HTTP 경로가 Python에 다시 구현되는 것을 막는다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import ast
 import json
 import re
@@ -15,7 +22,7 @@ def normalized(path: str) -> str:
 
 def native_routes() -> list[dict]:
     routes = []
-    for file in (ROOT / "core-service/src/main/kotlin").rglob("*Controller.kt"):
+    for file in (ROOT / "services/platform/src/main/kotlin").rglob("*Controller.kt"):
         source = file.read_text(encoding="utf-8")
         prefix = re.search(r'@RequestMapping\("([^\"]+)"\)', source)
         prefix = prefix[1] if prefix else ""
@@ -36,7 +43,7 @@ def native_routes() -> list[dict]:
 
 def python_routes() -> list[dict]:
     routes = []
-    files = list((ROOT / "api/routes").glob("*.py")) + list((ROOT / "api").glob("*.py"))
+    files = list((ROOT / "services/intelligence/api/routes").glob("*.py")) + list((ROOT / "services/intelligence/api").glob("*.py"))
     for file in files:
         tree = ast.parse(file.read_text(encoding="utf-8"))
         prefix = ""
@@ -66,7 +73,7 @@ def audit() -> dict:
     forbidden = ['api/auth_db.py', 'api/auth_utils.py', 'api/deps.py', 'api/email_service.py', 'api/rate_limit.py',
         'backend/services/listing_address_service.py',
         *['api/routes/'+name+'.py' for name in ('auth','address','history','activity','feedback','listings','cases','operations','simulation','market')]]
-    remaining = [path for path in forbidden if (ROOT/path).exists()]
+    remaining = [path for path in forbidden if (ROOT / "services/intelligence" / path).exists() or (ROOT / path).exists()]
     return {"status": "failed" if duplicates or public or remaining else "passed", "native_count": len(native),
             "duplicates": duplicates, "python_public_routes":public, "replaced_files_remaining":remaining}
 

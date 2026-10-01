@@ -1,6 +1,13 @@
 """서비스 데이터에 접근하지 않는 Spring·Python 연결 검증 실행기."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import os
 import secrets
 import shutil
@@ -37,7 +44,7 @@ def main():
         "REQUIRE_INTERNAL_SERVICE_AUTH": "0", "OPERATOR_USER_IDS": "2147483646"}
     env = os.environ | settings
     subprocess.run([sys.executable, "scripts/audit_python_routes.py"], cwd=ROOT, check=True)
-    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=ROOT, env=env, check=True)
+    subprocess.run([sys.executable, "-m", "alembic", "-c", "services/intelligence/alembic.ini", "upgrade", "head"], cwd=ROOT, env=env, check=True)
     subprocess.run([sys.executable, "scripts/seed_browser_regions.py", "--transactions"], cwd=ROOT,
                    env=env | {"BROWSER_TEST_DB": "1"}, check=True)
     from redis import Redis
@@ -79,7 +86,7 @@ def main():
                 if name == containers[3]:
                     args.extend(["--network-alias", "property-provider-test", "-v",f"{ROOT / 'tests'}:/app/tests:ro"])
                 for directory in ("api", "backend", "schemas"):
-                    args.extend(["-v", f"{ROOT / directory}:/app/{directory}:ro"])
+                    args.extend(["-v", f"{ROOT / 'services/intelligence' / directory}:/app/services/intelligence/{directory}:ro"])
             else:
                 args.extend(["--network-alias", "property-core-test-core"])
             subprocess.run(args + [image] + command, capture_output=True, check=True)
@@ -114,7 +121,7 @@ def main():
             raise RuntimeError("브라우저 검증에 Node.js가 필요합니다")
         def node_path(path):
             return subprocess.check_output(["wslpath", "-w", str(path)], text=True).strip() if node.endswith(".exe") else str(path)
-        browser_env = env | {"PLAYWRIGHT_MODULE_PATH": node_path(ROOT / "frontend/node_modules/playwright"), "NEXT_TELEMETRY_DISABLED": "1"}
+        browser_env = env | {"PLAYWRIGHT_MODULE_PATH": node_path(ROOT / "web/node_modules/playwright"), "NEXT_TELEMETRY_DISABLED": "1"}
         if node.endswith(".exe"):
             # WSL 프로세스의 환경변수는 WSLENV에 지정한 항목만 Windows Node로 전달된다.
             # 주소 브라우저의 WSL 서명 도우미에도 같은 격리 JWT 키가 전달되어야 한다.

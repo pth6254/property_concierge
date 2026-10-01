@@ -1,6 +1,13 @@
 """시크릿이 포함된 Compose 설정을 출력하지 않고 공개 포트·저장 책임만 점검한다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import json
 import os
 import subprocess
@@ -10,9 +17,9 @@ from pathlib import Path
 def main():
     root = Path(__file__).resolve().parents[1]
     for production in (False, True):
-        args = ["docker", "compose", "-f", "docker-compose.yml"]
+        args = ["docker", "compose", "--project-directory", str(root), "-p", "property_concierge", "-f", "infrastructure/compose/compose.yml"]
         if production:
-            args += ["-f", "docker-compose.production.yml"]
+            args += ["-f", "infrastructure/compose/compose.production.yml"]
         result = subprocess.run(args + ["config", "--format", "json"], cwd=root,
             env=os.environ | {"SERVICE_DOMAIN": "deployment-check.invalid"}, capture_output=True, text=True)
         if result.returncode:

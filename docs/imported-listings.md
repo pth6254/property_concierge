@@ -9,7 +9,7 @@
 검증·저장 범위는 [주소 기반 등록](address-based-listing.md)을 따른다. 아래는 기존 CSV 대량 등록 경로다.
 
 1. 메뉴의 **매물 보관함**(`/listings`)에서 빈 CSV 템플릿을 내려받는다.
-2. 제공받은 자료로 출처와 원본 매물 ID를 정리하고 UTF-8 CSV로 저장한다. 템플릿은 `frontend/public/templates/listings.csv`에서 관리한다.
+2. 제공받은 자료로 출처와 원본 매물 ID를 정리하고 UTF-8 CSV로 저장한다. 템플릿은 `web/public/templates/listings.csv`에서 관리한다.
 3. 출처 이름 입력 → CSV 선택 → 검증·미리보기 → 검증된 자료 저장 순으로 진행한다.
 4. 구·법정동·부동산 유형·거래 유형·가격 상한·최신 확인 조건으로 검색한다. 가격 상한은 매매에서는 희망가, 전월세에서는 보증금에 적용한다. 월세 상한 필터는 아직 없다.
 5. 법정동이 연결되어 있고 최근 7일 이내 거래 가능으로 확인된 매매 매물은 매수 검토 케이스에 저장할 수 있다. 케이스에서 기존 AVM·자금 분석을 진행한다. 후보는 저장 당시의 값과 원본 매물 버전을 기억한다. 이후 원본 가격·상태가 달라지면 재확인 경고를 표시하며 후보 가격을 자동 갱신하지 않는다.
@@ -60,7 +60,7 @@
 - `GET /api/listings/{id}/history`: 본인 매물 이력. 타 사용자 자료는 404.
 - `POST /api/listings/{id}/candidate`: `{case_id}`. 본인 매물과 본인 케이스를 검증하고 서버의 매물 값을 후보로 저장. 전세·월세는 현재 매수 케이스로 변환하지 않음.
 
-실제 환경 적용 전에 `alembic upgrade head`를 실행한다. 신규 리비전은 `k0b1d2e3f456`. 새 테이블 2개만 추가하며 기존 실거래·RAG 테이블을 변경하지 않는다. 운영 Docker의 기존 Alembic 선행 기동 순서를 유지한다.
+실제 환경 적용 전에 `alembic -c services/intelligence/alembic.ini upgrade head`를 실행한다. 신규 리비전은 `k0b1d2e3f456`. 새 테이블 2개만 추가하며 기존 실거래·RAG 테이블을 변경하지 않는다. 운영 Docker의 기존 Alembic 선행 기동 순서를 유지한다.
 
 현재 Docker에는 다른 프로젝트 서비스만 실행 중이어서 그 컨테이너·DB를 사용하지 않고 임시 PostgreSQL·Redis로 검증했다. 이 기능이 운영 DB에 적용됐거나 실제 매물 자료가 적재됐다는 의미는 아니다.
 ## 구현 검증 기록 (2026-09-22)
@@ -83,4 +83,4 @@
 
 반영한 변경이 분석 입력에 영향을 주면 시세·자금·권리 분석을 `stale`로 돌린다. 이미 최종 선택한 후보라면 선택을 해제하고 이전 가격·분석·선택 근거·실행 항목을 변경 이력에 보존한다. 분석을 다시 확인해야 재선택할 수 있다. 원본이 철회됐거나 확인 시각이 만료됐다면 반영 버튼을 제공하지 않고 원본 재확인을 안내한다.
 
-API는 `POST /api/cases/{case_id}/properties/{property_id}/source-update`이며 본인 케이스·후보·원본만 수정한다. 요청에는 `expected_revision_id`와 `expected_confirmed_at`이 필요하다. 격리 API 통합 테스트와 브라우저 흐름은 `evaluation/README.md`의 거래 의사결정 게이트를 참고한다.
+API는 `POST /api/cases/{case_id}/properties/{property_id}/source-update`이며 본인 케이스·후보·원본만 수정한다. 요청에는 `expected_revision_id`와 `expected_confirmed_at`이 필요하다. 격리 API 통합 테스트와 브라우저 흐름은 `services/intelligence/evaluation/README.md`의 거래 의사결정 게이트를 참고한다.

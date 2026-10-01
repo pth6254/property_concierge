@@ -29,7 +29,7 @@
 
 `GET /api/cases/{id}/summary`는 소유자 확인 후 `case`, `comparison`, `decision`을 반환한다. `decision`은 버전·조회 시각·후보별 다섯 축·현재 사용 가능한 비교 금액·다음 행동·결과의 한계를 포함한다. 각 근거의 출처는 사용자 입력·계산 결과·문서 분석·작업 기록으로 구분한다.
 
-`backend/services/case_decision_assessment.py`가 같은 케이스 자료에서 결과를 계산한다. 후보 비교도 이 결과의 검토 완료 여부와 가격 차이를 사용한다. 조회 중 외부 API·LLM·새 작업을 실행하거나 선택 상태를 변경하지 않는다. 별도 테이블이나 데이터 이관 없이 기존 후보·분석·체크리스트를 사용한다.
+`services/intelligence/backend/services/case_decision_assessment.py`가 같은 케이스 자료에서 결과를 계산한다. 후보 비교도 이 결과의 검토 완료 여부와 가격 차이를 사용한다. 조회 중 외부 API·LLM·새 작업을 실행하거나 선택 상태를 변경하지 않는다. 별도 테이블이나 데이터 이관 없이 기존 후보·분석·체크리스트를 사용한다.
 
 자금 분석은 후보에 저장된 개별 입력을 사용하며 공통 조건과 다르다는 이유만으로 무효화하지 않는다. 재계산 화면에서는 저장된 입력과 공통 조건 적용을 선택할 수 있다. 권리 원문 PDF는 기존처럼 저장하지 않으며 판독 성공 여부만 요약에 추가한다. 이전 권리 결과에 이 기록이 없으면 다시 분석해야 한다.
 
@@ -37,7 +37,7 @@
 
 - `tests/test_case_decision_assessment.py`: 다섯 축의 근거, 상태 구분, 기준일 누락·미래 시각·만료, 원본 변경, 가격 차이, 자금 입력 부족, 판독 실패, 법정동 범위와 자동 선택 방지를 확인한다.
 - `tests/test_purchase_cases.py`: 실제 API의 소유자 격리, 조회 후 상태 보존, 판독할 수 없는 PDF의 확인 상태를 검증한다.
-- `evaluation/datasets/decision.json`: 고정 시각의 가상 케이스를 재생한다. 비교사례 수·문서 판독·취득 후 주택 수·매물 확인 시각은 선언된 검증용 입력이며 실제 매물 또는 문서 판독 실적이 아니다.
+- `services/intelligence/evaluation/datasets/decision.json`: 고정 시각의 가상 케이스를 재생한다. 비교사례 수·문서 판독·취득 후 주택 수·매물 확인 시각은 선언된 검증용 입력이며 실제 매물 또는 문서 판독 실적이 아니다.
 - `scripts/verify_decision_assessment_browser.cjs`: 실제 자금 계산·후보 저장, 다섯 축 표시·근거 확인, 조건 전달, 가격 수정 후 재검토, 새로고침 복원, 미확인 상태에서 사용자 선택, 좁은 웹 화면을 확인하고 임시 계정을 삭제한다.
 
 브라우저 결과는 `evaluation-results/assessment-browser*.json`과 화면 이미지에 저장한다. CI에도 이 흐름과 아티팩트 보관을 추가했다. 실행 중인 서비스에는 `node scripts/verify_decision_assessment_browser.cjs`, 개발 프론트엔드를 따로 띄울 때는 명령 뒤에 API 주소를 전달한다.

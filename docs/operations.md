@@ -41,9 +41,9 @@ DB custom-format 백업을 생성하고 `pg_restore --list`로 파일을 확인�
 백업을 다른 호스트에도 보관해야 한다. 자동 삭제는 하지 않는다.
 
 ```bash
-docker compose --profile maintenance up -d database-backup
+sh scripts/compose.sh dev --profile maintenance up -d database-backup
 # 도메인 DNS와 공개 서버가 준비된 후 development override 없이 실행
-docker compose -f docker-compose.yml -f docker-compose.production.yml --profile maintenance up -d --build
+sh scripts/compose.sh production --profile maintenance up -d --build
 ```
 
 운영 파일은 Caddy HTTPS와 같은 출처 API를 제공하고 API 직접 노출을 제거한다.
@@ -125,7 +125,7 @@ TTL 내 자료로 건너뛰었으며 실패는 0건이었다. 저장된 실거�
 이는 단지 대표 주소 확인이며 개별 매물의 재고·호가·동호수 확인은 아니다.
 
 기존 적재의 지번 누락은 아래 명령으로 보완한다. 거래 행·금액·해제 상태를 바꾸지 않고
-확인된 지번 컬럼과 단지 기준정보만 갱신한다. 먼저 `alembic upgrade head`를 적용한다.
+확인된 지번 컬럼과 단지 기준정보만 갱신한다. 먼저 `alembic -c services/intelligence/alembic.ini upgrade head`를 적용한다.
 
 ```bash
 python scripts/backfill_complex_addresses.py

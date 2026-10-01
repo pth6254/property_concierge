@@ -33,7 +33,7 @@ Python의 시뮬레이션 도구는 `/internal/v1/calculations/simulation`, 후�
 시나리오·대화·시뮬레이션 그래프가 동일 계산 도구를 공유한다. 추천 점수 계산은 아직 Python에 있다.
 후보에 저장하는 챗봇 자금 분석은 `funding_execution_client.py` → `/internal/v1/simulation`으로
 공개 API와 같은 계산·소유자 확인·변경 감지·저장을 실행한다. 이전 Python POST 핸들러와 저장 분기는 제거했다.
-공통 대화 입력은 `schemas/funding_request.py`에 두며, 이 파일은 금융 수식 구현이 아니다.
+공통 대화 입력은 `services/intelligence/schemas/funding_request.py`에 두며, 이 파일은 금융 수식 구현이 아니다.
 내부 서비스 키가 필수이며 브라우저에 전달하지 않는다.
 
 `CORE_STORAGE_URL`은 저장과 계산 책임을 함께 지정한다. 기본 Compose는 API·별도 실행기 모두 같은 Spring을 지정한다.

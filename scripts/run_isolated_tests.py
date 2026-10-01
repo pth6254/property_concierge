@@ -1,6 +1,13 @@
 """서비스 DB와 분리된 PostgreSQL·Redis에서 마이그레이션과 pytest를 실행한다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import os
 import subprocess
 import sys
@@ -59,7 +66,7 @@ def main() -> int:
         "CORE_STORAGE_URL": "", "REQUIRE_INTERNAL_SERVICE_AUTH": "0", "CORE_HEALTH_URL": "",
     })
     print("격리 DB real_estate_test에 마이그레이션을 적용합니다.", flush=True)
-    subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=ROOT, env=env, check=True)
+    subprocess.run([sys.executable, "-m", "alembic", "-c", "services/intelligence/alembic.ini", "upgrade", "head"], cwd=ROOT, env=env, check=True)
     return subprocess.call([sys.executable, "scripts/run_spring_tests.py", "--pytest",
                             *(sys.argv[1:] or ["tests/", "-q"])], cwd=ROOT, env=env)
 

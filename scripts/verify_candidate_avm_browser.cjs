@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 // 별도 설치된 Playwright도 사용할 수 있게 해 앱의 런타임 의존성에 섞지 않는다.
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../frontend/node_modules/playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_modules/playwright');
 (async () => {
   const browser = await chromium.launch({channel:'chrome',headless:true});
   const context = await browser.newContext({baseURL:process.env.E2E_BASE_URL || 'http://localhost:3001'});

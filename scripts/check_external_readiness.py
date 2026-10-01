@@ -1,4 +1,11 @@
 """서비스 호스트 밖에서 실행하는 준비 상태 감시. 알림 URL을 지정해야 외부 알림을 전송한다."""
+
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
 import argparse
 import json
 import os

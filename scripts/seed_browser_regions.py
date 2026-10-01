@@ -1,4 +1,11 @@
 """격리된 브라우저 검증 DB에 지역 계층과 선택적인 가상 거래를 넣는다."""
+
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
 import argparse
 import os
 import sys

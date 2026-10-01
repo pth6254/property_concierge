@@ -28,7 +28,7 @@ AVM은 폼 진입 경로 1건을 실제 실행했다. 모든 유형·지역의 �
 
 `scripts/verify_search_browser.cjs`, `scripts/verify_candidate_avm_browser.cjs --form`, `scripts/verify_candidate_funding_browser.cjs`를 Node로 실행한다. Chrome 및 Playwright가 필요하며, `PLAYWRIGHT_MODULE_PATH`로 Playwright 모듈 경로, `E2E_BASE_URL`로 서비스 주소를 지정할 수 있다. AVM 검증은 실제 모델·외부 데이터 호출과 수분의 실행 시간이 필요하다.
 
-금액 변환 테스트: `node --test frontend/tests/moneyInput.test.mjs` (확인 환경 Node 24.12).
+금액 변환 테스트: `node --test web/tests/moneyInput.test.mjs` (확인 환경 Node 24.12).
 
 ## 추가: 컨시어지 모델 출력 검증
 

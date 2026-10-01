@@ -17,7 +17,7 @@ jobs:
     # (SQLite/인프로세스 메모리 폴백 없음) 테스트도 실제 서비스 컨테이너가 필요하다.
     #
     # 아래 postgres 비밀번호는 워크플로 실행 중에만 존재하는 휘발성 컨테이너의
-    # 값이라 운영 자격증명과 무관하다 — docker-compose.yml(실제 배포 설정)과
+    # 값이라 운영 자격증명과 무관하다 — infrastructure/compose/compose.yml(실제 배포 설정)과
     # 달리 여기서는 하드코딩해도 유출 리스크가 없어 의도적으로 그대로 둔다.
     env:
       # 러너에서만 존재하는 검증 전용 값이다. 운영 자격증명을 사용하지 않는다.
@@ -37,17 +37,21 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r services/intelligence/requirements.txt
+          python -m pip install --no-deps -e services/intelligence
           pip install pytest
 
       - name: Start isolated infrastructure and build Kotlin tests
         run: |
           touch .env
-          docker compose up -d pgvector redis
-          docker compose -f docker-compose.yml build api core
+          docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml -f infrastructure/compose/compose.override.yml up -d pgvector redis
+          docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml build api core
 
       - name: Reject duplicate Python HTTP routes
         run: python scripts/audit_python_routes.py
+
+      - name: Check service contract specifications
+        run: python scripts/export_service_contracts.py --check
 
       - name: Run Python regressions through isolated Kotlin contracts
         run: python scripts/run_isolated_tests.py tests/ -v --junitxml=evaluation-results/backend-junit.xml
@@ -78,7 +82,7 @@ jobs:
 
       - name: Remove isolated infrastructure
         if: always()
-        run: docker compose down -v
+        run: docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml down -v
 
   # ────────────────────────────────────────────
   #  프론트엔드 — 타입 체크 + 프로덕션 빌드
@@ -92,7 +96,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: frontend
+        working-directory: web
 
     steps:
       - uses: actions/checkout@v4
@@ -101,7 +105,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -134,14 +138,16 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install integration dependencies
-        run: python -m pip install -r requirements.txt
+        run: |
+          python -m pip install -r services/intelligence/requirements.txt
+          python -m pip install --no-deps -e services/intelligence
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: web/package-lock.json
       - name: Install browser dependencies
-        working-directory: frontend
+        working-directory: web
         run: |
           npm ci
           npx playwright install --with-deps chromium
@@ -149,8 +155,8 @@ jobs:
         run: |
           touch .env
           python scripts/check_compose_contract.py
-          docker compose up -d pgvector redis
-          docker compose -f docker-compose.yml build api core
+          docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml -f infrastructure/compose/compose.override.yml up -d pgvector redis
+          docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml build api core
       - name: Verify native storage, jobs and browser decision flow
         run: python scripts/run_spring_tests.py --browser
       - name: Save Spring flow evidence
@@ -172,4 +178,4 @@ jobs:
           if-no-files-found: ignore
       - name: Remove isolated containers
         if: always()
-        run: docker compose down -v
+        run: docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml down -v

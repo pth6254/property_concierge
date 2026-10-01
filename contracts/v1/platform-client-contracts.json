@@ -1,0 +1,451 @@
+{
+  "authentication_header": "X-Internal-Service-Key",
+  "operations": [
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_acquisition_tax",
+      "return_annotation": "int",
+      "signature": "purchase_price: int, property_type: str | None, owned_homes: int=1",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_annual_holding_tax",
+      "return_annotation": "dict",
+      "signature": "official_price: int, owned_homes: int=1",
+      "source": "services/intelligence/backend/tax_rules.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_brokerage_fee",
+      "return_annotation": "int",
+      "signature": "purchase_price: int",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_capital_gains_tax",
+      "return_annotation": "dict",
+      "signature": "purchase_price: int, sale_price: int, holding_years: int, owned_homes: int=1, expenses: int=0, residence_years: int=0",
+      "source": "services/intelligence/backend/tax_rules.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_cash_flow",
+      "return_annotation": "CashFlowSummary",
+      "signature": "rent_fee: int | None, monthly_payment: int, monthly_management_fee: int | None",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_expected_sale_price",
+      "return_annotation": "int",
+      "signature": "purchase_price: int, annual_growth_rate: float, holding_years: int",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_gift_tax",
+      "return_annotation": "dict",
+      "signature": "gift_value: int, relation: str='직계존속', prior_gifts_10yr: int=0, marriage_deduction: bool=False",
+      "source": "services/intelligence/backend/tax_rules.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_inheritance_tax",
+      "return_annotation": "dict",
+      "signature": "estate_value: int, has_spouse: bool=True, spouse_share: int=0, debts: int=0",
+      "source": "services/intelligence/backend/tax_rules.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_interest_during_holding",
+      "return_annotation": "int",
+      "signature": "loan_amount: int, annual_interest_rate: float, loan_years: int, holding_years: int, repayment_type: str='equal_payment'",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_loan_summary",
+      "return_annotation": "LoanSummary",
+      "signature": "loan_amount: int, annual_interest_rate: float, loan_years: int, repayment_type: str='equal_payment'",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_monthly_payment",
+      "return_annotation": "int",
+      "signature": "loan_amount: int, annual_interest_rate: float, loan_years: int, repayment_type: str='equal_payment'",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_other_acquisition_cost",
+      "return_annotation": "int",
+      "signature": "purchase_price: int",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_scenario",
+      "return_annotation": "ScenarioResult",
+      "signature": "purchase_price: int, equity: int, annual_growth_rate: float, holding_years: int, total_acquisition_cost: int, total_interest: int, rent_fee: int | None, rent_deposit: int | None, jeonse_opportunity_rate: float=3.5, owned_homes: int=1, official_price: int=0, vacancy_rate: float=0.0, residence_years: int | None=None",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/calc_total_acquisition_cost",
+      "return_annotation": "AcquisitionCost",
+      "signature": "purchase_price: int, property_type: str | None, owned_homes: int=1",
+      "source": "services/intelligence/backend/tools/simulation_tool.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/check_dsr",
+      "return_annotation": "dict",
+      "signature": "loan_amount: int, annual_interest_rate: float, loan_years: int, annual_income: int, existing_annual_debt_payment: int=0",
+      "source": "services/intelligence/backend/tax_rules.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/check_ltv",
+      "return_annotation": "dict",
+      "signature": "purchase_price: int, loan_amount: int, owned_homes: int=1, adjusted_area: bool=False",
+      "source": "services/intelligence/backend/tax_rules.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/calculations/estimate_official_price",
+      "return_annotation": "int",
+      "signature": "market_price: int",
+      "source": "services/intelligence/backend/tax_rules.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/activity/count_today",
+      "return_annotation": "int",
+      "signature": "type_: str, user_id",
+      "source": "services/intelligence/api/activity_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/activity/delete_all",
+      "return_annotation": "None",
+      "signature": "user_id",
+      "source": "services/intelligence/api/activity_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/activity/load_recent",
+      "return_annotation": "list[dict]",
+      "signature": "limit: int=10, user_id=None",
+      "source": "services/intelligence/api/activity_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/activity/save",
+      "return_annotation": "int",
+      "signature": "type_: str, title: str, summary: str='', meta: Optional[dict]=None, user_id=None",
+      "source": "services/intelligence/api/activity_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/add_property",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/add_region",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/apply_listing_update",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, property_id: int, user_id: int, expected_revision_id: int, expected_confirmed_at: str",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/candidate_inputs",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, property_id: int, user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/clear_final_candidate",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/create_case",
+      "return_annotation": "dict",
+      "signature": "user_id: int, data: dict",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/delete_case",
+      "return_annotation": "bool",
+      "signature": "case_id: int, user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/delete_property",
+      "return_annotation": "bool | None",
+      "signature": "case_id: int, property_id: int, user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/delete_region",
+      "return_annotation": "bool | None",
+      "signature": "case_id: int, region_id: int, user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/get_case",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/link_appraisal",
+      "return_annotation": "bool",
+      "signature": "case_id: int, property_id: int, history_id: int, user_id: int, result: dict, expected_inputs: dict | None=None",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/link_candidate_analysis",
+      "return_annotation": "bool",
+      "signature": "case_id: int, property_id: int, user_id: int, analysis_type: str, summary: dict, checklist_status: str='done', evidence: str=''",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/list_cases",
+      "return_annotation": "list[dict]",
+      "signature": "user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/select_final_candidate",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, property_id: int, user_id: int, reason: str",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/update_case",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/update_checklist",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, property_id: int, checklist_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/update_property",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, property_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/cases/validate_candidate",
+      "return_annotation": "bool",
+      "signature": "case_id: int, property_id: int, user_id: int",
+      "source": "services/intelligence/api/case_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/execution/add_task",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_execution_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/execution/delete_task",
+      "return_annotation": "bool | None",
+      "signature": "case_id: int, task_id: int, user_id: int",
+      "source": "services/intelligence/api/case_execution_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/execution/ensure_execution_plan",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, property_id: int, user_id: int",
+      "source": "services/intelligence/api/case_execution_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/execution/get_execution",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int",
+      "source": "services/intelligence/api/case_execution_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/execution/update_plan",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_execution_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/execution/update_task",
+      "return_annotation": "dict | None",
+      "signature": "case_id: int, task_id: int, user_id: int, data: dict",
+      "source": "services/intelligence/api/case_execution_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/history/count_all",
+      "return_annotation": "int",
+      "signature": "user_id=None",
+      "source": "services/intelligence/api/history_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/history/delete_all",
+      "return_annotation": null,
+      "signature": "user_id=None",
+      "source": "services/intelligence/api/history_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/history/delete_one",
+      "return_annotation": null,
+      "signature": "record_id: int, user_id=None",
+      "source": "services/intelligence/api/history_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/history/load_all",
+      "return_annotation": "list[dict]",
+      "signature": "limit: int=100, offset: int=0, user_id=None",
+      "source": "services/intelligence/api/history_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/history/load_one",
+      "return_annotation": "Optional[dict]",
+      "signature": "record_id: int, user_id=None",
+      "source": "services/intelligence/api/history_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/history/save",
+      "return_annotation": "int",
+      "signature": "query: str, result: dict, user_id=None, job_id: str | None=None",
+      "source": "services/intelligence/api/history_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/history/search_by_query",
+      "return_annotation": "list[dict]",
+      "signature": "keyword: str, limit: int=50, user_id=None",
+      "source": "services/intelligence/api/history_db.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/jobs/_load",
+      "return_annotation": "Optional[dict]",
+      "signature": "job_id: str",
+      "source": "services/intelligence/api/jobs.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/jobs/_save",
+      "return_annotation": "None",
+      "signature": "job_id: str, job: dict, ttl: int",
+      "source": "services/intelligence/api/jobs.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/jobs/create_task",
+      "return_annotation": "str",
+      "signature": "task_type: str, payload: dict, owner_id: int | None=None",
+      "source": "services/intelligence/api/jobs.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/jobs/get",
+      "return_annotation": "Optional[dict]",
+      "signature": "job_id: str, include_result: bool=True, requester_id: Optional[int]=None",
+      "source": "services/intelligence/api/jobs.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/listings/get_listing",
+      "return_annotation": null,
+      "signature": "user_id, listing_id",
+      "source": "services/intelligence/backend/services/listing_store.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/listings/import_csv",
+      "return_annotation": null,
+      "signature": "user_id, source_name, csv_text, *, commit=False",
+      "source": "services/intelligence/backend/services/listing_store.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/listings/listing_history",
+      "return_annotation": null,
+      "signature": "user_id, listing_id",
+      "source": "services/intelligence/backend/services/listing_store.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/listings/search_listings",
+      "return_annotation": null,
+      "signature": "user_id, *, region_code=None, property_type=None, transaction_type=None, budget_max=None, area_min=None, status=None, fresh_only=False, page=1, page_size=20",
+      "source": "services/intelligence/backend/services/listing_store.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/observations/get_observation",
+      "return_annotation": null,
+      "signature": "user_id, observation_id",
+      "source": "services/intelligence/backend/services/listing_observations.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/observations/history",
+      "return_annotation": null,
+      "signature": "user_id, url",
+      "source": "services/intelligence/backend/services/listing_observations.py"
+    },
+    {
+      "method": "POST",
+      "path": "/internal/v1/store/observations/record_observation",
+      "return_annotation": null,
+      "signature": "user_id, result, job_id=None",
+      "source": "services/intelligence/backend/services/listing_observations.py"
+    }
+  ],
+  "units": {
+    "area": "m2",
+    "money": "KRW"
+  },
+  "version": 1
+}

@@ -38,10 +38,10 @@
 | [프로젝트 인수인계](docs/project-handoff.md) | 현재 완료 범위, 핵심 코드, 다음 작업과 최근 검증 경계 |
 | [제품 전략](docs/product-strategy.md) | 사용자 기획안에 따른 포지셔닝·데이터 전략·단계별 완료 기준 |
 | [에이전트 작업 지침](AGENTS.md) | 코드를 수정할 때 지켜야 할 구조·보안·데이터·검증 제약 |
-| [백엔드 안내](backend/README.md) · [프론트엔드 안내](frontend/README.md) | 도메인 서비스와 화면의 연결 위치·개발 방법 |
+| [백엔드 안내](services/intelligence/backend/README.md) · [프론트엔드 안내](web/README.md) | 도메인 서비스와 화면의 연결 위치·개발 방법 |
 | [의사결정 검토 기준](docs/decision-assessment.md) · [자금 입력 기준](docs/funding-consistency.md) | 다섯 축의 계약·미확인 처리·후보 입력 의미 |
 | [매물 등록](docs/imported-listings.md) · [수집 시점 관리](docs/listing-collection.md) · [화면 이동](docs/ui-navigation.md) | 사용자 자료와 원본 변경·탐색 연결의 경계 |
-| [운영 안내](docs/operations.md) · [작업 복구](docs/job-recovery.md) · [평가 안내](evaluation/README.md) | 배포 준비·운영·테스트와 실제 품질 평가의 구분 |
+| [운영 안내](docs/operations.md) · [작업 복구](docs/job-recovery.md) · [평가 안내](services/intelligence/evaluation/README.md) | 배포 준비·운영·테스트와 실제 품질 평가의 구분 |
 
 `CLAUDE.md`는 `AGENTS.md`를 임포트한다. 인수인계 시 두 파일에 지침을 중복 작성하지 않는다.
 
@@ -51,7 +51,7 @@
 단지 추천 카드에서 실거래 기준 예상 필요 현금·월 상환액을 확인할 수 있다.
 케이스의 단계별 안내와 화면 하단 문제 신고, 운영 관리의 처리 시간·실패 집계·정기 백업을
 추가했다. 자세한 설정과 검증 경계는 [운영 안내](docs/operations.md), 실제 법령 검색과
-주거용 에이전트 가격 평가 실행은 [평가 안내](evaluation/README.md)를 따른다.
+주거용 에이전트 가격 평가 실행은 [평가 안내](services/intelligence/evaluation/README.md)를 따른다.
 
 | 기능 | 설명 |
 |------|------|
@@ -80,7 +80,7 @@
 ## 아키텍처 개요
 
 백엔드는 **Kotlin + Spring Boot의 저장·권한·거래 상태·고정 수식 계산**과 **Python + FastAPI의 모델 추정·AI 분석**으로 분리한다.
-`core-service/`에 기존 JWT와 호환되는 인증, 사용자 매물·케이스·후보·거래 준비 저장, 분석 이력과 Redis 작업 계약을 추가했다.
+`services/platform/`에 기존 JWT와 호환되는 인증, 사용자 매물·케이스·후보·거래 준비 저장, 분석 이력과 Redis 작업 계약을 추가했다.
 필수 값과 미확인 값을 Kotlin 타입으로 구분하고 외부 JSON의 null·금액·필드를 별도로 검사한다.
 기본 실행은 웹 **3002** → Caddy → Next.js / Kotlin Spring이며 공개 API **8002**도 Spring이다.
 OAuth·비밀번호 재설정·메일·탈퇴·주소 검색·이력·운영 API·작업 접수까지 Spring이 제공한다.
@@ -103,12 +103,12 @@ Python은 서비스 인증이 필요한 `/internal/v1/ai/*`·`/internal/v1/data/
                                     ├── 자금 입력 해석·리포트 표현 → Spring 계산 계약
                                     └── 별도 실행기 → Spring에 결과 저장
 
-[LangGraph 파이프라인 (backend/)]
-   ├── 캐시·지역코드 (backend/cache_db.py)         │  PostgreSQL
-   ├── 실거래가 로컬 스토어 (backend/transaction_store.py)  │  (real_estate_db,
-   ├── 법률·세금 상담 코퍼스 (backend/chat_corpus.py)       │   pgvector 공유)
+[LangGraph 파이프라인 (services/intelligence/backend/)]
+   ├── 캐시·지역코드 (services/intelligence/backend/cache_db.py)         │  PostgreSQL
+   ├── 실거래가 로컬 스토어 (services/intelligence/backend/transaction_store.py)  │  (real_estate_db,
+   ├── 법률·세금 상담 코퍼스 (services/intelligence/backend/chat_corpus.py)       │   pgvector 공유)
    │        ↑ 미스 시 폴백           ↑ 배치 수집
-   ├── 국토부 MOLIT API      backend/tools/ingest_transactions.py
+   ├── 국토부 MOLIT API      services/intelligence/backend/tools/ingest_transactions.py
    ├── 결정론적 지오코딩 (카카오 주소·좌표 → 건축물대장 주용도 → 검증된 장소 규칙)
    ├── Vworld 용도지역·공시지가 보강 (선택, 조회 결과가 없을 수 있음)
    └── LLM (OpenRouter / Ollama / OpenAI / Anthropic / Google — 역할별 환경변수 선택)
@@ -116,14 +116,14 @@ Python은 서비스 인증이 필요한 `/internal/v1/ai/*`·`/internal/v1/data/
 
 - **프론트엔드**: Next.js 16 (App Router, TypeScript, Tailwind v4) — 딥 그린 브랜드 디자인 토큰,
   Pretendard 가변 폰트(`next/font/local` 셀프호스팅), lucide-react 아이콘, 모바일 반응형 내비게이션
-- **업무 API**: Kotlin + Spring Boot (`core-service/`) — 인증·권한·저장·트랜잭션·작업 상태·자금/세금 계산
-- **AI 서비스**: FastAPI (`api/`, `backend/`) — 분석·LLM·RAG와 별도 Python 실행기
-- **파이프라인**: LangGraph (`backend/`) — 시세추정·추천·시뮬레이션·비교·종합 컨시어지 그래프
+- **업무 API**: Kotlin + Spring Boot (`services/platform/`) — 인증·권한·저장·트랜잭션·작업 상태·자금/세금 계산
+- **AI 서비스**: FastAPI (`services/intelligence/api/`, `services/intelligence/backend/`) — 분석·LLM·RAG와 별도 Python 실행기
+- **파이프라인**: LangGraph (`services/intelligence/backend/`) — 시세추정·추천·시뮬레이션·비교·종합 컨시어지 그래프
 - **의사결정 서비스**: 기존 케이스 스냅샷에서 근거·최신성·부족 정보를 결정론적으로 정리한다. 요약 조회는 LLM·외부 수집·분석 작업을 새로 실행하지 않는다.
 - **저장소**: PostgreSQL 단일 인스턴스(`real_estate_db`) — 앱 테이블(사용자·이력·활동·캐시·
-  지역코드·실거래가·상담 코퍼스, `db/models.py`)과 RAG 벡터스토어(pgvector, `real_estate_docs`)가
+  지역코드·실거래가·상담 코퍼스, `services/intelligence/db/models.py`)과 RAG 벡터스토어(pgvector, `real_estate_docs`)가
   같은 컨테이너를 공유 + Redis(작업 큐 상태·레이트 리밋·로그인 잠금 카운터)
-  — 둘 다 로컬 개발 포함 필수 (SQLite/인프로세스 메모리 폴백 없음, `docker compose up pgvector redis`)
+  — 둘 다 로컬 개발 포함 필수 (SQLite/인프로세스 메모리 폴백 없음, `sh scripts/compose.sh dev up pgvector redis`)
 
 ### 시세추정 실행 흐름 (비동기 job)
 
@@ -146,7 +146,7 @@ cp .env.example .env
 # 내부 서비스 키는 32자 이상의 무작위 값이며 JWT 키와 다른 값으로 설정한다.
 
 # 2. 전체 서비스 실행 (Spring + Python + 실행기 + Next + Caddy + PostgreSQL + Redis)
-docker compose up --build
+sh scripts/compose.sh dev up --build
 
 # 서비스 주소
 # 프론트엔드: http://localhost:3002
@@ -154,15 +154,13 @@ docker compose up --build
 # 실행·계약 안내: docs/backend-migration.md (Spring 공개 Swagger는 아직 없음)
 ```
 
-`-f` 없이 실행하면 Compose가 `docker-compose.yml`(운영 기준 베이스)과
-`docker-compose.override.yml`(로컬 편의: 소스 핫리로드·PostgreSQL/Redis 포트 호스트
-노출)을 자동 병합한다. 위 명령이 바로 그 상태 — 로컬 개발에서 쓰는 명령이다.
+`scripts/compose.sh dev`는 개발 오버레이를 명시적으로 병합한다. `local`은 베이스만, `production`은 HTTPS 운영 오버레이를 사용한다. 프로젝트 경로·이름을 고정하므로 루트 `.env`와 기존 DB·Redis 볼륨을 유지한다. PowerShell에서는 `./scripts/compose.ps1 dev up --build`를 사용한다.
 
 **운영 기준 이미지 실행**은 override를 명시적으로 배제한다. 공개 HTTPS 배포에는
 [운영 안내](docs/operations.md)의 별도 배포 파일과 서버·도메인 확인이 필요하다:
 
 ```bash
-docker compose -f docker-compose.yml up -d --build
+sh scripts/compose.sh local up -d --build
 ```
 
 베이스 파일만 쓰면 소스는 이미지에 구운 것만 실행되고(볼륨 마운트 없음),
@@ -172,12 +170,14 @@ PostgreSQL·Redis 포트는 호스트에 노출되지 않는다(도커 내부 �
 
 ### 로컬 개발
 
+Python 의존성 설치 후 `./venv-wsl/bin/python -m pip install --no-deps -e services/intelligence`로 분석 패키지를 등록한다.
+
 기본 Compose에서 Spring·Python·별도 실행기를 함께 실행한다. 전환된 회원·매물·케이스·작업 저장 및
 고정 금융·세금 수식의 중복 Python 구현은 제거했다. Python 모듈은 내부 계약 클라이언트이며
 `CORE_STORAGE_URL`과 32자 이상 내부 인증키가 필수다. Python만 띄우는 이전 실행법은 지원하지 않는다.
 
 ```bash
-docker compose up -d --build
+sh scripts/compose.sh dev up -d --build
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 ./venv-wsl/bin/python scripts/run_spring_tests.py --browser
 ```
@@ -193,20 +193,20 @@ docker compose up -d --build
 
 ```bash
 # 서초구·강남구 주거용 최근 12개월
-python backend/tools/ingest_transactions.py --regions 서초구,강남구 --months 12
+python services/intelligence/backend/tools/ingest_transactions.py --regions 서초구,강남구 --months 12
 
 # 서울특별시의 모든 자치구, 현재월 포함 최근 12개월 매매 원천 전체
-python backend/tools/ingest_transactions.py --sido 서울특별시 --months 12 --yes
+python services/intelligence/backend/tools/ingest_transactions.py --sido 서울특별시 --months 12 --yes
 
 # 기존 범위보다 이전·이후 월을 증분 수집 (완료된 월은 자동으로 건너뜀)
-python backend/tools/ingest_transactions.py --sido 서울특별시 --from 202401 --to 202508 --yes
+python services/intelligence/backend/tools/ingest_transactions.py --sido 서울특별시 --from 202401 --to 202508 --yes
 
 # 등록된 전체 지역(수도권+광역시 약 60개), 주거용+상업용 6개월
-python backend/tools/ingest_transactions.py --all --categories 주거용,상업용
+python services/intelligence/backend/tools/ingest_transactions.py --all --categories 주거용,상업용
 
 # 강제 재수집 / 스토어 현황 확인
-python backend/tools/ingest_transactions.py --regions 서초구 --force
-python backend/transaction_store.py
+python services/intelligence/backend/tools/ingest_transactions.py --regions 서초구 --force
+python services/intelligence/backend/transaction_store.py
 ```
 
 배치는 `지역 × API 원천 × 거래월`의 완료 이력을 기준으로 증분 실행한다. 완료된 과거 월은
@@ -228,10 +228,10 @@ python backend/transaction_store.py
 
 ```bash
 # 공식 API 조회·계층 검증만 수행
-python backend/tools/sync_legal_regions.py --dry-run
+python services/intelligence/backend/tools/sync_legal_regions.py --dry-run
 
 # legal_regions 테이블에 업서트
-python backend/tools/sync_legal_regions.py
+python services/intelligence/backend/tools/sync_legal_regions.py
 ```
 
 `MOIS_REGION_API_KEY`가 있으면 우선 사용하고, 없으면 data.go.kr 공용 키인
@@ -243,112 +243,36 @@ python backend/tools/sync_legal_regions.py
 
 ## 폴더 구조
 
-```
+서비스 책임을 기준으로 구성한다. 상세 경계와 이동 후 검증은 [구조 안내](docs/repository-layout.md), 내부 명세는 [contracts](contracts/README.md)를 따른다.
+
+```text
 property_concierge/
-│
-├── db/                              공용 PostgreSQL 데이터 계층 (SQLAlchemy)
-│   ├── base.py                     엔진·세션 (DATABASE_URL, 지연 생성)
-│   ├── models.py                   사용자·매물 관측·케이스·분석·실거래·법령 등의 ORM 모델
-│   ├── redis_client.py             Redis 커넥션 팩토리 (REDIS_URL)
-│   └── migrations/                 Alembic 마이그레이션 (env.py + versions/)
-├── alembic.ini                      Alembic 설정 (접속 문자열은 DATABASE_URL 환경변수로)
-│
-├── scripts/
-│   ├── backup_db.sh                 PostgreSQL 논리 백업 (pg_dump)
-│   └── restore_db.sh                백업 복원 (pg_restore, 확인 프롬프트 있음)
-│
-├── api/                            FastAPI 진입점 & 라우터
-│   ├── main.py                     FastAPI 앱 설정, CORS, 라우터 등록
-│   ├── jobs.py                     Redis Stream 작업 입력·상태
-│   ├── job_worker.py               별도 작업 실행기·생존 신호·복구
-│   ├── case_db.py                  사용자별 케이스·후보·분석 연결·원본 변경 재검토
-│   ├── case_execution_db.py        선택 후보의 거래 준비 작업·일정·확인 결과
-│   ├── ai_context.py               Spring이 인증한 내부 AI 행위자 (JWT·비밀번호 처리 없음)
-│   ├── internal_contracts.py       스냅샷 분석·CSV 정규화·AI 입력 계약
-│   ├── data_routes.py              실거래 통계·금리·수집 범위 분석
-│   ├── analysis_routes.py          케이스 추천·자금 시나리오 분석
-│   ├── history_db.py               시세추정 이력 (db/ 공용 세션, 리포트 영속화)
-│   ├── activity_db.py              권리점검·상담 활동 (db/ 공용 세션, 홈 통합 피드 데이터 소스)
-│   └── routes/
-│       ├── appraisal.py            내부 AVM 분석 (작업 접수·권한은 Spring)
-│       ├── recommendation.py       내부 추천·랭킹
-│       ├── comparison.py           내부 비교 분석
-│       ├── rights.py               내부 PDF 권리 분석
-│       ├── chat.py                 내부 법령 RAG·답변 생성
-│       └── concierge.py            내부 대화·분석 도구 실행
-│
-├── frontend/                       Next.js 16 (App Router, TypeScript, Tailwind v4)
-│   ├── src/app/
-│   │   ├── page.tsx                홈 — 컨시어지 데스크(주소 검색) + 여정 4단계 서비스 + 통합 활동 피드
-│   │   ├── appraisal/page.tsx      시세추정 입력 (3단계 폼 + 진행 단계 표시)
-│   │   ├── report/page.tsx         방금 실행한 결과 (sessionStorage)
-│   │   ├── report/[id]/page.tsx    저장된 리포트 재열람 (영속 URL)
-│   │   ├── dashboard/page.tsx      이력 대시보드 (검색·차트·리포트 링크)
-│   │   ├── listings/page.tsx       사용자 매물 보관함
-│   │   ├── cases/[id]/page.tsx     공통 매수 조건·후보·체크리스트
-│   │   ├── cases/[id]/summary/page.tsx    후보별 다섯 판단 축과 근거·다음 행동
-│   │   ├── cases/[id]/comparison/page.tsx 후보 비교·사용자 선택
-│   │   ├── cases/[id]/execution/page.tsx  거래 준비 작업·일정
-│   │   ├── recommendation/page.tsx 단지 추천·개발용 샘플 도구
-│   │   ├── simulation/page.tsx     투자 시뮬레이션
-│   │   ├── comparison/page.tsx     매물 비교
-│   │   ├── rights/page.tsx         권리관계 위험 점검 (PDF 업로드 → 위험도 리포트)
-│   │   ├── chat/page.tsx           법률·세금 AI 안내 챗봇
-│   │   ├── login/ · register/      인증 페이지
-│   │   ├── fonts/                  Pretendard 가변 폰트 (셀프호스팅)
-│   │   └── api/auth/               Next.js API 라우트 (인증 프록시)
-│   ├── src/components/
-│   │   ├── AppraisalReport.tsx     시세추정 리포트 문서 렌더러 (공용, 인쇄 지원)
-│   │   └── Navbar.tsx              사이드바 내비게이션 (분석/안전·상담/내 기록 그룹, 모바일 드로어)
-│   └── src/lib/
-│       ├── api.ts                  API 클라이언트 (job 폴링 포함)
-│       ├── auth.tsx                인증 컨텍스트
-│       └── types.ts                TypeScript 타입 정의
-│
-├── backend/                        비즈니스 로직 + LangGraph 파이프라인
-│   ├── router.py                   공개 API — run_appraisal(progress_cb 지원) 외 3종
-│   ├── state.py                    LangGraph 공유 상태 (AgentState)
-│   ├── intent_agent.py             자연어 → PropertyIntent 구조화
-│   ├── geocoding.py                자연어 후보 → 공식 주소·좌표·유형 (카카오+건축물대장+규칙)
-│   ├── agents.py                   5개 유형별 가치 분석 에이전트
-│   ├── price_engine.py             가격 계산 엔진 (로컬 스토어 우선 → MOLIT API 폴백)
-│   ├── transaction_store.py        실거래가 로컬 스토어 (PostgreSQL, TTL 기반)
-│   ├── appraisal_report.py         시세추정 마크다운 리포트 노드
-│   ├── deep_analysis.py            심층 분석 노드
-│   ├── rag_pipeline.py             RAG 검색 파이프라인
-│   ├── chat_corpus.py              법률·세금 상담 RAG 코퍼스 (시드 청크 + 임베딩 검색, PostgreSQL chat_chunks)
-│   ├── tax_rules.py                세금·규제 법령 테이블 (증여·상속·양도·보유세, 기준일 명시)
-│   ├── llm_utils.py                LLM 의견 생성 (수치 창작 금지 가드레일)
-│   ├── model_factory.py            LLM·챗봇·의도분석·임베딩의 역할별 프로바이더 선택
-│   ├── cache_db.py                 PostgreSQL 캐시 + 지역코드 룩업
-│   ├── building_info.py            건물 정보 조회
-│   ├── models.py                   내부 모델 (ValuationResult)
-│   │
-│   ├── graphs/                     LangGraph 그래프 (appraisal/recommendation/simulation/comparison/concierge)
-│   ├── services/
-│   │   ├── case_decision_assessment.py   다섯 축의 상태·근거·현재 비교 금액
-│   │   ├── case_comparison_service.py   공통 평가 기준을 사용하는 후보 비교
-│   │   ├── candidate_funding.py         자금 입력·저장 요약·부담 판단
-│   │   ├── candidate_next_actions.py    부족 정보·경고·검토 행동
-│   │   ├── analysis_freshness.py        시세·자금·권리 분석의 유효기간
-│   │   ├── chat_service.py             법률·세금 챗봇 서비스 (RAG 검색 + 세금 계산기 도구 라우팅)
-│   │   └── rights_analysis_service.py  권리관계 위험 점검 서비스 (등기부·건축물대장 파싱·위험도 산정)
-│   └── tools/
-│       ├── ingest_transactions.py  실거래가 배치 수집 CLI
-│       ├── sync_legal_regions.py    전국 10자리 법정동코드 계층 동기화 CLI
-│       ├── build_law_corpus.py     국가법령정보센터 법령·판례 수집 → chat_corpus 확장
-│       ├── listing_tool.py         샘플 CSV 매물 조회
-│       ├── scoring_tool.py         매물 종합 점수 산출
-│       └── simulation_tool.py      Spring 계산 계약 클라이언트
-│
-├── schemas/                        Pydantic 스키마 (단위: 원·㎡)
-├── data/
-│   └── sample_listings.csv         개발·테스트용 가상 매물 43건 (유일하게 파일로 남은 데이터 — 나머지는 전부 PostgreSQL)
-├── tests/                          pytest 테스트 (접근제어·시장탐색·케이스 소유권·실행 계획 등)
-├── docker/init.sql                 PostgreSQL 초기화 스크립트 (vector 익스텐션·pgvector 테이블)
-├── Dockerfile.backend / .frontend  서비스 이미지
-├── docker-compose.yml              pgvector(app 테이블 겸 RAG 벡터스토어) + redis + api + frontend
-└── requirements.txt
+├── services/
+│   ├── platform/                인증·매물·케이스·거래·고정 계산·운영 API
+│   │   ├── pom.xml              Kotlin/Spring Boot 빌드
+│   │   └── src/                 도메인 구현·단위 테스트
+│   └── intelligence/            AI·RAG·AVM·추천·데이터 분석
+│       ├── api/                 내부 분석 API·작업 실행기·플랫폼 클라이언트
+│       ├── backend/             분석 그래프·모델·검색·수집
+│       ├── db/                  데이터 계층·공유 스키마 Alembic
+│       ├── schemas/             분석 계약
+│       ├── evaluation/          분석 품질 평가·정답셋
+│       ├── requirements.txt
+│       └── pyproject.toml
+├── web/                         Next.js 사용자 화면
+├── contracts/v1/                내부 API 명세·클라이언트 계약
+├── infrastructure/
+│   ├── compose/                 베이스·개발·HTTPS 운영 설정
+│   ├── docker/                  서비스 이미지 정의
+│   ├── proxy/                   Caddy 설정
+│   └── database/                PostgreSQL 초기화
+├── scripts/                     통합 검증·운영·Compose 실행 도구
+├── tests/                       서비스 연결·보안·분석 회귀 테스트
+├── docs/                        기획·인수인계·포트폴리오
+├── data/                        샘플·보정 자료·수집 원문
+├── backups/                     로컬 DB 백업 (Git 제외)
+├── evaluation-results/          검증 산출물 (Git 제외)
+└── .env                         로컬 설정 (Git 제외)
 ```
 
 ---
@@ -508,13 +432,13 @@ PropertyQuery (지역·예산·면적·유형)
 | `COOKIE_SAMESITE` | 세션 쿠키 SameSite — `lax`(기본, 프론트·API 동일 출처) / `none`(다른 사이트 배포 시, HTTPS 필수) / `strict` | `lax` |
 | `FORWARDED_ALLOW_IPS` | 리버스 프록시 뒤에 배포 시 **필수** — 없으면 모든 요청이 프록시 IP로 뭉쳐 레이트 리밋·로그인 잠금이 사실상 무력화 | 예: `172.18.0.0/16` |
 | `RESEND_API_KEY` | 비밀번호 재설정 메일 발송 (선택, 비워두면 서버 로그에 재설정 링크 출력) | [resend.com](https://resend.com) |
-| `DATABASE_URL` | 앱 테이블(사용자·이력·활동·캐시·실거래가·상담 코퍼스) — **필수, 폴백 없음** | `docker compose up pgvector` |
-| `REDIS_URL` | 작업 큐 상태·레이트 리밋·로그인 잠금 카운터 — **필수, 폴백 없음** | `docker compose up redis` |
+| `DATABASE_URL` | 앱 테이블(사용자·이력·활동·캐시·실거래가·상담 코퍼스) — **필수, 폴백 없음** | `sh scripts/compose.sh dev up pgvector` |
+| `REDIS_URL` | 작업 큐 상태·레이트 리밋·로그인 잠금 카운터 — **필수, 폴백 없음** | `sh scripts/compose.sh dev up redis` |
 | `SENTRY_DSN` | 에러 추적 (선택, 비워두면 완전히 비활성 — 로컬·CI에 영향 없음) | [sentry.io](https://sentry.io) |
 
 > 전체 환경변수 목록과 설명은 `.env.example` 참고.
 
-LLM 프로바이더 (`backend/model_factory.py`). 아래는 `.env.example`의 기본 양식이며
+LLM 프로바이더 (`services/intelligence/backend/model_factory.py`). 아래는 `.env.example`의 기본 양식이며
 실행 환경의 현재 설정을 뜻하지 않는다. 생성 LLM과 임베딩 제공자는 별도로 설정한다:
 
 | 환경변수 | 기본값 |
@@ -544,8 +468,8 @@ LLM 프로바이더 (`backend/model_factory.py`). 아래는 `.env.example`의 �
 
 ## 스키마
 
-모든 스키마는 `schemas/` 디렉터리의 Pydantic 모델. **금액 단위: 원(int), 면적 단위: ㎡(float).**
-(단, `backend/models.py`의 `ValuationResult`는 만원 단위 — 리포트 생성 시 변환)
+모든 스키마는 `services/intelligence/schemas/` 디렉터리의 Pydantic 모델. **금액 단위: 원(int), 면적 단위: ㎡(float).**
+(단, `services/intelligence/backend/models.py`의 `ValuationResult`는 만원 단위 — 리포트 생성 시 변환)
 
 | 스키마 | 핵심 필드 |
 |--------|----------|
@@ -619,7 +543,7 @@ state = run_comparison(listings=[...])
 
 ### 시점수정 상세 (부동산원 지수 기반)
 
-`backend/reb_index.py` — R-ONE OpenAPI `SttsApiTblData` 사용, 통계표 `A_2024_00045` (월간 아파트 매매가격지수, 시군구 단위).
+`services/intelligence/backend/reb_index.py` — R-ONE OpenAPI `SttsApiTblData` 사용, 통계표 `A_2024_00045` (월간 아파트 매매가격지수, 시군구 단위).
 
 ```
 시점수정 계수 = 기준시점 월 지수 / 거래 월 지수
@@ -628,7 +552,7 @@ state = run_comparison(listings=[...])
 - **지역 매칭**: 시군구 정확 매칭 (동명이구는 시도로 판별) → 시도 → 전국 순 폴백
 - **공표 시차 처리**: 지수는 익월 중순 공표 — 기준시점 월이 미공표면 최근 공표월까지 지수로 보정하고, 잔여 월수는 근사 변동률로 이어서 보정
 - **캐싱**: 월별 전 지역 지수를 `cache.db`에 캐시 (완결 월 30일 / 최근 월 24시간)
-- **동작 확인**: `python backend/reb_index.py 서초구` — 키 상태·지수 조회·계수 산출 진단
+- **동작 확인**: `python services/intelligence/backend/reb_index.py 서초구` — 키 상태·지수 조회·계수 산출 진단
 - 통계표 교체: env `REB_STATBL_RESIDENTIAL` (주거용), `REB_STATBL_LAND` (토지)
 
 ### 비교사례 매칭 전략 (단계적 확장)
@@ -642,12 +566,12 @@ state = run_comparison(listings=[...])
 
 ### 백테스트 (AVM 정확도 실측)
 
-`backend/tools/backtest_avm.py` — 대상 월 거래를 이전 데이터만으로 추정(홀드아웃)해
+`services/intelligence/backend/tools/backtest_avm.py` — 대상 월 거래를 이전 데이터만으로 추정(홀드아웃)해
 실거래가와 비교하고, 버킷(매칭수준×표본수)별 적중률을 신뢰도 보정테이블로 저장한다.
 
 ```bash
-python backend/tools/ingest_transactions.py --regions 서초구 --months 12 --yes
-python backend/tools/backtest_avm.py --regions 서초구 --target-months 3
+python services/intelligence/backend/tools/ingest_transactions.py --regions 서초구 --months 12 --yes
+python services/intelligence/backend/tools/backtest_avm.py --regions 서초구 --target-months 3
 # → data/avm_calibration.json 생성 → confidence.py 가 자동 반영
 ```
 
@@ -720,7 +644,7 @@ total = 가격적정성×0.35 + 입지×0.30 + 투자가치×0.20 + (10 − 위�
 ## 백업 · 복구
 
 사용자 계정·시세추정 이력·활동 기록·실거래가 캐시·RAG 벡터스토어가 전부
-`pgvector` 컨테이너 하나(`pgvector_data` 볼륨)에 있다. `docker compose down -v`
+`pgvector` 컨테이너 하나(`pgvector_data` 볼륨)에 있다. `sh scripts/compose.sh dev down -v`
 또는 볼륨 손상 시 별도 백업이 없으면 전체 데이터가 복구 불가능하게 사라진다.
 
 ```bash
@@ -733,11 +657,11 @@ total = 가격적정성×0.35 + 입지×0.30 + 투자가치×0.20 + (10 − 위�
 
 # 복구 — 대상 DB를 DROP 후 덤프로 재생성 (되돌릴 수 없음, 확인 프롬프트 있음)
 ./scripts/restore_db.sh backups/property_concierge_20260725_030000.dump
-docker compose restart api   # 커넥션 풀 재연결
+sh scripts/compose.sh dev restart api   # 커넥션 풀 재연결
 ```
 
 두 스크립트 모두 `.env`의 `POSTGRES_USER`/`POSTGRES_PASSWORD`/`POSTGRES_DB`를 읽고,
-`property_concierge_pgvector` 컨테이너([docker-compose.yml](docker-compose.yml)의
+`property_concierge_pgvector` 컨테이너([infrastructure/compose/compose.yml](infrastructure/compose/compose.yml)의
 `container_name`)에 대해 `pg_dump`/`pg_restore`를 실행한다. 컨테이너 이름을 바꿨다면
 스크립트 안의 이름도 함께 바꿔야 한다.
 
@@ -748,25 +672,25 @@ docker compose restart api   # 커넥션 풀 재연결
 
 ## 스키마 마이그레이션 (Alembic)
 
-앱 테이블(`db/models.py`)의 스키마 변경 이력은 `db/migrations/`가 관리한다.
-운영 배포는 `alembic upgrade head`가 uvicorn 워커보다 먼저, 단일 프로세스로
-실행된다([Dockerfile.backend](Dockerfile.backend)) — 여러 워커가 동시에 스키마를
+앱 테이블(`services/intelligence/db/models.py`)의 스키마 변경 이력은 `services/intelligence/db/migrations/`가 관리한다.
+운영 배포는 `alembic -c services/intelligence/alembic.ini upgrade head`가 uvicorn 워커보다 먼저, 단일 프로세스로
+실행된다([infrastructure/docker/Dockerfile.intelligence](infrastructure/docker/Dockerfile.intelligence)) — 여러 워커가 동시에 스키마를
 바꾸려는 경합 자체를 원천 차단하기 위해서다.
 
 ```bash
-# 모델(db/models.py) 변경 후 마이그레이션 생성
-alembic revision --autogenerate -m "설명"
-# 생성된 db/migrations/versions/*.py 파일을 반드시 검토할 것 —
+# 모델(services/intelligence/db/models.py) 변경 후 마이그레이션 생성
+alembic -c services/intelligence/alembic.ini revision --autogenerate -m "설명"
+# 생성된 services/intelligence/db/migrations/versions/*.py 파일을 반드시 검토할 것 —
 # autogenerate는 인덱스명·서버 기본값 등을 놓치거나 과도하게 잡아낼 수 있다.
 
 # 로컬 DB에 적용
-alembic upgrade head
+alembic -c services/intelligence/alembic.ini upgrade head
 
 # 현재 DB가 어느 리비전인지 확인
-alembic current
+alembic -c services/intelligence/alembic.ini current
 ```
 
-`create_all()`(`db/base.py`)은 alembic 없이 `uvicorn`을 직접 띄우는 로컬 개발·
+`create_all()`(`services/intelligence/db/base.py`)은 alembic 없이 `uvicorn`을 직접 띄우는 로컬 개발·
 테스트 경로를 위한 안전망으로 남겨뒀다 — 정상 배포 경로에서는 alembic이 먼저
 스키마를 확정하므로 `create_all()`은 아무 일도 하지 않는다(이미 존재하는
 테이블은 건드리지 않음). 다만 `create_all()`은 컬럼 삭제·타입 변경처럼
@@ -779,7 +703,7 @@ alembic이 다루는 변경은 반영하지 못하므로, 그런 변경은 반�
 
 ```bash
 # 테스트는 테이블을 비우므로 실행 중인 서비스 DB가 아닌 격리 DB를 사용한다.
-docker compose up -d pgvector redis
+sh scripts/compose.sh dev up -d pgvector redis
 
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q  # 격리 DB 생성·마이그레이션·전체 테스트
 
@@ -798,8 +722,8 @@ GitHub Actions(`.github/workflows/ci.yml`)에서 push·PR마다 postgres·redis 
 
 ### 별도 평가·검증 도구
 
-`evaluation/`에서 핵심 매수 의사결정 상태·AVM 백테스트·종합 컨시어지 의도 추출과 계산기·RAG·법률 챗봇을 공통 JSON·HTML 보고서로 평가한다.
-기존 회귀 테스트와 함께 사용하며, 자동 검사와 사람 채점을 구분한다. [실행·데이터셋·결과 해석 안내](evaluation/README.md)를 참고한다.
+`services/intelligence/evaluation/`에서 핵심 매수 의사결정 상태·AVM 백테스트·종합 컨시어지 의도 추출과 계산기·RAG·법률 챗봇을 공통 JSON·HTML 보고서로 평가한다.
+기존 회귀 테스트와 함께 사용하며, 자동 검사와 사람 채점을 구분한다. [실행·데이터셋·결과 해석 안내](services/intelligence/evaluation/README.md)를 참고한다.
 
 ```bash
 ./venv-wsl/bin/python -m evaluation run --suite all                   # 의사결정·가상 AVM·계산·시드 검색

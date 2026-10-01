@@ -1,0 +1,3428 @@
+{
+  "components": {
+    "schemas": {
+      "AcquisitionCost": {
+        "description": "취득 시 발생 비용",
+        "properties": {
+          "acquisition_tax": {
+            "title": "Acquisition Tax",
+            "type": "integer"
+          },
+          "brokerage_fee": {
+            "title": "Brokerage Fee",
+            "type": "integer"
+          },
+          "other_cost": {
+            "title": "Other Cost",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "acquisition_tax",
+          "brokerage_fee",
+          "other_cost",
+          "total"
+        ],
+        "title": "AcquisitionCost",
+        "type": "object"
+      },
+      "AiInput": {
+        "properties": {
+          "request": {
+            "additionalProperties": true,
+            "title": "Request",
+            "type": "object"
+          },
+          "task_type": {
+            "title": "Task Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_type",
+          "request"
+        ],
+        "title": "AiInput",
+        "type": "object"
+      },
+      "AppraisalRequest": {
+        "properties": {
+          "address": {
+            "default": "",
+            "title": "Address",
+            "type": "string"
+          },
+          "appraisal_date": {
+            "default": "",
+            "title": "Appraisal Date",
+            "type": "string"
+          },
+          "appraisal_purpose": {
+            "default": "",
+            "title": "Appraisal Purpose",
+            "type": "string"
+          },
+          "area_sqm": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Sqm"
+          },
+          "building_name": {
+            "default": "",
+            "title": "Building Name",
+            "type": "string"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "property_category": {
+            "default": "",
+            "enum": [
+              "",
+              "주거용",
+              "상업용",
+              "업무용",
+              "산업용",
+              "토지"
+            ],
+            "title": "Property Category",
+            "type": "string"
+          },
+          "property_detail": {
+            "default": "",
+            "title": "Property Detail",
+            "type": "string"
+          },
+          "save_history": {
+            "default": true,
+            "title": "Save History",
+            "type": "boolean"
+          },
+          "user_input": {
+            "title": "User Input",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_input"
+        ],
+        "title": "AppraisalRequest",
+        "type": "object"
+      },
+      "AppraisalSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "history_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "History Id",
+            "type": "integer"
+          },
+          "result": {
+            "additionalProperties": true,
+            "title": "Result",
+            "type": "object"
+          }
+        },
+        "required": [
+          "history_id",
+          "result"
+        ],
+        "title": "AppraisalSnapshot",
+        "type": "object"
+      },
+      "CaseRegionCreate": {
+        "properties": {
+          "budget_max_won": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max Won"
+          },
+          "months": {
+            "default": 12,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Months",
+            "type": "integer"
+          },
+          "property_type": {
+            "default": "all",
+            "enum": [
+              "all",
+              "apartment",
+              "row_house",
+              "detached",
+              "officetel",
+              "non_residential",
+              "industrial",
+              "land"
+            ],
+            "title": "Property Type",
+            "type": "string"
+          },
+          "region_code": {
+            "pattern": "^\\d{10}$",
+            "title": "Region Code",
+            "type": "string"
+          },
+          "source": {
+            "default": "market_explorer",
+            "enum": [
+              "market_explorer",
+              "concierge"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "region_code"
+        ],
+        "title": "CaseRegionCreate",
+        "type": "object"
+      },
+      "CaseSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "case": {
+            "additionalProperties": true,
+            "title": "Case",
+            "type": "object"
+          },
+          "property_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "maxItems": 4,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Property Ids"
+          }
+        },
+        "required": [
+          "case"
+        ],
+        "title": "CaseSnapshot",
+        "type": "object"
+      },
+      "CashFlowSummary": {
+        "description": "월 현금흐름 요약",
+        "properties": {
+          "monthly_loan_payment": {
+            "title": "Monthly Loan Payment",
+            "type": "integer"
+          },
+          "monthly_management_fee": {
+            "title": "Monthly Management Fee",
+            "type": "integer"
+          },
+          "monthly_net": {
+            "title": "Monthly Net",
+            "type": "integer"
+          },
+          "monthly_rental_income": {
+            "title": "Monthly Rental Income",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "monthly_rental_income",
+          "monthly_loan_payment",
+          "monthly_management_fee",
+          "monthly_net"
+        ],
+        "title": "CashFlowSummary",
+        "type": "object"
+      },
+      "ChatMessage": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "pattern": "^(user|assistant)$",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessage",
+        "type": "object"
+      },
+      "ChatRequest": {
+        "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "maxItems": 20,
+            "title": "History",
+            "type": "array"
+          },
+          "message": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest",
+        "type": "object"
+      },
+      "ComparisonRequest": {
+        "properties": {
+          "listings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Listings",
+            "type": "array"
+          },
+          "recommendation_results": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendation Results"
+          },
+          "simulation_results": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Simulation Results"
+          }
+        },
+        "required": [
+          "listings"
+        ],
+        "title": "ComparisonRequest",
+        "type": "object"
+      },
+      "ComplexRecommendRequest": {
+        "properties": {
+          "area_m2": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Area M2",
+            "type": "number"
+          },
+          "area_max_sqm": {
+            "default": 0,
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Area Max Sqm",
+            "type": "number"
+          },
+          "area_min_sqm": {
+            "default": 0,
+            "maximum": 100000.0,
+            "minimum": 0.0,
+            "title": "Area Min Sqm",
+            "type": "number"
+          },
+          "budget_max": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Budget Max",
+            "type": "integer"
+          },
+          "budget_min": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Budget Min",
+            "type": "integer"
+          },
+          "limit": {
+            "default": 5,
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "max_build_year": {
+            "default": 0,
+            "maximum": 2100.0,
+            "minimum": 0.0,
+            "title": "Max Build Year",
+            "type": "integer"
+          },
+          "min_build_year": {
+            "default": 0,
+            "maximum": 2100.0,
+            "minimum": 0.0,
+            "title": "Min Build Year",
+            "type": "integer"
+          },
+          "months": {
+            "default": 6,
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Months",
+            "type": "integer"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "region_code": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{10}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region Code"
+          },
+          "require_complete_address": {
+            "default": false,
+            "title": "Require Complete Address",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "region"
+        ],
+        "title": "ComplexRecommendRequest",
+        "type": "object"
+      },
+      "ConciergeCriteria": {
+        "properties": {
+          "area_min_sqm": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area Min Sqm"
+          },
+          "budget_max_won": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max Won"
+          },
+          "property_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "apartment",
+                  "row_house",
+                  "detached",
+                  "officetel",
+                  "non_residential",
+                  "industrial",
+                  "land"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Property Type"
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "enum": [
+                  "residence",
+                  "investment"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose"
+          },
+          "region_code": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{10}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region Code"
+          },
+          "region_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region Name"
+          },
+          "transaction_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "purchase",
+                  "rent",
+                  "lease"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Type"
+          }
+        },
+        "title": "ConciergeCriteria",
+        "type": "object"
+      },
+      "ConciergeIntent": {
+        "enum": [
+          "find_region",
+          "select_property",
+          "search_listing",
+          "appraise",
+          "compare",
+          "simulate",
+          "rights_check",
+          "tax_legal",
+          "general"
+        ],
+        "title": "ConciergeIntent",
+        "type": "string"
+      },
+      "ConciergeMessageRequest": {
+        "properties": {
+          "candidate_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "clear_context": {
+            "default": false,
+            "title": "Clear Context",
+            "type": "boolean"
+          },
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "message": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "ConciergeMessageRequest",
+        "type": "object"
+      },
+      "ConciergeMessageResponse": {
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "conversation_id": {
+            "title": "Conversation Id",
+            "type": "string"
+          },
+          "criteria": {
+            "$ref": "#/components/schemas/ConciergeCriteria"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "intent": {
+            "$ref": "#/components/schemas/ConciergeIntent"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Fields",
+            "type": "array"
+          },
+          "pending_action": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pending Action"
+          },
+          "status": {
+            "enum": [
+              "completed",
+              "needs_input",
+              "not_available",
+              "error",
+              "queued"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "tool_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Used"
+          }
+        },
+        "required": [
+          "conversation_id",
+          "status",
+          "intent",
+          "answer",
+          "criteria"
+        ],
+        "title": "ConciergeMessageResponse",
+        "type": "object"
+      },
+      "FinanceCheck": {
+        "description": "LTV·DSR 규제 검증 (tax_rules.py 규정 테이블 기준)",
+        "properties": {
+          "dsr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dsr"
+          },
+          "dsr_annual_payment": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dsr Annual Payment"
+          },
+          "dsr_exceeded": {
+            "default": false,
+            "title": "Dsr Exceeded",
+            "type": "boolean"
+          },
+          "dsr_limit": {
+            "default": 0.4,
+            "title": "Dsr Limit",
+            "type": "number"
+          },
+          "dsr_max_loan": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dsr Max Loan"
+          },
+          "ltv": {
+            "title": "Ltv",
+            "type": "number"
+          },
+          "ltv_exceeded": {
+            "title": "Ltv Exceeded",
+            "type": "boolean"
+          },
+          "ltv_limit": {
+            "title": "Ltv Limit",
+            "type": "number"
+          },
+          "ltv_max_loan": {
+            "title": "Ltv Max Loan",
+            "type": "integer"
+          },
+          "stress_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stress Rate"
+          }
+        },
+        "required": [
+          "ltv",
+          "ltv_limit",
+          "ltv_exceeded",
+          "ltv_max_loan"
+        ],
+        "title": "FinanceCheck",
+        "type": "object"
+      },
+      "FundingScenarioRequest": {
+        "properties": {
+          "interest_delta_pct": {
+            "default": 0,
+            "maximum": 10.0,
+            "minimum": -10.0,
+            "title": "Interest Delta Pct",
+            "type": "number"
+          },
+          "price_delta_won": {
+            "default": 0,
+            "maximum": 10000000000000.0,
+            "minimum": -10000000000000.0,
+            "title": "Price Delta Won",
+            "type": "integer"
+          },
+          "property_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 4,
+            "title": "Property Ids",
+            "type": "array"
+          },
+          "reserve_delta_won": {
+            "default": 0,
+            "maximum": 10000000000000.0,
+            "minimum": -10000000000000.0,
+            "title": "Reserve Delta Won",
+            "type": "integer"
+          }
+        },
+        "title": "FundingScenarioRequest",
+        "type": "object"
+      },
+      "FundingSnapshot": {
+        "properties": {
+          "case": {
+            "additionalProperties": true,
+            "title": "Case",
+            "type": "object"
+          },
+          "request": {
+            "$ref": "#/components/schemas/FundingScenarioRequest"
+          }
+        },
+        "required": [
+          "case",
+          "request"
+        ],
+        "title": "FundingSnapshot",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ImportValidation": {
+        "additionalProperties": false,
+        "properties": {
+          "csv_text": {
+            "maxLength": 1000000,
+            "minLength": 1,
+            "title": "Csv Text",
+            "type": "string"
+          },
+          "regions": {
+            "items": {
+              "$ref": "#/components/schemas/RegionFact"
+            },
+            "maxItems": 100000,
+            "title": "Regions",
+            "type": "array"
+          },
+          "source_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Source Name",
+            "type": "string"
+          },
+          "user_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "source_name",
+          "csv_text",
+          "regions"
+        ],
+        "title": "ImportValidation",
+        "type": "object"
+      },
+      "LoanSummary": {
+        "description": "대출 요약",
+        "properties": {
+          "monthly_payment": {
+            "title": "Monthly Payment",
+            "type": "integer"
+          },
+          "total_interest": {
+            "title": "Total Interest",
+            "type": "integer"
+          },
+          "total_repayment": {
+            "title": "Total Repayment",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "monthly_payment",
+          "total_repayment",
+          "total_interest"
+        ],
+        "title": "LoanSummary",
+        "type": "object"
+      },
+      "RateSensitivityCell": {
+        "description": "성장률 × 금리 민감도 셀",
+        "properties": {
+          "annual_equity_roi": {
+            "title": "Annual Equity Roi",
+            "type": "number"
+          },
+          "growth_rate": {
+            "title": "Growth Rate",
+            "type": "number"
+          },
+          "interest_rate": {
+            "title": "Interest Rate",
+            "type": "number"
+          },
+          "net_profit": {
+            "title": "Net Profit",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "growth_rate",
+          "interest_rate",
+          "annual_equity_roi",
+          "net_profit"
+        ],
+        "title": "RateSensitivityCell",
+        "type": "object"
+      },
+      "RecommendationRequest": {
+        "properties": {
+          "area_m2": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area M2"
+          },
+          "budget_max": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max"
+          },
+          "budget_min": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Min"
+          },
+          "complex_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Complex Name"
+          },
+          "limit": {
+            "default": 5,
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "property_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Property Type"
+          },
+          "purpose": {
+            "anyOf": [
+              {
+                "enum": [
+                  "live",
+                  "investment",
+                  "sell",
+                  "hold"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purpose"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "run_appraisal": {
+            "default": false,
+            "title": "Run Appraisal",
+            "type": "boolean"
+          }
+        },
+        "title": "RecommendationRequest",
+        "type": "object"
+      },
+      "RecommendationSnapshot": {
+        "properties": {
+          "case": {
+            "additionalProperties": true,
+            "title": "Case",
+            "type": "object"
+          },
+          "region_code": {
+            "pattern": "^\\d{10}$",
+            "title": "Region Code",
+            "type": "string"
+          },
+          "require_complete_address": {
+            "default": false,
+            "title": "Require Complete Address",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "case",
+          "region_code"
+        ],
+        "title": "RecommendationSnapshot",
+        "type": "object"
+      },
+      "RegionFact": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "pattern": "^\\d{10}$",
+            "title": "Code",
+            "type": "string"
+          },
+          "full_name": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Full Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "full_name"
+        ],
+        "title": "RegionFact",
+        "type": "object"
+      },
+      "RegionSnapshot": {
+        "properties": {
+          "case": {
+            "additionalProperties": true,
+            "title": "Case",
+            "type": "object"
+          },
+          "request": {
+            "$ref": "#/components/schemas/CaseRegionCreate"
+          }
+        },
+        "required": [
+          "case",
+          "request"
+        ],
+        "title": "RegionSnapshot",
+        "type": "object"
+      },
+      "RetryIngestion": {
+        "properties": {
+          "endpoint": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "lawd_code": {
+            "pattern": "^\\d{5}$",
+            "title": "Lawd Code",
+            "type": "string"
+          },
+          "month": {
+            "pattern": "^\\d{4}(0[1-9]|1[0-2])$",
+            "title": "Month",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lawd_code",
+          "endpoint",
+          "month"
+        ],
+        "title": "RetryIngestion",
+        "type": "object"
+      },
+      "RightsAnalyzeRequest": {
+        "description": "PDF는 base64 인코딩 문자열로 전달 (multipart 불필요)",
+        "properties": {
+          "building_pdf_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Building Pdf B64"
+          },
+          "candidate_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Candidate Id"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "market_price": {
+            "default": 0,
+            "description": "시세 (원) — AVM 추정치 또는 직접 입력",
+            "minimum": 0.0,
+            "title": "Market Price",
+            "type": "integer"
+          },
+          "my_deposit": {
+            "default": 0,
+            "description": "내 보증금 (원)",
+            "minimum": 0.0,
+            "title": "My Deposit",
+            "type": "integer"
+          },
+          "registry_pdf_b64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registry Pdf B64"
+          }
+        },
+        "title": "RightsAnalyzeRequest",
+        "type": "object"
+      },
+      "ScenarioResult": {
+        "description": "단일 시나리오 수익성 결과 (net_profit은 세후)",
+        "properties": {
+          "annual_equity_roi": {
+            "title": "Annual Equity Roi",
+            "type": "number"
+          },
+          "annual_growth_rate": {
+            "title": "Annual Growth Rate",
+            "type": "number"
+          },
+          "capital_gain": {
+            "title": "Capital Gain",
+            "type": "integer"
+          },
+          "capital_gains_tax": {
+            "default": 0,
+            "title": "Capital Gains Tax",
+            "type": "integer"
+          },
+          "cgt_note": {
+            "default": "",
+            "title": "Cgt Note",
+            "type": "string"
+          },
+          "equity_roi": {
+            "title": "Equity Roi",
+            "type": "number"
+          },
+          "expected_sale_price": {
+            "title": "Expected Sale Price",
+            "type": "integer"
+          },
+          "holding_tax_total": {
+            "default": 0,
+            "title": "Holding Tax Total",
+            "type": "integer"
+          },
+          "infinite_leverage": {
+            "default": false,
+            "title": "Infinite Leverage",
+            "type": "boolean"
+          },
+          "net_profit": {
+            "title": "Net Profit",
+            "type": "integer"
+          },
+          "pre_tax_profit": {
+            "default": 0,
+            "title": "Pre Tax Profit",
+            "type": "integer"
+          },
+          "rental_yield": {
+            "title": "Rental Yield",
+            "type": "number"
+          },
+          "sale_brokerage_fee": {
+            "default": 0,
+            "title": "Sale Brokerage Fee",
+            "type": "integer"
+          },
+          "total_rental_income": {
+            "title": "Total Rental Income",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "annual_growth_rate",
+          "expected_sale_price",
+          "capital_gain",
+          "total_rental_income",
+          "net_profit",
+          "equity_roi",
+          "annual_equity_roi",
+          "rental_yield"
+        ],
+        "title": "ScenarioResult",
+        "type": "object"
+      },
+      "SimulationInput": {
+        "description": "시뮬레이션 입력 파라미터",
+        "properties": {
+          "adjusted_area": {
+            "default": false,
+            "description": "조정대상지역 여부 (LTV·취득세 중과)",
+            "title": "Adjusted Area",
+            "type": "boolean"
+          },
+          "annual_income": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "연소득 (원). 입력 시 DSR 검증 수행",
+            "title": "Annual Income"
+          },
+          "annual_interest_rate": {
+            "default": 4.0,
+            "description": "연이율 (%)",
+            "maximum": 30.0,
+            "minimum": 0.0,
+            "title": "Annual Interest Rate",
+            "type": "number"
+          },
+          "cash_available": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "보유 현금 (원). None이면 purchase_price − loan_amount",
+            "title": "Cash Available"
+          },
+          "existing_loan_annual_payment": {
+            "default": 0,
+            "description": "기존 대출 연 원리금 상환액 (원)",
+            "minimum": 0.0,
+            "title": "Existing Loan Annual Payment",
+            "type": "integer"
+          },
+          "expected_annual_growth_rate": {
+            "default": 0.0,
+            "description": "연간 예상 상승률 (%)",
+            "maximum": 50.0,
+            "minimum": -20.0,
+            "title": "Expected Annual Growth Rate",
+            "type": "number"
+          },
+          "holding_years": {
+            "default": 3,
+            "description": "보유 기간 (년)",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Holding Years",
+            "type": "integer"
+          },
+          "jeonse_opportunity_rate": {
+            "default": 3.5,
+            "description": "전세 보증금 기회수익률 (%, 기본 3.5% — 정기예금 기준)",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Jeonse Opportunity Rate",
+            "type": "number"
+          },
+          "loan_amount": {
+            "default": 0,
+            "description": "대출금 (원)",
+            "minimum": 0.0,
+            "title": "Loan Amount",
+            "type": "integer"
+          },
+          "loan_years": {
+            "default": 30,
+            "description": "대출 기간 (년)",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Loan Years",
+            "type": "integer"
+          },
+          "monthly_management_fee": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "월 관리비 (원)",
+            "title": "Monthly Management Fee"
+          },
+          "official_price": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "공시가격 (원, 보유세 산정용). None이면 시세×현실화율로 추정",
+            "title": "Official Price"
+          },
+          "owned_homes": {
+            "default": 1,
+            "description": "취득하는 주택을 포함한 취득 후 주택 수. 무주택자의 첫 주택 취득은 1",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Owned Homes",
+            "type": "integer"
+          },
+          "property_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "아파트",
+            "description": "매물 유형 (아파트·오피스텔·상가·토지 등)",
+            "title": "Property Type"
+          },
+          "purchase_price": {
+            "description": "매수가 (원)",
+            "exclusiveMinimum": 0.0,
+            "title": "Purchase Price",
+            "type": "integer"
+          },
+          "rent_deposit": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "전세 보증금 (원)",
+            "title": "Rent Deposit"
+          },
+          "rent_fee": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "월세 (원)",
+            "title": "Rent Fee"
+          },
+          "repayment_type": {
+            "default": "equal_payment",
+            "enum": [
+              "equal_payment",
+              "equal_principal",
+              "interest_only"
+            ],
+            "title": "Repayment Type",
+            "type": "string"
+          },
+          "residence_years": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "거주 연수 (1주택 장특공 거주분). None이면 임대 여부로 자동 판단",
+            "title": "Residence Years"
+          },
+          "scenario_spread": {
+            "default": 5.0,
+            "description": "강세/약세 시나리오 편차 (%p, 기본 ±5%p)",
+            "maximum": 20.0,
+            "minimum": 1.0,
+            "title": "Scenario Spread",
+            "type": "number"
+          },
+          "vacancy_rate": {
+            "default": 5.0,
+            "description": "월세 공실률 (%, 기본 5%)",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Vacancy Rate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "purchase_price"
+        ],
+        "title": "SimulationInput",
+        "type": "object"
+      },
+      "SimulationPresentation": {
+        "additionalProperties": false,
+        "properties": {
+          "input": {
+            "$ref": "#/components/schemas/SimulationInput"
+          },
+          "result": {
+            "$ref": "#/components/schemas/SimulationResult"
+          }
+        },
+        "required": [
+          "input",
+          "result"
+        ],
+        "title": "SimulationPresentation",
+        "type": "object"
+      },
+      "SimulationResult": {
+        "description": "시뮬레이션 최종 결과",
+        "properties": {
+          "acquisition_cost": {
+            "$ref": "#/components/schemas/AcquisitionCost"
+          },
+          "breakeven_growth_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breakeven Growth Rate"
+          },
+          "calculation_version": {
+            "default": "finance-v1",
+            "title": "Calculation Version",
+            "type": "string"
+          },
+          "calculator_engine": {
+            "default": "python-legacy",
+            "enum": [
+              "python-legacy",
+              "kotlin-spring"
+            ],
+            "title": "Calculator Engine",
+            "type": "string"
+          },
+          "cash_flow": {
+            "$ref": "#/components/schemas/CashFlowSummary"
+          },
+          "equity": {
+            "title": "Equity",
+            "type": "integer"
+          },
+          "finance_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FinanceCheck"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "home_count_basis": {
+            "anyOf": [
+              {
+                "const": "after_purchase",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Home Count Basis"
+          },
+          "loan": {
+            "$ref": "#/components/schemas/LoanSummary"
+          },
+          "loan_amount": {
+            "title": "Loan Amount",
+            "type": "integer"
+          },
+          "official_price_estimated": {
+            "default": false,
+            "title": "Official Price Estimated",
+            "type": "boolean"
+          },
+          "official_price_used": {
+            "default": 0,
+            "title": "Official Price Used",
+            "type": "integer"
+          },
+          "owned_homes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owned Homes"
+          },
+          "purchase_price": {
+            "title": "Purchase Price",
+            "type": "integer"
+          },
+          "rate_sensitivity": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RateSensitivityCell"
+            },
+            "title": "Rate Sensitivity",
+            "type": "array"
+          },
+          "required_cash": {
+            "title": "Required Cash",
+            "type": "integer"
+          },
+          "rounding_policy": {
+            "default": "half_even_won",
+            "title": "Rounding Policy",
+            "type": "string"
+          },
+          "scenario_base": {
+            "$ref": "#/components/schemas/ScenarioResult"
+          },
+          "scenario_bear": {
+            "$ref": "#/components/schemas/ScenarioResult"
+          },
+          "scenario_bull": {
+            "$ref": "#/components/schemas/ScenarioResult"
+          },
+          "tax_rules_as_of": {
+            "default": "",
+            "title": "Tax Rules As Of",
+            "type": "string"
+          }
+        },
+        "required": [
+          "purchase_price",
+          "loan_amount",
+          "equity",
+          "required_cash",
+          "acquisition_cost",
+          "loan",
+          "cash_flow",
+          "scenario_base",
+          "scenario_bull",
+          "scenario_bear"
+        ],
+        "title": "SimulationResult",
+        "type": "object"
+      },
+      "StoredSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "snapshot": {
+            "additionalProperties": true,
+            "title": "Snapshot",
+            "type": "object"
+          }
+        },
+        "required": [
+          "snapshot"
+        ],
+        "title": "StoredSnapshot",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "InternalServiceKey": {
+        "in": "header",
+        "name": "X-Internal-Service-Key",
+        "type": "apiKey"
+      }
+    }
+  },
+  "info": {
+    "description": "Spring이 인증한 입력의 모델 추정·RAG·랭킹·데이터 분석",
+    "title": "Property Concierge 내부 AI·데이터 서비스",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/internal/v1/ai/appraisal": {
+      "post": {
+        "operationId": "run_appraisal_endpoint_internal_v1_ai_appraisal_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-ai-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ai-User-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppraisalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Appraisal Endpoint",
+        "tags": [
+          "appraisal"
+        ]
+      }
+    },
+    "/internal/v1/ai/chat": {
+      "post": {
+        "operationId": "chat_endpoint_internal_v1_ai_chat_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-ai-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ai-User-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chat Endpoint",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/internal/v1/ai/chat/conversations/{conversation_id}": {
+      "get": {
+        "operationId": "get_conversation_internal_v1_ai_chat_conversations__conversation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-ai-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ai-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conversation",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/internal/v1/ai/comparison": {
+      "post": {
+        "operationId": "run_comparison_endpoint_internal_v1_ai_comparison_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComparisonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Comparison Endpoint",
+        "tags": [
+          "comparison"
+        ]
+      }
+    },
+    "/internal/v1/ai/concierge/conversations/{conversation_id}": {
+      "get": {
+        "operationId": "get_conversation_internal_v1_ai_concierge_conversations__conversation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversation_id",
+            "required": true,
+            "schema": {
+              "title": "Conversation Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-ai-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ai-User-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conversation",
+        "tags": [
+          "concierge"
+        ]
+      }
+    },
+    "/internal/v1/ai/concierge/messages": {
+      "post": {
+        "operationId": "send_message_internal_v1_ai_concierge_messages_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-ai-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ai-User-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConciergeMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConciergeMessageResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Send Message",
+        "tags": [
+          "concierge"
+        ]
+      }
+    },
+    "/internal/v1/ai/recommendation": {
+      "post": {
+        "operationId": "run_recommendation_endpoint_internal_v1_ai_recommendation_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Recommendation Endpoint",
+        "tags": [
+          "recommendation"
+        ]
+      }
+    },
+    "/internal/v1/ai/recommendation/complexes": {
+      "post": {
+        "description": "국토부 실거래 데이터 기반 아파트 단지 추천 — 전국 시군구 지원.",
+        "operationId": "recommend_complexes_endpoint_internal_v1_ai_recommendation_complexes_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComplexRecommendRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recommend Complexes Endpoint",
+        "tags": [
+          "recommendation"
+        ]
+      }
+    },
+    "/internal/v1/ai/rights/analyze": {
+      "post": {
+        "operationId": "analyze_rights_endpoint_internal_v1_ai_rights_analyze_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-ai-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ai-User-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RightsAnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analyze Rights Endpoint",
+        "tags": [
+          "rights"
+        ]
+      }
+    },
+    "/internal/v1/ai/validate": {
+      "post": {
+        "operationId": "validate_ai_input_internal_v1_ai_validate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Ai Input",
+        "tags": [
+          "internal-analysis"
+        ]
+      }
+    },
+    "/internal/v1/analysis/case-recommendations": {
+      "post": {
+        "operationId": "personalized_complexes_internal_v1_analysis_case_recommendations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendationSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Personalized Complexes"
+      }
+    },
+    "/internal/v1/analysis/funding-scenarios": {
+      "post": {
+        "operationId": "funding_scenarios_internal_v1_analysis_funding_scenarios_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FundingSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Funding Scenarios"
+      }
+    },
+    "/internal/v1/appraisal/summary": {
+      "post": {
+        "operationId": "summarize_appraisal_internal_v1_appraisal_summary_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AppraisalSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Summarize Appraisal",
+        "tags": [
+          "internal-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/case-region": {
+      "post": {
+        "operationId": "region_snapshot_internal_v1_data_case_region_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegionSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Region Snapshot",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/ingestion": {
+      "get": {
+        "operationId": "ingestion_internal_v1_data_ingestion_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lawd_code",
+            "required": false,
+            "schema": {
+              "default": "11350",
+              "pattern": "^\\d{5}$",
+              "title": "Lawd Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 24,
+              "minimum": 1,
+              "title": "Months",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ingestion",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/ingestion/validate-retry": {
+      "post": {
+        "operationId": "retry_input_internal_v1_data_ingestion_validate_retry_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetryIngestion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retry Input",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/market/districts": {
+      "get": {
+        "description": "기존 클라이언트를 위한 호환 API. 신규 화면은 regions/summary를 사용한다.",
+        "operationId": "district_market_summary_internal_v1_data_market_districts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sido",
+            "required": false,
+            "schema": {
+              "default": "서울특별시",
+              "title": "Sido",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 60,
+              "minimum": 1,
+              "title": "Months",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "property_type",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "pattern": "^(all|apartment|row_house|detached|officetel|non_residential|industrial|land)$",
+              "title": "Property Type",
+              "type": "string"
+            }
+          },
+          {
+            "description": "만원 단위",
+            "in": "query",
+            "name": "budget_max",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "만원 단위",
+              "minimum": 0,
+              "title": "Budget Max",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "District Market Summary",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/market/regions": {
+      "get": {
+        "operationId": "list_regions_internal_v1_data_market_regions_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "level",
+            "required": false,
+            "schema": {
+              "default": "sido",
+              "pattern": "^(sido|sigungu|eupmyeondong|eup_myeon_dong|ri)$",
+              "title": "Level",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "parent_code",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 10,
+                  "minLength": 10,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Code"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Regions",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/market/regions/summary": {
+      "get": {
+        "operationId": "region_market_summary_internal_v1_data_market_regions_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "region_code",
+            "required": true,
+            "schema": {
+              "maxLength": 10,
+              "minLength": 10,
+              "title": "Region Code",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group_level",
+            "required": false,
+            "schema": {
+              "default": "sigungu",
+              "pattern": "^(sigungu|eup_myeon_dong)$",
+              "title": "Group Level",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "months",
+            "required": false,
+            "schema": {
+              "default": 12,
+              "maximum": 60,
+              "minimum": 1,
+              "title": "Months",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "property_type",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "pattern": "^(all|apartment|row_house|detached|officetel|non_residential|industrial|land)$",
+              "title": "Property Type",
+              "type": "string"
+            }
+          },
+          {
+            "description": "만원 단위",
+            "in": "query",
+            "name": "budget_max",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "만원 단위",
+              "minimum": 0,
+              "title": "Budget Max",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "area_min_sqm",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Area Min Sqm"
+            }
+          },
+          {
+            "in": "query",
+            "name": "area_max_sqm",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 100000,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Area Max Sqm"
+            }
+          },
+          {
+            "in": "query",
+            "name": "min_build_year",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1800,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Build Year"
+            }
+          },
+          {
+            "in": "query",
+            "name": "max_build_year",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 2100,
+                  "minimum": 1800,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Build Year"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Region Market Summary",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/mortgage-rate": {
+      "post": {
+        "operationId": "mortgage_rate_internal_v1_data_mortgage_rate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mortgage Rate",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/runtime-status": {
+      "post": {
+        "operationId": "runtime_status_internal_v1_data_runtime_status_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Runtime Status",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/decision/assess": {
+      "post": {
+        "operationId": "assess_snapshot_internal_v1_decision_assess_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CaseSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assess Snapshot",
+        "tags": [
+          "internal-analysis"
+        ]
+      }
+    },
+    "/internal/v1/decision/decorate": {
+      "post": {
+        "operationId": "decorate_snapshot_internal_v1_decision_decorate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StoredSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Decorate Snapshot",
+        "tags": [
+          "internal-analysis"
+        ]
+      }
+    },
+    "/internal/v1/listing-import/validate": {
+      "post": {
+        "operationId": "validate_listing_import_internal_v1_listing_import_validate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportValidation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Listing Import",
+        "tags": [
+          "internal-analysis"
+        ]
+      }
+    },
+    "/internal/v1/simulation/report": {
+      "post": {
+        "operationId": "render_simulation_report_internal_v1_simulation_report_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulationPresentation"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Render Simulation Report",
+        "tags": [
+          "internal-analysis"
+        ]
+      }
+    }
+  },
+  "security": [
+    {
+      "InternalServiceKey": []
+    }
+  ]
+}

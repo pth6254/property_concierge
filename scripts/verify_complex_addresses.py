@@ -1,6 +1,13 @@
 """실제 추천 API에서 두 주소가 확인된 후보만 반환하는지 검증한다. 매물 호가 검증은 아니다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import argparse
 from datetime import datetime, timezone
 import json

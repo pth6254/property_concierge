@@ -29,8 +29,8 @@
 
 ## 실행·검증
 
-- 신규 마이그레이션: `alembic upgrade head` (`l1c2e3f4a567`). RAG·실거래 테이블 변경 없음.
-- Python 의존성 설치 후 `python -m playwright install --with-deps chromium`이 필요하다. Dockerfile.backend에 포함되어 있으므로 이미지 재빌드가 필요하다.
+- 신규 마이그레이션: `alembic -c services/intelligence/alembic.ini upgrade head` (`l1c2e3f4a567`). RAG·실거래 테이블 변경 없음.
+- Python 의존성 설치 후 `python -m playwright install --with-deps chromium`이 필요하다. infrastructure/docker/Dockerfile.intelligence에 포함되어 있으므로 이미지 재빌드가 필요하다.
 - `POST /api/listings/collection/jobs`, `GET /api/listings/collection/jobs/{id}`, `GET /api/listings/collection/history?source_url=...`. 모두 로그인 필요, 작업·이력은 본인만 조회한다.
 - `tests/test_listing_collection.py`: URL 제한, 금액 변환, 공급/전용 구분, 시점과 실패 상태, 사용자 격리.
 - `python scripts/verify_listing_collection_browser.py`: 실제 Chromium과 가상 HTML로 추출 성공·원문 없음 경로를 검증한다. 실제 네이버 매물 추출 성공률 검증은 아니다.

@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "property-concierge-intelligence"
+version = "0.1.0"
+description = "Property Concierge AI 및 데이터 분석 서비스"
+requires-python = ">=3.11"
+
+[tool.setuptools]
+py-modules = ["concierge_workspace"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "backend*", "db*", "schemas*", "evaluation*"]
+
+[tool.setuptools.package-data]
+evaluation = ["datasets/*.json"]

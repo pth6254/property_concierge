@@ -2,7 +2,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const {chromium} = require('../frontend/node_modules/playwright');
+const {chromium} = require('../web/node_modules/playwright');
 
 (async () => {
   const output = path.resolve(__dirname, '../evaluation-results');

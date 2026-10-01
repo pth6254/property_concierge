@@ -1,6 +1,13 @@
 """현재 OpenRouter 모델의 JSON 응답을 확인한다. 키와 응답 원문은 출력하지 않는다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import json
 import sys
 

@@ -16,7 +16,7 @@ def build() -> Path:
              "comparison": "comparison", "candidate": "candidate"}
     screens = {name: data_url(FOLDER / f"assets/{filename}.png", "image/png")
                for name, filename in files.items()}
-    font = data_url(ROOT / "frontend/src/app/fonts/PretendardVariable.woff2", "font/woff2")
+    font = data_url(ROOT / "web/src/app/fonts/PretendardVariable.woff2", "font/woff2")
     html = (FOLDER / "src/index.template.html").read_text(encoding="utf-8")
     html = html.replace("__STYLES__", (FOLDER / "src/styles.css").read_text(encoding="utf-8"))
     html = html.replace("__SCRIPT__", (FOLDER / "src/presentation.js").read_text(encoding="utf-8"))

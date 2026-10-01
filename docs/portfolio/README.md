@@ -65,7 +65,7 @@ Start-Process docs/portfolio/index.html
 ```
 
 일반 Python 환경에서는 `python docs/portfolio/build.py`를 사용한다. 별도 Python 패키지는 필요 없다.
-글꼴은 기존 `frontend/src/app/fonts/PretendardVariable.woff2`를 참조하며 결과물 안에 포함한다.
+글꼴은 기존 `web/src/app/fonts/PretendardVariable.woff2`를 참조하며 결과물 안에 포함한다.
 `src/`, `assets/`, 생성기와 최종 `index.html`을 함께 버전 관리한다.
 Docker 빌드에서는 기존 `.dockerignore`의 `docs/` 규칙에 따라 제외된다.
 

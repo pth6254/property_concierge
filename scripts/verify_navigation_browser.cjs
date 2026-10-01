@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const net = require('node:net');
 const { spawn, spawnSync } = require('node:child_process');
-const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../frontend/node_modules/playwright');
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_modules/playwright');
 
 (async () => {
   const backend = process.argv[2];
@@ -16,7 +16,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../frontend/
   const check = name => report.checks.push(name);
   const port = await new Promise(resolve => {const server=net.createServer();server.listen(0,'127.0.0.1',()=>{const value=server.address().port;server.close(()=>resolve(value));});});
   const log = fs.openSync(path.join(output,'navigation-next.log'),'w');
-  const server = spawn(process.execPath,[path.join(root,'frontend/node_modules/next/dist/bin/next'),'dev','--hostname','127.0.0.1','--port',String(port)],{cwd:path.join(root,'frontend'),env:{...process.env,NEXT_PUBLIC_API_URL:backend},stdio:['ignore',log,log],windowsHide:true});
+  const server = spawn(process.execPath,[path.join(root,'web/node_modules/next/dist/bin/next'),'dev','--hostname','127.0.0.1','--port',String(port)],{cwd:path.join(root,'web'),env:{...process.env,NEXT_PUBLIC_API_URL:backend},stdio:['ignore',log,log],windowsHide:true});
   let browser, context, registered=false;
   try {
     browser = await chromium.launch(process.env.E2E_BROWSER==='chromium'?{headless:true}:{channel:'chrome',headless:true});

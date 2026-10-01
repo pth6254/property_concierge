@@ -228,8 +228,8 @@ __marimo__/
 *.dump
 
 # Next.js src/lib 예외 (lib/ 패턴이 삼킴)
-!frontend/src/lib/
-!frontend/src/lib/**
+!web/src/lib/
+!web/src/lib/**
 
 # Kotlin Spring 로컬 빌드 산출물
-/core-service/target/
+/services/platform/target/

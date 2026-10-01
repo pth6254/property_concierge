@@ -1,6 +1,13 @@
 """기존 단지 기준정보의 지번 누락을 공식 거래 원문으로 보완하고 주소를 재대조한다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import argparse
 from collections import defaultdict
 import json

@@ -35,9 +35,10 @@ os.environ["DATABASE_URL"] = _test_database_url
 os.environ["REDIS_URL"] = _test_redis_url
 
 _root    = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_backend = os.path.join(_root, "backend")
+_intelligence = os.path.join(_root, "services", "intelligence")
+_backend = os.path.join(_intelligence, "backend")
 
-for _p in [_backend, _root]:
+for _p in [_backend, _intelligence, _root]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

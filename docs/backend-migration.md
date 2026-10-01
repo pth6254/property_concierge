@@ -47,12 +47,12 @@ Python은 `/api`를 제공하지 않는다. 서비스 키 검증은 개발 환�
 | 영역 | Python 호환 모듈 | Spring 저장 구현 |
 |---|---|---|
 | 회원·비밀번호 버전 | 실행 Python 모듈 없음 | `AccountStore`·`SessionService`·`AccountLifecycleController` |
-| 케이스·후보·관심 지역·선택 | `api/case_db.py` | `CaseStore` |
-| 거래 준비 일정·작업 | `api/case_execution_db.py` | `ExecutionStore` |
-| 매물·가격 변경 이력 | `backend/services/listing_store.py` | `ListingService` |
-| 수집 시도·관측 | `backend/services/listing_observations.py` | `ListingObservationStore` |
-| AVM·활동 이력 | `api/history_db.py`·`api/activity_db.py` | `AnalysisHistoryStore` |
-| 작업 접수·진행·완료 | `api/jobs.py` | `AiJobStore` |
+| 케이스·후보·관심 지역·선택 | `services/intelligence/api/case_db.py` | `CaseStore` |
+| 거래 준비 일정·작업 | `services/intelligence/api/case_execution_db.py` | `ExecutionStore` |
+| 매물·가격 변경 이력 | `services/intelligence/backend/services/listing_store.py` | `ListingService` |
+| 수집 시도·관측 | `services/intelligence/backend/services/listing_observations.py` | `ListingObservationStore` |
+| AVM·활동 이력 | `services/intelligence/api/history_db.py`·`services/intelligence/api/activity_db.py` | `AnalysisHistoryStore` |
+| 작업 접수·진행·완료 | `services/intelligence/api/jobs.py` | `AiJobStore` |
 
 API와 별도 Python 실행기에 같은 `CORE_STORAGE_URL`·`INTERNAL_SERVICE_SECRET`을 적용해야 한다.
 한쪽만 전환해서 양쪽 프로세스가 같은 영역을 직접 저장하게 만들지 않는다.
@@ -91,10 +91,10 @@ DB 연결을 반환한 뒤 Python 분석을 호출한다. 동시에 가격·예�
 ## 실행과 검증
 
 `.env.example`의 내부 인증키를 설정한 뒤 기본 서비스를 실행한다. 아래 명령은 기존 개발 DB 포트와
-마운트를 유지한다. `docker compose config`의 전체 출력은 키를 노출할 수 있으므로 보관하지 않는다.
+마운트를 유지한다. `sh scripts/compose.sh dev config`의 전체 출력은 키를 노출할 수 있으므로 보관하지 않는다.
 
 ```bash
-docker compose up -d --build
+sh scripts/compose.sh dev up -d --build
 ./venv-wsl/bin/python scripts/check_compose_contract.py
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 ./venv-wsl/bin/python scripts/run_spring_tests.py --browser

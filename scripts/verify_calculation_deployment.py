@@ -1,6 +1,13 @@
 """실행 서비스의 익명 계산과 API·실행기 내부 호출을 점검한다. DB에 레코드를 쓰지 않는다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import json
 import subprocess
 from pathlib import Path

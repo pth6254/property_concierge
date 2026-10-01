@@ -39,10 +39,10 @@ data/*
 !data/avm_calibration.json
 
 # Node
-frontend/node_modules
-frontend/.next
-frontend/.turbo
-core-service/target/
+web/node_modules
+web/.next
+web/.turbo
+services/platform/target/
 
 # 테스트 / 커버리지
 .pytest_cache/

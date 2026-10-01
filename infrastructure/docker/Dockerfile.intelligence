@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY services/intelligence/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m playwright install --with-deps chromium
+
+COPY . .
+
+EXPOSE 8000
+
+# 작업 큐(jobs.py)·레이트 리밋·로그인 잠금 상태를 전부 Redis로, 앱 테이블을
+# PostgreSQL로 옮긴 것은 워커를 여러 개 띄워도 안전하게 만들기 위해서였다.
+# 워커가 1개인 채로 두면 그 전제를 실제로는 쓰지 않는 셈이라 기본값을 4로 둔다.
+# 필요하면 UVICORN_WORKERS 환경변수로 조절한다 (예: 코어 수에 맞춰 docker-compose
+# 오버레이에서 재정의).
+ENV UVICORN_WORKERS=4
+ENV PYTHONPATH=/app/services/intelligence:/app/services/intelligence/backend:/app
+
+# alembic -c services/intelligence/alembic.ini upgrade head 를 워커 기동 "전에" 단일 프로세스로 한 번만 실행한다.
+# db/base.py의 create_all()도 동시성 경합(같은 CREATE TABLE을 여러 워커가 동시에
+# 시도)을 잡아내도록 방어돼 있지만, 여기서 먼저 스키마를 확정지으면 그 경합
+# 자체가 애초에 발생하지 않는다 — 이후 워커 N개는 이미 마이그레이션이 끝난
+# DB에 붙기만 하면 된다. 이게 스키마 변경(컬럼 삭제·타입 변경)의 정석 배포 순서다.
+CMD ["sh", "-c", "alembic -c services/intelligence/alembic.ini upgrade head && uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers ${UVICORN_WORKERS}"]

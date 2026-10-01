@@ -8,9 +8,14 @@
 2. [AGENTS](../AGENTS.md): 모든 코드 작업에 적용할 구조·보안·DB·검증 제약. `CLAUDE.md`에 복제하지 않는다.
 3. [제품 전략](product-strategy.md): 사용자 기획안을 반영한 출시 범위·데이터 전략·단계별 완료 기준.
 4. [의사결정 검토 기준](decision-assessment.md)와 [자금 입력 기준](funding-consistency.md): 현재 공통 계약과 검증 범위.
-5. [백엔드 안내](../backend/README.md)·[프론트엔드 안내](../frontend/README.md): 구현과 화면의 연결 위치.
+5. [백엔드 안내](../services/intelligence/backend/README.md)·[프론트엔드 안내](../web/README.md): 구현과 화면의 연결 위치.
 
 ## 현재 반영한 범위
+
+저장소는 서비스 책임에 따라 `services/platform/`, `services/intelligence/`, `web/`,
+`contracts/`, `infrastructure/`로 정리했다. 이전 루트의 서비스 구현 폴더는 이동했다.
+실행은 `scripts/compose.sh` 또는 `compose.ps1`를 사용해 기존 프로젝트·데이터 볼륨을 유지한다.
+경로·설치·검증 범위는 [저장소 구조](repository-layout.md)를 따른다.
 
 백엔드는 사용자 결정에 따라 Kotlin + Spring Boot의 저장·권한·거래 상태와 Python의 AI 분석으로 분리했다.
 고정 수식의 자금·세금 계산은 Kotlin으로 이전했다. Python 시뮬레이션·챗봇·비교도 같은 내부 계산 계약을 호출한다.
@@ -22,7 +27,7 @@ Python의 일반 API·인증·주소·레이트 리밋 파일 16개와 미사용
 Python 회귀 테스트는 실행기가 띄운 격리 Spring에 연결하며 실제 DB·Redis 확인 후 진행한다.
 모델 기반 AVM·자연어 해석·문서 분석과 기존 통계 보정·추천 점수·의사결정 규칙은 Python에 남아 있다.
 새 계산 엔진·반올림·미검증 정책 범위는 [계산 책임](calculation-architecture.md)을 따른다.
-`core-service/`의 인증·매물·케이스·거래 준비·분석 이력·Redis 작업 계약과 Python 내부 분석 계약을 추가했다.
+`services/platform/`의 인증·매물·케이스·거래 준비·분석 이력·Redis 작업 계약과 Python 내부 분석 계약을 추가했다.
 현재 웹 3002는 Caddy → Next.js/Spring, API 8002는 Spring이다. Python은 내부 전용이며 API·실행기 저장은 Spring 계약으로 연결한다.
 최신 이전 검증은 Python 1,095개·Kotlin 25개·브라우저 56개·오프라인 평가 34건 통과다.
 Docker 반영 후 서비스 연결과 실제 카카오 주소 조회도 확인했다. Google 실계정·Resend 실발송은 별도 검증이 필요하다.
@@ -56,13 +61,13 @@ URL / 직접 입력 / CSV로 관심 매물 등록
 
 ## 다음 작업자가 유지할 계약
 
-`GET /api/cases/{id}/summary`는 본인 케이스의 `case`·`comparison`·`decision`을 반환한다. 타인 또는 없는 케이스는 404다. [case_decision_assessment.py](../backend/services/case_decision_assessment.py)가 저장된 자료에서 평가를 계산하고, [case_comparison_service.py](../backend/services/case_comparison_service.py)가 같은 기준을 사용한다. 조회에서 외부 API·LLM·작업 실행·선택 상태 변경을 하지 않는다.
+`GET /api/cases/{id}/summary`는 본인 케이스의 `case`·`comparison`·`decision`을 반환한다. 타인 또는 없는 케이스는 404다. [case_decision_assessment.py](../services/intelligence/backend/services/case_decision_assessment.py)가 저장된 자료에서 평가를 계산하고, [case_comparison_service.py](../services/intelligence/backend/services/case_comparison_service.py)가 같은 기준을 사용한다. 조회에서 외부 API·LLM·작업 실행·선택 상태 변경을 하지 않는다.
 
 자료 부족은 미확인이고 만료·원본 변경으로 사용할 수 없는 금액은 현재 비교에서 제외한다. 권리 문서 업로드와 실제 판독 성공은 별도다. `review_ready`는 등록 자료와 검토 항목이 확인된 상태이며 거래 안전 인증이 아니다. 미확인 상태에서 사용자가 후보를 선택하면 보완 필요 표시를 유지한다. 전체 점수나 자동 매수 결론을 추가하지 않는다.
 
 자금의 `owned_homes`는 취득 후 주택 수이며 첫 주택은 1이다. `home_count_basis="after_purchase"`를 유지한다. 공통 프로필의 비상자금은 한 번만 제외하고, 이미 반영한 후보별 가용 현금에서 다시 빼지 않는다. 저장된 개별 조건은 공통 조건과 다를 수 있다. 공통 조건 적용은 사용자 선택으로 제공하고 현재 후보 가격과 계산 가격의 일치는 확인한다.
 
-프론트엔드의 `/cases/{id}/summary`와 비교 화면은 서버의 공통 결과를 표시한다. [DecisionAxisCard.tsx](../frontend/src/components/DecisionAxisCard.tsx)가 근거·누락·연결 행동을, [candidateSimulationSeed.ts](../frontend/src/lib/candidateSimulationSeed.ts)가 후보와 저장 자금 조건의 전달을 담당한다. 세션 상태는 기존 `sessionStore.ts`의 구독 경로를 사용한다.
+프론트엔드의 `/cases/{id}/summary`와 비교 화면은 서버의 공통 결과를 표시한다. [DecisionAxisCard.tsx](../web/src/components/DecisionAxisCard.tsx)가 근거·누락·연결 행동을, [candidateSimulationSeed.ts](../web/src/lib/candidateSimulationSeed.ts)가 후보와 저장 자금 조건의 전달을 담당한다. 세션 상태는 기존 `sessionStore.ts`의 구독 경로를 사용한다.
 
 ## 1단계의 남은 우선 작업
 
@@ -88,7 +93,7 @@ Spring/Python 통합 18개, 계산 연결 6개, 프록시 2개, 격리 브라우
 
 같은 날 주소 등록을 추가한 뒤 전체 백엔드 결과는 1,079개 통과·1개 건너뜀으로 갱신되었다. 주소 등록 브라우저 7개와 외부 주소 조회 1건의 별도 기록은 [주소 등록 검증](address-based-listing.md#2026-10-01-확인-기록)을 확인한다. 의사결정의 기존 검증 기록과 실제 모델·문서·거래 안전에 관한 미검증 범위는 유지한다.
 
-의사결정 브라우저 검사는 실제 자금 계산·후보 저장·다섯 축·근거·가격 변경·복원·사용자 선택·390px 웹 화면을 확인한다. AVM 전체 실행과 실제 문서 판독 품질, 독립 실호가 확인, 최신 세금·금융 규칙의 모든 예외까지 검증한 결과가 아니다. `evaluation/datasets/decision.json`은 고정 입력의 가상 시나리오다.
+의사결정 브라우저 검사는 실제 자금 계산·후보 저장·다섯 축·근거·가격 변경·복원·사용자 선택·390px 웹 화면을 확인한다. AVM 전체 실행과 실제 문서 판독 품질, 독립 실호가 확인, 최신 세금·금융 규칙의 모든 예외까지 검증한 결과가 아니다. `services/intelligence/evaluation/datasets/decision.json`은 고정 입력의 가상 시나리오다.
 
 CI에 관련 흐름과 아티팩트 보관을 추가했지만 로컬 통과를 원격 GitHub Actions 완료로 설명하지 않는다. `evaluation-results/`의 JSON·이미지는 로컬 생성물이며 저장소에 포함되지 않을 수 있다. 이번 문서 최신화는 기능 구현의 검증 범위를 확대하지 않는다.
 
@@ -98,4 +103,4 @@ CI에 관련 흐름과 아티팩트 보관을 추가했지만 로컬 통과를 �
 
 공개 서버·도메인은 아직 준비되지 않았다. HTTPS·프록시·백업·외부 감시 설정을 작성한 상태와 공개 운영 적용은 구분한다. Resend 도메인 인증, 실제 OAuth 리다이렉트 등록, 외부 접속·장애 감지·복원은 배포 환경에서 별도 확인한다. 운영자는 [운영 안내](operations.md), [작업 복구](job-recovery.md), [로컬 WSL 운영](local-docker-wsl.md)을 따른다.
 
-`.env`는 비공개 설정이며 설명은 `.env.example`을 기준으로 관리한다. `docker compose config`는 실제 키를 출력할 수 있으므로 로그나 문서에 붙이지 않는다. 생성 LLM과 임베딩 제공자 설정은 별도로 확인하고 기존 벡터와의 호환을 유지한다.
+`.env`는 비공개 설정이며 설명은 `.env.example`을 기준으로 관리한다. `sh scripts/compose.sh dev config`는 실제 키를 출력할 수 있으므로 로그나 문서에 붙이지 않는다. 생성 LLM과 임베딩 제공자 설정은 별도로 확인하고 기존 벡터와의 호환을 유지한다.

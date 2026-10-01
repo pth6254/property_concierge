@@ -9,6 +9,11 @@
 
 ## 1. 프로젝트 한눈에
 
+서비스 책임 중심 경로는 `services/platform/`, `services/intelligence/`, `web/`다.
+내부 명세는 `contracts/v1/`, 실행 인프라는 `infrastructure/`에 있다.
+폴더를 되돌리거나 루트에 구현 복제본을 두지 않는다. [구조 안내](docs/repository-layout.md)를 따른다.
+Compose 실행은 `scripts/compose.sh` 또는 `compose.ps1`로 프로젝트 경로·이름을 고정한다.
+
 사용자가 가져온 매물을 매수 케이스에 저장하고 **적합성·가격성·자금성·위험성·실행성**을
 검토해 후보 비교·선택·다음 행동으로 이어가는 부동산 의사결정 플랫폼이다.
 국토부 실거래 기반 AVM·자금 계산·권리 점검·챗봇·동네 탐색은 이 흐름을 지원한다.
@@ -22,19 +27,19 @@
 웹 호스트 :3002 → Caddy → Next.js 16 (App Router) 내부 :3000
    │ /api · JWT 쿠키 (Caddy가 Spring으로 전달)
 Kotlin Spring 내부 :8080 / 기본 API 호스트 :8002
-   ├── core-service/ 회원·매물·케이스·거래 상태·분석 이력·작업 저장·자금/세금 계산
+   ├── services/platform/ 회원·매물·케이스·거래 상태·분석 이력·작업 저장·자금/세금 계산
    │ 내부 REST (서비스 인증)
 FastAPI 내부 :8000 (공개 포트 없음, uvicorn --workers 4)
-   ├── api/          내부 AI·데이터 계약 · AI 작업 실행기
-   ├── backend/      LangGraph 파이프라인 + 도메인 로직
-   ├── db/           SQLAlchemy 모델 + Alembic + Redis 클라이언트
-   └── schemas/      Pydantic 스키마 (단위: 원 · ㎡)
+   ├── services/intelligence/api/          내부 AI·데이터 계약 · AI 작업 실행기
+   ├── services/intelligence/backend/      LangGraph 파이프라인 + 도메인 로직
+   ├── services/intelligence/db/           SQLAlchemy 모델 + Alembic + Redis 클라이언트
+   └── services/intelligence/schemas/      Pydantic 스키마 (단위: 원 · ㎡)
         │
 PostgreSQL(+pgvector) · Redis
 ```
 
 시세추정은 `주거 / 상업 / 업무 / 산업 / 토지` **5개 유형별 에이전트**로 조건부 분기한다
-(`backend/graphs/appraisal_graph.py` 의 `CATEGORY_TO_AGENT`). 신규 유형은 이 매핑에
+(`services/intelligence/backend/graphs/appraisal_graph.py` 의 `CATEGORY_TO_AGENT`). 신규 유형은 이 매핑에
 에이전트를 추가하면 된다. 이 분기가 존재한다는 사실을 전국·모든 자산 유형의 같은 수준의
 데이터 및 제품 검증이 완료됐다는 뜻으로 설명하지 않는다.
 
@@ -46,10 +51,10 @@ PostgreSQL(+pgvector) · Redis
 
 ## 2. 절대 되돌리면 안 되는 결정
 
-**백엔드 전환:** 언어는 사용자 결정에 따라 Kotlin이다. `core-service/`의 Spring은 저장·소유자 확인·트랜잭션을,
+**백엔드 전환:** 언어는 사용자 결정에 따라 Kotlin이다. `services/platform/`의 Spring은 저장·소유자 확인·트랜잭션을,
 고정 수식의 금융·세금 계산도 담당한다. Python은 모델 추정·입력 해석·AI 분석을 담당한다.
 기본 API 8002는 Spring이며 Python은 내부 전용이다.
-`CORE_STORAGE_URL`은 필수이며 전환된 영역은 `api/core_bridge.py`를 통해 Spring에 저장한다. 중복 Python SQL 구현은 제거했다. 실패 시 Python SQL로
+`CORE_STORAGE_URL`은 필수이며 전환된 영역은 `services/intelligence/api/core_bridge.py`를 통해 Spring에 저장한다. 중복 Python SQL 구현은 제거했다. 실패 시 Python SQL로
 폴백하거나 양쪽 저장소에 이중 저장하지 않는다. AI 원격 호출을 DB 트랜잭션 안에 추가하지 않는다.
 Kotlin에서 `!!`로 필수 값을 강제하지 말고, 외부 JSON의 null·목록 원소·소수 금액을 검증한다.
 Alembic은 전환 중에도 스키마의 단일 관리 도구다. Hibernate 자동 DDL을 켜지 않는다.
@@ -64,11 +69,11 @@ Python은 `/internal/v1/ai/*`·`/internal/v1/data/*`와 순수 분석 계약만 
 `scripts/audit_python_routes.py`는 중복 경로가 생기면 실패한다. 기존 HTTP 회귀 테스트는
 `tests/service_client.py`를 통해 이전된 경로를 실제 격리 Spring에 보낸다. Python 핸들러를 테스트용으로 복구하지 않는다.
 챗봇 자금 분석은 `funding_execution_client.py` → `/internal/v1/simulation`으로 계산·소유자 확인·저장을 함께 실행한다.
-자금 입력 계약은 `schemas/funding_request.py`다. 제거된 `api.routes.simulation.SimulationRequest`를 다시 추가하지 않는다.
+자금 입력 계약은 `services/intelligence/schemas/funding_request.py`다. 제거된 `api.routes.simulation.SimulationRequest`를 다시 추가하지 않는다.
 Spring 검증도 `real_estate_test`·Redis 15만 사용한다. Python 테스트와 Spring 검증을 동시에 실행하면
 같은 테스트 DB를 비우는 작업이 충돌하므로 두 실행기는 순서대로 실행한다.
 
-**계산 책임:** `core-service/.../calculations/`의 `FinanceCalculator`·`TaxRules`가 자금·세금 수치의 실행 원본이다.
+**계산 책임:** `services/platform/.../calculations/`의 `FinanceCalculator`·`TaxRules`가 자금·세금 수치의 실행 원본이다.
 Python 시뮬레이션·챗봇 세금 도구는 `core_calculations.py`로 같은 계산기를 호출한다.
 연결 실패 시 Python 수식·LLM 계산으로 대체하지 않는다. 중복 수식은 제거했고 기존 54개 결과는 고정 회귀 자료로 보존한다.
 Python 테스트도 격리 Spring에 연결한다. `TEST_CORE_URL` 일치와 실제 DB 이름·Redis 15 확인을 우회하지 않는다.
@@ -82,9 +87,9 @@ AVM 통계 보정·추천 점수·다섯 판단 축 등의 기존 Python 규칙�
 
 ### 2-1. SQLite · 인프로세스 메모리 폴백을 두지 않는다
 
-`DATABASE_URL` / `REDIS_URL` 이 없으면 **기동을 막는다**(`db/base.py`, `db/redis_client.py`).
+`DATABASE_URL` / `REDIS_URL` 이 없으면 **기동을 막는다**(`services/intelligence/db/base.py`, `services/intelligence/db/redis_client.py`).
 "로컬은 SQLite, 운영은 Postgres"로 갈라지면 로컬에서 검증되지 않은 쿼리가 운영에서만
-깨진다. 로컬 개발도 `docker compose up -d pgvector redis` 를 전제로 한다.
+깨진다. 로컬 개발도 `sh scripts/compose.sh dev up -d pgvector redis` 를 전제로 한다.
 
 작업 큐 · 레이트 리밋 · 로그인 잠금 상태도 **전부 Redis**다. 프로세스 메모리로 되돌리면
 멀티 워커에서 상태가 갈려 다음이 조용히 깨진다:
@@ -93,22 +98,22 @@ AVM 통계 보정·추천 점수·다섯 판단 축 등의 기존 Python 규칙�
 
 ### 2-2. Alembic 은 워커 기동 "전에" 단일 프로세스로 실행한다
 
-`Dockerfile.backend` 의 `CMD` 가 `alembic upgrade head && uvicorn ... --workers N` 인 것은
+`infrastructure/docker/Dockerfile.intelligence` 의 `CMD` 가 `alembic -c services/intelligence/alembic.ini upgrade head && uvicorn ... --workers N` 인 것은
 의도된 순서다. 스키마를 먼저 확정해야 여러 워커가 동시에 DDL을 치는 경합이 아예 생기지 않는다.
 
-`db/base.py` 의 `init_db()`(create_all)는 alembic 없이 `uvicorn` 을 직접 띄우는
+`services/intelligence/db/base.py` 의 `init_db()`(create_all)는 alembic 없이 `uvicorn` 을 직접 띄우는
 로컬·테스트 경로용 **안전망**이다. 지우지 말 것. 단, create_all 은 컬럼 삭제·타입 변경을
 반영하지 못하므로 그런 변경은 반드시 마이그레이션을 만들어야 한다.
 
 ```bash
-alembic revision --autogenerate -m "설명"   # 생성 후 파일을 반드시 검토
-alembic upgrade head
+alembic -c services/intelligence/alembic.ini revision --autogenerate -m "설명"   # 생성 후 파일을 반드시 검토
+alembic -c services/intelligence/alembic.ini upgrade head
 ```
 
 **autogenerate 결과에서 아래 세 테이블의 `drop_table` 은 반드시 지울 것:**
 `real_estate_docs` · `langchain_pg_collection` · `langchain_pg_embedding`
 
-이 셋은 `docker/init.sql` 이 만드는 RAG 벡터스토어 테이블로 `db/models.py` 에 없다.
+이 셋은 `infrastructure/database/init.sql` 이 만드는 RAG 벡터스토어 테이블로 `services/intelligence/db/models.py` 에 없다.
 autogenerate 는 모델에 없으면 "삭제된 것"으로 간주해 **매번 drop 구문을 끼워 넣는다.**
 그대로 적용하면 RAG 데이터가 전부 사라진다 (실제로 겪어서 `b7e42562ca36` 에서 제거함).
 
@@ -123,7 +128,7 @@ id를 훑어 타인 데이터를 전량 읽을 수 있다(실제로 있었던 �
 
 ### 2-4. 시크릿을 저장소에 넣지 않는다
 
-`docker-compose.yml` 은 `${POSTGRES_PASSWORD:?...}` 로 **미설정 시 기동 실패**하게 되어 있다.
+`infrastructure/compose/compose.yml` 은 `${POSTGRES_PASSWORD:?...}` 로 **미설정 시 기동 실패**하게 되어 있다.
 편의를 위해 기본값을 넣으면 그 값이 그대로 운영에 올라간다.
 
 `.github/workflows/ci.yml` 의 postgres 비밀번호는 예외다 — 워크플로 실행 중에만 존재하는
@@ -135,7 +140,7 @@ id를 훑어 타인 데이터를 전량 읽을 수 있다(실제로 있었던 �
 FastAPI 에는 모든 요청이 프록시 IP 하나로 들어온다. 실제 IP 는 `X-Forwarded-For` 에 있다.
 
 uvicorn 은 `proxy_headers=True` 가 기본이지만 `forwarded_allow_ips` 기본값이
-`"127.0.0.1"` 이라 **같은 기계의 프록시만** 신뢰한다. docker compose 처럼 프록시가
+`"127.0.0.1"` 이라 **같은 기계의 프록시만** 신뢰한다. sh scripts/compose.sh dev 처럼 프록시가
 별도 컨테이너면 기본값으로는 동작하지 않는다 — `FORWARDED_ALLOW_IPS` 환경변수에
 프록시 IP/대역을 넣으면 uvicorn 이 자동으로 읽는다(코드 변경 불필요).
 
@@ -152,7 +157,7 @@ uvicorn 은 `proxy_headers=True` 가 기본이지만 `forwarded_allow_ips` 기�
 
 ### 2-6. LLM 수치 가드레일을 우회하지 않는다
 
-`backend/opinion_guard.py` 는 LLM 출력에서 **컨텍스트로 주입한 수치 외의 숫자가 든 문장을
+`services/intelligence/backend/opinion_guard.py` 는 LLM 출력에서 **컨텍스트로 주입한 수치 외의 숫자가 든 문장을
 자동 삭제**한다. 부동산 가격에서 환각은 치명적이라 프롬프트 부탁이 아니라 출력 검증으로
 막는다. 위반 시 1회 재생성 → 결정론적 폴백.
 
@@ -197,8 +202,8 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 ### 2-9. 오래 걸리는 작업은 별도 실행기에서 처리한다
 
 공개 AVM·수집·채팅 접수는 Spring `AiWorkController` → `AiJobStore`가 JSON 입력을 Redis Stream에
-기록한다. AI 도구의 하위 작업은 `api/jobs.py`의 내부 Spring 계약을 호출한다.
-`api/job_worker.py`가 별도 컨테이너에서 실행한다. API 내부 스레드 실행으로
+기록한다. AI 도구의 하위 작업은 `services/intelligence/api/jobs.py`의 내부 Spring 계약을 호출한다.
+`services/intelligence/api/job_worker.py`가 별도 컨테이너에서 실행한다. API 내부 스레드 실행으로
 되돌리면 서버 재시작 때 진행 중 작업이 사라진다. 운영 Redis의 AOF 설정과
 `job-worker` 서비스도 함께 유지할 것. AVM 이력·수집 기록은 `job_id`로 중복 저장을 막는다.
 
@@ -216,7 +221,7 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 
 ### 2-11. 다섯 판단 축과 후보 비교는 같은 검토 기준을 쓴다
 
-`schemas/decision_assessment.py`와 `backend/services/case_decision_assessment.py`가
+`services/intelligence/schemas/decision_assessment.py`와 `services/intelligence/backend/services/case_decision_assessment.py`가
 후보별 상태·근거·기준일·누락 정보·다음 행동의 공통 계약이다.
 `GET /api/cases/{id}/summary`의 `decision`과 `comparison`은 같은 평가 결과를 사용한다.
 화면이나 비교 서비스에 별도의 완료 기준·점수·매수 결론을 만들지 않는다.
@@ -234,7 +239,7 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 
 `owned_homes`는 **이번 취득 후 주택 수**다. 첫 주택은 1이며 결과 입력에
 `home_count_basis="after_purchase"`를 기록한다. 표시 문구만 바꾸고 계산기의 의미를 다르게 두지 않는다.
-화면·채팅·케이스 시나리오는 `schemas/simulation.py`의 공통 변환을 사용한다.
+화면·채팅·케이스 시나리오는 `services/intelligence/schemas/simulation.py`의 공통 변환을 사용한다.
 
 공통 프로필의 비상자금은 가용 현금에서 한 번만 제외한다. 후보별 저장 입력은 이미 반영된
 가용 현금이므로 재계산 화면에서 다시 빼지 않는다. 저장된 개별 조건은 공통 조건과 다를 수 있다.
@@ -280,15 +285,15 @@ AppraisalResult(judgement="저평가")   # judgement 는 존재하지 않는 필
 빈 DB에 4개 워커를 동시에 붙이면 **매번** 3개가 죽는다. 예상과 달리 테이블
 (`ProgrammingError` / DuplicateTable)뿐 아니라 **SERIAL 컬럼의 시퀀스에서도
 `IntegrityError` / UniqueViolation** 이 난다. 두 예외를 모두 잡아야 한다
-(`db/base.py` 의 `init_db()` 참고).
+(`services/intelligence/db/base.py` 의 `init_db()` 참고).
 
 ### 3-3. Next.js 16 · React 19
 
 - **`middleware.ts` 가 아니라 `proxy.ts`** 다. Next 16에서 이름이 바뀌었다(`src/proxy.ts`).
-- `frontend/AGENTS.md` 의 경고대로, 코드 작성 전 `frontend/node_modules/next/dist/docs/` 를
+- `web/AGENTS.md` 의 경고대로, 코드 작성 전 `web/node_modules/next/dist/docs/` 를
   확인할 것. 학습 데이터와 다르다.
 - **effect 안에서 동기 `setState` 금지** (`react-hooks/set-state-in-effect`). CI 린트가 잡는다.
-  - sessionStorage 읽기는 반드시 `frontend/src/lib/sessionStore.ts` 의
+  - sessionStorage 읽기는 반드시 `web/src/lib/sessionStore.ts` 의
     `useSessionValue` / `setSessionValue` / `removeSessionValue` 를 쓴다.
     raw `sessionStorage.setItem` 으로 쓰면 구독자가 갱신되지 않는다.
   - 마운트 시 fetch는 `await` 이후에 setState 하고 취소 플래그를 둔다.
@@ -332,35 +337,35 @@ Windows에서 띄운 서버를 WSL curl로 때리면 연결되지 않는다.
 
 ```bash
 # ── 백엔드 ──────────────────────────────────────────────
-docker compose up -d pgvector redis          # DB·캐시 먼저
+sh scripts/compose.sh dev up -d pgvector redis          # DB·캐시 먼저
 
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 
-alembic upgrade head                          # 마이그레이션 적용
+alembic -c services/intelligence/alembic.ini upgrade head                          # 마이그레이션 적용
 
 # ── 프론트엔드 ──────────────────────────────────────────
-cd frontend
+cd web
 npx tsc --noEmit    # 타입 체크
 npm run lint        # ESLint (set-state-in-effect 등)
 npm run build       # 프로덕션 빌드
 
 # ── 전체 실행 ───────────────────────────────────────────
-docker compose up --build                     # 개발 (override 자동 병합)
-docker compose -f docker-compose.yml up -d --build   # 운영 (override 배제)
+sh scripts/compose.sh dev up --build                     # 개발 (override 명시 병합)
+sh scripts/compose.sh local up -d --build   # 운영 (override 배제)
 
 # ── 백업 ────────────────────────────────────────────────
 ./scripts/backup_db.sh
 ./scripts/restore_db.sh backups/property_concierge_<타임스탬프>.dump
 ```
 
-**CI**(`.github/workflows/ci.yml`)는 두 job을 병렬 실행한다:
-- `test` — PostgreSQL·Redis 서비스 컨테이너 + `alembic upgrade head` + `pytest` + 오프라인 평가.
-  별도 API·작업 실행기를 띄우고 매물 등록·화면 이동·서비스 품질·후보 자금·다섯 판단 축의
-  주소 등록·선택 별칭을 포함한 브라우저 흐름 6종을 실행하며 결과 JSON과 화면 이미지를 아티팩트로 보관한다.
+**CI**(`.github/workflows/ci.yml`)는 세 job을 병렬 실행한다:
+- `test` — PostgreSQL·Redis 서비스 컨테이너 + `alembic -c services/intelligence/alembic.ini upgrade head` + `pytest` + 오프라인 평가.
 - `frontend` — `tsc --noEmit` + `npm run lint` + `npm run build`
+- `spring` — 별도 API·작업 실행기를 띄우고 저장·권한·계산·프록시와 브라우저 흐름 6종을 검증한다.
+  주소 등록·선택 별칭·매물 변경 재검토를 포함하며 결과 JSON과 화면 이미지를 아티팩트로 보관한다.
 
 **변경 후에는 양쪽을 모두 돌려볼 것.** 백엔드만 고쳤다고 프론트가 안전한 게 아니다
-(API 응답 형태가 바뀌면 `frontend/src/lib/api.ts` 의 타입도 함께 고쳐야 한다).
+(API 응답 형태가 바뀌면 `web/src/lib/api.ts` 의 타입도 함께 고쳐야 한다).
 
 현재 실행 중인 로컬 서비스의 후보 흐름 확인은 저장소 루트의 **PowerShell**에서 실행한다:
 
@@ -381,7 +386,7 @@ node scripts/verify_decision_assessment_browser.cjs
 - **주석은 "무엇"이 아니라 "왜"를 적는다.** 특히 되돌리기 쉬운 결정에는 이유를 남긴다.
 - 프론트엔드에 `any` · `@ts-ignore` 를 쓰지 않는다 (현재 0건).
 - 금액 단위는 **원(int)**, 면적은 **㎡(float)**.
-  예외: `backend/models.py` 의 `ValuationResult` 는 만원 단위 — 리포트 생성 시 변환한다.
+  예외: `services/intelligence/backend/models.py` 의 `ValuationResult` 는 만원 단위 — 리포트 생성 시 변환한다.
 - 파일명은 구체적으로. `report.py` · `utils.py` 같은 흔한 이름은 외부 패키지와 충돌한다
   (실제로 겪어서 `appraisal_report.py` 로 바꾼 이력이 있음).
 
@@ -400,7 +405,7 @@ node scripts/verify_decision_assessment_browser.cjs
   거래 준비 작업을 완료해도 실제 계약·잔금·등기까지 완료된 것으로 설명하지 않는다.
 - **AVM 신뢰도 편차가 크다.** 백테스트(서초구 434건) 실측 기준 동일 단지 매칭은
   ±10% 적중률 69~84%지만 **동일동·구 매칭은 8~33%** 다.
-  신뢰도는 이 실측치를 블렌딩해 하향 보정된다(`backend/confidence.py`).
+  신뢰도는 이 실측치를 블렌딩해 하향 보정된다(`services/intelligence/backend/confidence.py`).
 - **시점수정은 주거용·토지만** 부동산원 R-ONE 지수를 적용한다. 상업·업무·산업용은
   적합한 월간 시군구 지수가 없어 근사 변동률을 쓴다.
 - **의도분석의 `clarification_question` 은 사용자에게 노출되지 않는다.**
@@ -486,5 +491,5 @@ node scripts/verify_decision_assessment_browser.cjs
 수정·생성 방법은 `docs/portfolio/README.md`를 따른다. `index.html` 직접 수정 대신 `src/`를 수정하고 재생성한다.
 기존 바탕화면 문서(`부동산컨시어지_포트폴리오.md`, `포트폴리오_Gamma_프롬프트.md`)는 별도 참고 자료다.
 
-> ⚠️ **`docker compose config` 출력에는 실제 API 키가 그대로 찍힌다.** 로그·이슈·스크린샷에
+> ⚠️ **`sh scripts/compose.sh dev config` 출력에는 실제 API 키가 그대로 찍힌다.** 로그·이슈·스크린샷에
 > 붙여넣지 말 것. 과거 세션 로그에 노출된 적이 있어 해당 키들은 교체 대상이다.

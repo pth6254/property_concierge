@@ -1,4 +1,11 @@
 """가상 주소 검색 응답을 로컬 브라우저 검증 계정에 연결한다. 외부 API 실적이 아니다."""
+
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
 import json
 import sys
 from datetime import datetime, timezone

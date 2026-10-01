@@ -1,6 +1,13 @@
 """격리 DB에서 Kotlin 저장·권한 처리와 Python 입력 검증의 연결을 대조한다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import csv
 import io
 import json

@@ -55,7 +55,7 @@ DUMP_FILE="$OUT_DIR/property_concierge_${TIMESTAMP}.dump"
 echo "[backup] $POSTGRES_DB → $DUMP_FILE"
 
 # custom format(-Fc): pg_restore 로만 복원 가능하지만 압축 + 선택적 복원(테이블 단위)이 된다.
-# 컨테이너 이름은 docker-compose.yml 의 container_name 과 일치해야 한다.
+# 컨테이너 이름은 infrastructure/compose/compose.yml 의 container_name 과 일치해야 한다.
 PGPASSWORD="$POSTGRES_PASSWORD" docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" \
   property_concierge_pgvector \
   pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc \

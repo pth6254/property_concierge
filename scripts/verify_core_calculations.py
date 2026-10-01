@@ -1,6 +1,13 @@
 """격리 Spring 계산을 수기 정답·기존 수식·화면/대화/시나리오 경로로 대조한다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import json
 import os
 import sys

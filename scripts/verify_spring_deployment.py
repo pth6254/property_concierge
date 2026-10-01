@@ -1,6 +1,13 @@
 """실행 중인 로컬 서비스의 연결만 검증한다. 생성한 검증 계정만 삭제한다."""
 from __future__ import annotations
 
+from pathlib import Path as _WorkspacePath
+import sys as _workspace_sys
+_workspace_sys.path.insert(0, str(_WorkspacePath(__file__).resolve().parents[1] / "services/intelligence"))
+from concierge_workspace import ensure_import_paths as _ensure_import_paths
+_ensure_import_paths()
+
+
 import json
 import secrets
 import subprocess
