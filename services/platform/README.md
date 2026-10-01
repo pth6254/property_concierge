@@ -2,8 +2,8 @@
 
 사용자 인증·사용자 매물·매수 케이스·후보 선택·거래 준비·분석 이력·Redis 작업 저장을 담당한다.
 대출·취득비용·세금·현금흐름·LTV/DSR·수익 계산도 담당한다. LLM·RAG·AVM 등 모델 추정은 Python에 두며,
-자연어 조건과 계산 결과를 내부 계약으로 주고받는다. [계산 책임과 검증](../../docs/calculation-architecture.md)을 따른다.
-공개 업무 API·OAuth·비밀번호 재설정·메일·탈퇴·주소·운영·AI 접수는 이 서비스가 담당한다. 설정과 검증 범위는 [백엔드 전환 안내](../../docs/backend-migration.md)를 따른다.
+자연어 조건과 계산 결과를 내부 계약으로 주고받는다. [계산 책임과 검증](../../docs/architecture.md#calculations)을 따른다.
+공개 업무 API·OAuth·비밀번호 재설정·메일·탈퇴·주소·운영·AI 접수는 이 서비스가 담당한다. 설정과 검증 범위는 [백엔드 전환 안내](../../docs/architecture.md#backend)를 따른다.
 
 기본 Compose의 공개 API 8002는 이 서비스다. 웹 3002의 Caddy도 이 서비스에 `/api/*`를 전달한다.
 Python API와 실행기는 같은 내부 저장 계약을 사용하며 연결 실패를 Python SQL로 대체하지 않는다.

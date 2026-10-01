@@ -6,7 +6,7 @@ Kotlin `services/platform/`, 분석 HTTP와 실행기는 Python `services/intell
 `services/intelligence/db/`의 모델·Alembic은 공통 스키마를 관리하며 실거래·RAG·분석 캐시는 Python이 관리한다.
 이전된 사용자·매물·케이스·분석 이력 저장 함수는 `services/intelligence/api/core_bridge.py`를 통해 Spring을 호출한다.
 개발 전에 [루트 작업 지침](../../../AGENTS.md)을 읽고, 제품 범위는 [제품 전략](../../../docs/product-strategy.md),
-현재 전환 상태는 [백엔드 전환 안내](../../../docs/backend-migration.md)를 확인한다.
+현재 전환 상태는 [백엔드 전환 안내](../../../docs/architecture.md#backend)를 확인한다.
 Python 일반 API·인증·주소·레이트 리밋 파일 16개를 삭제했다. API는 내부 AI·데이터 분석만 제공한다.
 OAuth·재설정·주소·운영·작업 접수는 Spring이다. 내부 저장 클라이언트를 업무 SQL로 되돌리지 않는다.
 
@@ -48,9 +48,9 @@ OAuth·재설정·주소·운영·작업 접수는 Spring이다. 내부 저장 �
 
 `GET /api/cases/{id}/summary`는 소유자 확인 후 `case`, `comparison`, `decision`을 반환한다. 다섯 축의 스키마는 [decision_assessment.py](../schemas/decision_assessment.py)에 있으며, 요약과 비교가 같은 평가 결과를 사용한다. 이 조회는 외부 API·LLM·새 작업·DB 변경 없이 저장된 자료로 계산한다.
 
-자료 부족·판독 실패는 미확인이고, 만료·기준일 누락·원본 변경은 현재 비교 금액에서 제외한다. 유효한 주의 결과의 금액은 표시할 수 있으나 근거가 없는 값을 0이나 안전으로 대체하지 않는다. 사용자 선택과 `review_ready`는 구분하며 자동 매수 결론을 만들지 않는다. 자세한 확인 조건은 [의사결정 검토 기준](../../../docs/decision-assessment.md)을 따른다.
+자료 부족·판독 실패는 미확인이고, 만료·기준일 누락·원본 변경은 현재 비교 금액에서 제외한다. 유효한 주의 결과의 금액은 표시할 수 있으나 근거가 없는 값을 0이나 안전으로 대체하지 않는다. 사용자 선택과 `review_ready`는 구분하며 자동 매수 결론을 만들지 않는다. 자세한 확인 조건은 [의사결정 검토 기준](../../../docs/features/decision.md#decision-assessment)을 따른다.
 
-자금 입력의 `owned_homes`는 취득 후 주택 수다. 첫 주택은 1이고 `home_count_basis="after_purchase"`를 기록한다. 공통 프로필의 비상자금은 한 번만 제외하며 저장된 후보별 가용 현금에서 재차 제외하지 않는다. 개별 조건과 공통 조건이 다르다는 이유만으로 저장 결과를 무효화하지 않는다. 공통 변환은 [simulation.py](../schemas/simulation.py), 입력·검증 기준은 [자금 문서](../../../docs/funding-consistency.md)를 따른다.
+자금 입력의 `owned_homes`는 취득 후 주택 수다. 첫 주택은 1이고 `home_count_basis="after_purchase"`를 기록한다. 공통 프로필의 비상자금은 한 번만 제외하며 저장된 후보별 가용 현금에서 재차 제외하지 않는다. 개별 조건과 공통 조건이 다르다는 이유만으로 저장 결과를 무효화하지 않는다. 공통 변환은 [simulation.py](../schemas/simulation.py), 입력·검증 기준은 [자금 문서](../../../docs/features/decision.md#funding-input)를 따른다.
 
 권리 점검은 업로드 여부와 등기부·건축물대장 판독 성공을 별도로 기록한다. 빈 PDF·판독 실패·일부 문서만 있는 결과를 안전으로 승격하지 않는다. 원문 PDF는 현재 영구 저장하지 않는다.
 
@@ -70,7 +70,7 @@ AVM은 국토부 실거래를 사용하고 `CATEGORY_TO_AGENT`에서 주거·상
 sh scripts/compose.sh dev up -d --build
 ```
 
-기본 호스트 포트는 웹 3002, Spring API 8002이고 내부는 Next 3000·Spring 8080·Python 8000이다. Spring·Python API·별도 `job-worker`·PostgreSQL·Redis를 함께 실행한다. Python에는 중복 업무 저장·금융 수식 구현을 두지 않는다. 실행과 설정은 [루트 README](../README.md), 운영 적용과 복구는 [운영 안내](../../../docs/operations.md)와 [작업 복구](../../../docs/job-recovery.md)를 따른다.
+기본 호스트 포트는 웹 3002, Spring API 8002이고 내부는 Next 3000·Spring 8080·Python 8000이다. Spring·Python API·별도 `job-worker`·PostgreSQL·Redis를 함께 실행한다. Python에는 중복 업무 저장·금융 수식 구현을 두지 않는다. 실행과 설정은 [루트 README](../README.md), 운영 적용과 복구는 [운영 안내](../../../docs/operations.md#administration)와 [작업 복구](../../../docs/operations.md#job-recovery)를 따른다.
 
 테스트는 서비스 DB에 연결하지 않고 전용 DB `real_estate_test`·Redis DB 15로 실행한다.
 
@@ -78,7 +78,7 @@ sh scripts/compose.sh dev up -d --build
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 ```
 
-도메인 계약은 `tests/test_case_decision_assessment.py`, 자금 입력은 `tests/test_funding_consistency.py`, API 소유자 격리와 권리 판독 상태는 `tests/test_purchase_cases.py`에서 검증한다. 브라우저 명령·최신 결과·미검증 범위는 [의사결정 검토 문서](../../../docs/decision-assessment.md#검증-범위)에 있다. 백엔드 변경 후 프론트엔드 타입·린트·빌드도 확인한다.
+도메인 계약은 `tests/test_case_decision_assessment.py`, 자금 입력은 `tests/test_funding_consistency.py`, API 소유자 격리와 권리 판독 상태는 `tests/test_purchase_cases.py`에서 검증한다. 브라우저 명령·최신 결과·미검증 범위는 [의사결정 검토 문서](../../../docs/features/decision.md#decision-assessment-검증-범위)에 있다. 백엔드 변경 후 프론트엔드 타입·린트·빌드도 확인한다.
 
 ## 다음 구현 순서
 

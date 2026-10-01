@@ -9,7 +9,7 @@
 구분하며 ‘사도 되는 매물’을 자동 정답으로 두지 않는다. 모바일 앱은 현재 평가 범위에 포함하지 않는다.
 
 실제 매물 원문의 호가·전용면적·주소 대조는 `python -m evaluation listing-check --live --dataset <정답 JSON>`으로 실행한다.
-최근 24시간 이내 사람이 확인한 정답이 필요하며 조회 실패도 분모에 포함한다. 형식과 검증 경계는 [운영 안내](../../../docs/operations.md)를 따른다.
+최근 24시간 이내 사람이 확인한 정답이 필요하며 조회 실패도 분모에 포함한다. 형식과 검증 경계는 [운영 안내](../../../docs/operations.md#administration)를 따른다.
 
 ## 빠른 실행
 
@@ -129,11 +129,11 @@ python -m evaluation run --suite chat --dataset my_chat_cases.json --live
 매물 CSV 저장부터 후보 연결·원본 가격 갱신 경고·비교·선택·새로고침까지의 실제 API와 브라우저 흐름은 `scripts/verify_listing_import_browser.cjs <격리 API 주소>`로 검증한다. 이 스크립트의 원문 수집 응답만 고정 입력이며, AVM 정확도는 별도 백테스트 대상이다.
 CI에서는 별도 PostgreSQL·Redis 서비스와 Chromium을 띄워 이 브라우저 흐름을 반복한다. 실제 AVM 실행 브라우저 검증과 네이버의 현재 유효 매물 추출 성공 여부는 이 CI 검사에 포함되지 않는다.
 
-주소 기반 등록과 선택 별칭은 `scripts/verify_listing_address_browser.cjs`로 검사한다. 서명된 가상 주소 응답을 사용하며 실제 등록·후보·요약·복원과 검색 실패 시 직접 입력을 확인한다. 외부 주소 API의 실주소 조회 확인은 별도로 수행하고 [주소 등록 검증](../../../docs/address-based-listing.md#검증)에 범위와 결과를 남긴다.
+주소 기반 등록과 선택 별칭은 `scripts/verify_listing_address_browser.cjs`로 검사한다. 서명된 가상 주소 응답을 사용하며 실제 등록·후보·요약·복원과 검색 실패 시 직접 입력을 확인한다. 외부 주소 API의 실주소 조회 확인은 별도로 수행하고 [주소 등록 검증](../../../docs/features/listings.md#address-registration-검증)에 범위와 결과를 남긴다.
 
 ### 거래 의사결정 전체 흐름 게이트
 
-후보 요약과 비교는 다섯 판단 축의 같은 검토 기준을 사용한다. `tests/test_case_decision_assessment.py`와 `scripts/verify_decision_assessment_browser.cjs`는 근거 부족·만료·판독 실패·가격 변경을 검토 완료로 표시하지 않는지 확인한다. 고정 입력 데이터셋의 비교사례 수·문서 판독 여부·취득 후 주택 수·매물 확인 시각은 가상 상태를 명시한 값이며, 실제 수집·판독·가격 정확도 실적이 아니다. 상세 계약은 [후보별 의사결정 검토 기준](../../../docs/decision-assessment.md)을 따른다.
+후보 요약과 비교는 다섯 판단 축의 같은 검토 기준을 사용한다. `tests/test_case_decision_assessment.py`와 `scripts/verify_decision_assessment_browser.cjs`는 근거 부족·만료·판독 실패·가격 변경을 검토 완료로 표시하지 않는지 확인한다. 고정 입력 데이터셋의 비교사례 수·문서 판독 여부·취득 후 주택 수·매물 확인 시각은 가상 상태를 명시한 값이며, 실제 수집·판독·가격 정확도 실적이 아니다. 상세 계약은 [후보별 의사결정 검토 기준](../../../docs/features/decision.md#decision-assessment)을 따른다.
 
 `tests/test_decision_flow_integration.py`는 격리 PostgreSQL·Redis와 실제 FastAPI 경로를 통해 매물 등록 → 후보 연결 → AVM 작업 → 실제 자금 계산 → 비교 → 선택 → 매물 가격 변경 → 분석 무효화·선택 해제 → 재분석·재선택을 확인한다. AVM 출력만 고정 입력이므로 **기능 연결과 판단 상태 전이**의 회귀 검사이며 실제 AVM 가격 정확도 평가는 아니다.
 

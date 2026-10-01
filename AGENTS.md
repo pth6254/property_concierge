@@ -11,8 +11,12 @@
 
 서비스 책임 중심 경로는 `services/platform/`, `services/intelligence/`, `web/`다.
 내부 명세는 `contracts/v1/`, 실행 인프라는 `infrastructure/`에 있다.
-폴더를 되돌리거나 루트에 구현 복제본을 두지 않는다. [구조 안내](docs/repository-layout.md)를 따른다.
+폴더를 되돌리거나 루트에 구현 복제본을 두지 않는다. [구조 안내](docs/architecture.md#repository)를 따른다.
 Compose 실행은 `scripts/compose.sh` 또는 `compose.ps1`로 프로젝트 경로·이름을 고정한다.
+
+기능 설명은 `docs/features/`의 매물·의사결정·챗봇·탐색 문서에 통합한다.
+작은 변경마다 문서를 새로 만들지 말고 해당 문서의 계약·제약·검증 절을 갱신한다.
+구조·운영·과거 실측의 위치는 [문서 안내](docs/README.md)를 따른다.
 
 사용자가 가져온 매물을 매수 케이스에 저장하고 **적합성·가격성·자금성·위험성·실행성**을
 검토해 후보 비교·선택·다음 행동으로 이어가는 부동산 의사결정 플랫폼이다.
@@ -61,7 +65,7 @@ Alembic은 전환 중에도 스키마의 단일 관리 도구다. Hibernate 자�
 Compose는 API·실행기 모두 Spring 저장 계약으로 고정한다. 한쪽만 이전 저장소로 바꾸지 않는다.
 Caddy가 웹 3002의 `/api/*`를 Spring에 직접 전달한다. Spring은 Caddy 172.30.92.2,
 Python은 Spring 172.31.244.2만 IP 헤더를 신뢰한다. Next나 사설망 전체를 신뢰 목록에 추가하지 않는다.
-계약·실행·검증 경계는 [백엔드 전환 안내](docs/backend-migration.md)를 확인한다.
+계약·실행·검증 경계는 [백엔드 전환 안내](docs/architecture.md#backend)를 확인한다.
 일반 공개 API·OAuth·재설정·메일·탈퇴·주소·운영·작업 접수는 Spring이다.
 대체된 Python 일반 API·인증·주소·레이트 리밋 파일 16개를 삭제했다.
 Python은 `/internal/v1/ai/*`·`/internal/v1/data/*`와 순수 분석 계약만 제공하며 항상 서비스 키를 검증한다.
@@ -81,7 +85,7 @@ Python 테스트도 격리 Spring에 연결한다. `TEST_CORE_URL` 일치와 실
 금액 범위 초과는 422로 거부하며 결과에 엔진·계산 버전·세율 기준일을 보존한다.
 `2026-01-01` 간이 정책을 이관한 것이며 최신 법령·대출 심사를 검증했다는 뜻으로 설명하지 않는다.
 AVM 통계 보정·추천 점수·다섯 판단 축 등의 기존 Python 규칙까지 전부 이전했다고 말하지 않는다.
-계산 경계·검증은 [계산 책임 문서](docs/calculation-architecture.md)를 따른다.
+계산 경계·검증은 [계산 책임 문서](docs/architecture.md#calculations)를 따른다.
 
 아래는 모두 **문제를 겪고 내린 결정**이다. "단순화"하려다 되돌리기 쉬우니 주의할 것.
 
@@ -208,7 +212,7 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 `job-worker` 서비스도 함께 유지할 것. AVM 이력·수집 기록은 `job_id`로 중복 저장을 막는다.
 
 실행 도중 죽은 채팅·종합 컨시어지 작업은 대화 중복을 피하려고 자동 재실행하지 않고
-사용자 재질문을 안내한다. 정확한 경계는 `docs/job-recovery.md`를 따른다.
+사용자 재질문을 안내한다. 정확한 경계는 `docs/operations.md#job-recovery`를 따른다.
 
 ### 2-10. pytest는 서비스 DB·Redis에 절대 연결하지 않는다
 
@@ -233,7 +237,7 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 - 조회 중 LLM·외부 API·새 작업을 실행하거나 후보 선택 상태를 변경하지 않는다. 선택은 사용자가 한다.
 
 회귀 테스트는 `tests/test_case_decision_assessment.py`, 화면 검증은
-`scripts/verify_decision_assessment_browser.cjs`다. 기준은 [의사결정 검토 문서](docs/decision-assessment.md)를 따른다.
+`scripts/verify_decision_assessment_browser.cjs`다. 기준은 [의사결정 검토 문서](docs/features/decision.md#decision-assessment)를 따른다.
 
 ### 2-12. 자금 입력 의미와 후보별 저장 조건을 유지한다
 
@@ -247,7 +251,7 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 후보의 현재 가격과 분석에 사용한 가격은 일치해야 한다.
 
 회귀 테스트는 `tests/test_funding_consistency.py`, 화면 검증은
-`scripts/verify_candidate_funding_browser.cjs`다. [자금 입력 기준](docs/funding-consistency.md)을 따른다.
+`scripts/verify_candidate_funding_browser.cjs`다. [자금 입력 기준](docs/features/decision.md#funding-input)을 따른다.
 
 ### 2-13. 매물 거래 상태·자료 시점·확인 출처를 섞지 않는다
 
@@ -258,12 +262,12 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 주소가 같은 광고를 같은 개별 호로 자동 합치지 않는다. 단지 수준 확인과 개별 매물 확인을 구분한다.
 권리 원문 PDF는 현재 저장하지 않는다. 문서 근거 보관을 확장할 때는 사용자 소유 범위와
 최소 발췌·페이지·보관 정책부터 정하고 원문 자동 영구 저장을 도입하지 않는다.
-상태 및 수집 계약은 [매물 등록](docs/imported-listings.md)과 [매물 수집](docs/listing-collection.md)을 따른다.
+상태 및 수집 계약은 [매물 등록](docs/features/listings.md#listing-registration)과 [매물 수집](docs/features/listings.md#listing-collection)을 따른다.
 
 주소 기반 등록은 서버가 선택 확인 정보의 서명·사용자·만료와 이름·주소를 대조한다.
 `alias`는 선택적인 표시용 별칭이고 AVM 단지 매칭이나 확인된 `name`을 대체하지 않는다.
 확인 정보 자체를 DB·이력에 저장하거나 인증 JWT처럼 사용하지 않는다. 기존 JSON에 주소 근거와
-별칭을 저장하며 CSV에 새 선택 필드가 없는 입력도 유지한다. [주소 등록 계약](docs/address-based-listing.md)을 따른다.
+별칭을 저장하며 CSV에 새 선택 필드가 없는 입력도 유지한다. [주소 등록 계약](docs/features/listings.md#address-registration)을 따른다.
 
 ---
 
@@ -430,11 +434,11 @@ node scripts/verify_decision_assessment_browser.cjs
 - 후보 → 자금 화면의 입력 전달·저장·새로고침과 판단 축 표시는 브라우저로 검증했다.
   홈 → `/appraisal`, 샘플 추천 → `/simulation`의 프리필은 별도 브라우저 검증이 필요하다.
 - 실제 AVM과 권리 PDF까지 연결한 전체 흐름의 품질 검증은 아직 별도 작업이다.
-  현재 검증 범위와 최신 기록은 [의사결정 검토 문서](docs/decision-assessment.md#검증-범위)를 따른다.
+  현재 검증 범위와 최신 기록은 [의사결정 검토 문서](docs/features/decision.md#decision-assessment-검증-범위)를 따른다.
 
 **운영 쪽 (배포 전에 해야 하는 것)**
 - **공개 서버·도메인의 HTTPS 운영은 미적용.** Caddy·운영 배포 설정은 준비했지만 실제 도메인
-  인증서·외부 접속·프록시 IP 신뢰 설정을 확인해야 한다(2-5, `docs/operations.md`).
+  인증서·외부 접속·프록시 IP 신뢰 설정을 확인해야 한다(2-5, `docs/operations.md#administration`).
 - **Resend 도메인 인증 미완료** — 위 7절 참고. 그 전까지 재설정은 운영자가 로그의 링크를
   수동 전달하는 방식으로만 가능하다.
 - **Google OAuth 리다이렉트 URI 가 localhost 로만 등록**되어 있다. 실도메인 등록 필요.
