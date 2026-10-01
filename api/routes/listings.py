@@ -8,6 +8,21 @@ from schemas.listing_import import ListingImportRequest
 router = APIRouter(tags=["imported-listings"])
 
 
+@router.get("/listings/address/search")
+def address_search(query: str = Query(min_length=2, max_length=200), user: dict = Depends(get_current_user)):
+    import requests
+    from backend.services.listing_address_service import search_addresses
+    if len(query.strip()) < 2:
+        raise HTTPException(422, "주소 또는 단지명을 두 글자 이상 입력해주세요.")
+    try:
+        return search_addresses(query.strip(), user["id"])
+    except ValueError as exc:
+        raise HTTPException(503, str(exc)) from None
+    except requests.RequestException:
+        # 공급자 예외에는 API 키가 포함될 수 있어 원문을 반환하거나 로그에 남기지 않는다.
+        raise HTTPException(502, "주소 검색에 실패했습니다. 잠시 후 다시 검색하거나 주소를 직접 입력해주세요.") from None
+
+
 class CollectionRequest(BaseModel):
     source_url: str = Field(min_length=1, max_length=2000)
 

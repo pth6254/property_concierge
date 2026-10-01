@@ -2,6 +2,18 @@
 from __future__ import annotations
 
 
+def profile_funding_inputs(profile: dict, overrides: dict | None = None) -> dict:
+    from schemas.concierge import ConciergeFunding
+
+    values = {key: profile[key] for key in ConciergeFunding.model_fields if profile.get(key) is not None}
+    values.setdefault("repayment_type", "equal_payment")
+    # 개별 지정한 현금은 매수 가용액이다. 공통 조건의 보유 현금에서만 비상자금을 한 번 뺀다.
+    if "cash_available" in values:
+        values["cash_available"] -= profile.get("emergency_reserve", 0)
+    values.update({key: value for key, value in (overrides or {}).items() if value is not None})
+    return ConciergeFunding.model_validate(values).model_dump(exclude_none=True)
+
+
 def funding_summary(request, calculated: dict) -> dict:
     loan = calculated.get("loan") or {}
     finance = calculated.get("finance_check") or {}
@@ -11,6 +23,7 @@ def funding_summary(request, calculated: dict) -> dict:
     limit = request.monthly_payment_limit
     return {
         "funding_version": 1,
+        "home_count_basis": "after_purchase",
         "purchase_price": request.purchase_price,
         "loan_amount": calculated.get("loan_amount"),
         "annual_interest_rate": request.annual_interest_rate,

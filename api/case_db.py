@@ -218,7 +218,7 @@ def add_property(case_id: int, user_id: int, data: dict) -> dict | None:
             revision_id = session.scalar(select(ListingRevision.id).where(
                 ListingRevision.listing_id == listing.id).order_by(ListingRevision.id.desc()).limit(1))
             snapshot = {field: source.get(field) for field in (
-                "name", "asking_price", "address", "area_sqm", "status", "legal_region_code", "property_type", "confirmed_at")}
+                "name", "alias", "address_details", "asking_price", "address", "area_sqm", "status", "legal_region_code", "property_type", "confirmed_at")}
             snapshot.update(listing_id=listing.id, revision_id=revision_id)
             data = {"name": source["name"], "address": source["address"], "category": source["property_type"],
                     "asking_price": source["asking_price"], "area_sqm": source["area_sqm"],
@@ -320,7 +320,7 @@ def apply_listing_update(case_id: int, property_id: int, user_id: int,
 
         before = dict(item.source_snapshot)
         after = {field: source.get(field) for field in (
-            "name", "asking_price", "address", "area_sqm", "status", "legal_region_code",
+            "name", "alias", "address_details", "asking_price", "address", "area_sqm", "status", "legal_region_code",
             "property_type", "confirmed_at")}
         after.update(listing_id=listing.id, revision_id=revision_id)
         changed = {field for field in ("name", "asking_price", "address", "area_sqm",
@@ -645,6 +645,8 @@ def _property_dict(item: CaseProperty, history: HistoryRecord | None = None, ana
         }
     return {
         "id": item.id, "case_id": item.case_id, "name": item.name, "address": item.address,
+        "alias": (item.source_snapshot or {}).get("alias", ""),
+        "address_details": (item.source_snapshot or {}).get("address_details"),
         "category": item.category, "asking_price": item.asking_price, "area_sqm": item.area_sqm,
         "legal_region_code": item.legal_region_code, "source": item.source, "status": item.status,
         "notes": item.notes, "history_id": item.history_id, "appraisal": appraisal,

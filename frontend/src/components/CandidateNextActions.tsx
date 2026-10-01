@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { setSessionValue } from "@/lib/sessionStore";
-import type { CaseProperty } from "@/lib/types";
+import { candidateSimulationSeed } from "@/lib/candidateSimulationSeed";
+import type { BuyerProfile, CaseProperty } from "@/lib/types";
 
-export default function CandidateNextActions({ property, caseId, reload, checklistBasePath = "" }: {
-  property: CaseProperty; caseId: number; reload: () => Promise<void>; checklistBasePath?: string;
+export default function CandidateNextActions({ property, caseId, profile, reload, checklistBasePath = "" }: {
+  property: CaseProperty; caseId: number; profile?: BuyerProfile; reload: () => Promise<void>; checklistBasePath?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [price, setPrice] = useState("");
@@ -32,11 +33,7 @@ export default function CandidateNextActions({ property, caseId, reload, checkli
     finally { setSaving(false); }
   };
   const prepare = (target: string) => {
-    if (target === "simulation") setSessionValue("simFromListing", JSON.stringify({
-      asking_price: property.asking_price, property_type: property.category,
-      inputs: property.analyses.find(analysis => analysis.analysis_type === "simulation")?.summary.inputs,
-      case_id: caseId, candidate_id: property.id,
-    }));
+    if (target === "simulation") setSessionValue("simFromListing", JSON.stringify(candidateSimulationSeed(property, caseId, profile)));
     if (target === "rights") setSessionValue("rightsCandidate", JSON.stringify({
       market_price: property.appraisal?.estimated_value ?? property.asking_price,
       address: property.address, case_id: caseId, candidate_id: property.id,
@@ -57,11 +54,12 @@ export default function CandidateNextActions({ property, caseId, reload, checkli
     {property.status === "rejected" ? <p className="mt-2 text-xs text-slate-500">제외한 후보입니다. 검토를 재개하면 다음 행동을 안내합니다.</p> : actions && actions.length > 0 ?
       <ul className="mt-3 space-y-3">{actions.map((action) => {
         const href = action.target === "appraisal" ? `/appraisal?caseId=${caseId}&candidateId=${property.id}`
+          : action.target === "profile" ? `/cases/${caseId}#buyer-profile`
           : action.target === "checklist" ? `${checklistBasePath}#candidate-checklist-${property.id}` : `/${action.target}`;
         const buttonClass = "shrink-0 rounded border bg-white px-3 py-2 text-xs font-semibold text-primary hover:border-emerald-300";
         return <li key={action.code} className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0 flex-1"><p className={`text-xs font-semibold ${action.priority === "warning" ? "text-amber-800" : "text-slate-800"}`}>{action.title}</p><p className="mt-1 text-xs text-slate-500">{action.reason}</p></div>
-          {action.target === "price" ? <button type="button" onClick={editPrice} className={buttonClass}>가격 입력</button> : <Link href={href} onClick={() => prepare(action.target)} className={buttonClass}>{action.target === "checklist" ? "검토 항목 보기" : action.target === "listings" ? "관심 매물 등록" : "분석으로 이동"}</Link>}
+          {action.target === "price" ? <button type="button" onClick={editPrice} className={buttonClass}>가격 입력</button> : <Link href={href} onClick={() => prepare(action.target)} className={buttonClass}>{action.target === "profile" ? "매수 조건 보기" : action.target === "checklist" ? "검토 항목 보기" : action.target === "listings" ? "관심 매물 등록" : "분석으로 이동"}</Link>}
         </li>;
       })}</ul> : actions ? <div className="mt-3 text-xs text-slate-600">
         <p>현재 등록된 정보에서 남은 확인 항목이 없습니다. 매수 안전성을 보장하는 판단은 아닙니다.</p>

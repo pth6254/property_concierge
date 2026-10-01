@@ -1,16 +1,49 @@
-# Property Concierge — 부동산 AI 시세추정 · 매물 추천 · 투자 시뮬레이션 종합 컨시어지
+# Property Concierge — 부동산 매수 의사결정 플랫폼
 
-포트폴리오: [HTML](docs/portfolio/index.html) · [원본 수정·생성·검증 안내](docs/portfolio/README.md)
+포트폴리오: [보관 HTML](docs/portfolio/property_concierge.html) · [원본 수정·생성·검증 안내](docs/portfolio/README.md)
+— 기존 발표 자료는 2026-09-08 검증 기준이다. 최신 제품 방향과 구현 상태는 아래 문서를 따른다.
 
-AI 기반 부동산 종합 분석 서비스. 자연어 입력으로 국토부 실거래가 데이터와 LLM 추론을 결합한
-**AI 시세추정(AVM, Automated Valuation Model) 리포트**를 생성하고,
-조건 기반 매물 추천 · 투자 수익성 시뮬레이션 · 매물 비교를 제공한다.
+사용자가 관심 있는 부동산을 가져오면 가격·자금·권리와 확인 가능한 적합성·위험 정보를 근거로 검토하고, 다음 행동과 선택 이유를 같은 매수 케이스에 남기는 **부동산 의사결정 플랫폼**이다.
+현재 매수 케이스·후보 비교·사용자 매물 이력·**AI 시세추정(AVM)**·자금 시뮬레이션·권리 위험 점검과 다섯 판단 축의 통합 요약을 제공한다.
+장기적으로 입지·수익성 분석과 임장·협상·계약·잔금·등기 기록을 연결하는 **Property Decision & Transaction OS**를 목표로 한다.
+출시 범위와 단계별 완료 기준은 [상용화 방향과 구현 순서](docs/product-strategy.md), 현재 구현과 다음 작업은 [프로젝트 인수인계](docs/project-handoff.md)를 따른다.
 
 > ⚖️ **법적 고지**: 본 서비스의 시세추정은 자동가치산정(AVM) 기반 **참고용 분석**이며,
 > 「감정평가 및 감정평가사에 관한 법률」에 따른 감정평가가 아니다.
 > 담보·소송·과세 등 법적 효력이 필요한 가치 판단은 감정평가사에게 의뢰해야 한다.
 
 ---
+
+## 제품 방향과 현재 개발 단계
+
+핵심 사용자 흐름은 **관심 매물 등록 → 후보 저장 → 가격·자금·권리 검토 → 다섯 판단 축 비교 → 사용자 선택·제외 → 다음 행동 → 정보 변경 시 재검토**다. ‘이 매물을 감당할 수 있는가’, ‘가격 차이의 근거는 무엇인가’, ‘무엇을 더 확인해야 하는가’를 설명하는 데 집중한다.
+
+초기 매물 확보는 사용자의 URL·직접 입력·CSV 등록을 중심으로 한다. 네이버 부동산 지도 링크는 외부 탐색을 돕는 보조 기능이며, 비공식 수집 성공을 매수 검토의 필수 조건으로 두지 않는다. 호가·확인 시각은 사용자 제공 자료이고, 국토부 실거래와 AVM 추정값은 별도 자료다.
+
+현재는 **1단계 아파트 매수 의사결정의 기반 강화**를 진행 중이다. 후보별 적합성·가격성·자금성·위험성·실행성의 API와 화면을 첫 구현 단위로 반영했다. 이 결과는 자동 매수 결론이나 거래 안전 인증이 아니다. 근거 부족·실패·만료·원본 변경을 구분하고 사용자가 보완할 행동을 안내한다.
+
+| 구분 | 2026-10-01 기준 상태 |
+|---|---|
+| 현재 제공 | 사용자 매물 등록·변경 이력, 케이스·후보, AVM·자금·권리 결과 연결, 다섯 판단 축과 근거·다음 행동, 비교·선택 이유, 거래 준비 작업 |
+| 다음 작업 | 주소·동일 부동산 객체 식별, 비교 실거래와 문서의 항목별 근거, 실제 아파트 사례의 전체 흐름·실패 처리 검증 |
+| 후속 계획 | Listing Time Machine, 명시적 선호·임장·협상 기록, 주거 유형 확대, 유형별 상업·산업·토지 분석, 공급자 등록과 거래 지원 |
+| 모바일 앱 | 이후 단계로 유보. 현재 제공하는 반응형 웹 화면은 별도 모바일 앱이 아님 |
+
+첫 출시 범위는 아파트 매매와 자료·검증이 확보된 지역이다. 다른 유형의 기존 계산 기능과 전국 행정구역 조회 구조는 유지하지만 전국 모든 자산의 동일한 데이터 완성도를 뜻하지 않는다. 1단계 전체 완료는 실제 사례의 근거·변경 재검토·전체 흐름을 검증한 뒤 판단한다.
+
+## 문서와 인수인계
+
+| 문서 | 목적 |
+|---|---|
+| [프로젝트 인수인계](docs/project-handoff.md) | 현재 완료 범위, 핵심 코드, 다음 작업과 최근 검증 경계 |
+| [제품 전략](docs/product-strategy.md) | 사용자 기획안에 따른 포지셔닝·데이터 전략·단계별 완료 기준 |
+| [에이전트 작업 지침](AGENTS.md) | 코드를 수정할 때 지켜야 할 구조·보안·데이터·검증 제약 |
+| [백엔드 안내](backend/README.md) · [프론트엔드 안내](frontend/README.md) | 도메인 서비스와 화면의 연결 위치·개발 방법 |
+| [의사결정 검토 기준](docs/decision-assessment.md) · [자금 입력 기준](docs/funding-consistency.md) | 다섯 축의 계약·미확인 처리·후보 입력 의미 |
+| [매물 등록](docs/imported-listings.md) · [수집 시점 관리](docs/listing-collection.md) · [화면 이동](docs/ui-navigation.md) | 사용자 자료와 원본 변경·탐색 연결의 경계 |
+| [운영 안내](docs/operations.md) · [작업 복구](docs/job-recovery.md) · [평가 안내](evaluation/README.md) | 배포 준비·운영·테스트와 실제 품질 평가의 구분 |
+
+`CLAUDE.md`는 `AGENTS.md`를 임포트한다. 인수인계 시 두 파일에 지침을 중복 작성하지 않는다.
 
 ## 주요 기능
 
@@ -23,16 +56,18 @@ AI 기반 부동산 종합 분석 서비스. 자연어 입력으로 국토부 �
 | 기능 | 설명 |
 |------|------|
 | **매수 검토 케이스** | 매수 목표·예산·관심 지역·후보를 묶고 시세·자금·권리 분석과 체크리스트를 관리하며, 후보 2~4개를 비교해 최종 후보와 선택 근거를 저장. 시세 30일·자금 14일·권리 7일이 지나면 갱신 필요로 표시 |
+| **후보별 의사결정 요약** | 케이스의 ‘매수 검토 요약’에서 적합성·가격성·자금성·위험성·실행성과 출처·기준 시각·미확인 정보를 확인. 만료·변경·근거 부족은 현재 비교 금액에 사용하지 않고 입력·재분석·거래 준비의 다음 행동으로 연결. [검토 기준과 검증 범위](docs/decision-assessment.md) |
+| **주소 기반 매물 등록** | 주소 검색·선택으로 단지·건물명과 도로명·지번·법정동·좌표를 연결하고 출처·조회 시각을 저장. 사용자 별칭은 선택 입력으로 별도 관리하며 후보·요약에도 표시. 이름이 없거나 여러 이름이면 미확인, 검색 실패 시 직접 입력 가능. [사용·검증 안내](docs/address-based-listing.md) |
 | **후보별 다음 행동** | 예산·권리 위험, 희망가 누락, 분석 누락·실패·만료, 미완료 체크리스트를 규칙으로 안내하고 해당 분석·검토 화면으로 연결. 희망가를 수정할 수 있으며 기존 자금분석의 매수가와 다르면 재확인을 안내. 제외 후보는 안내에서 제외하며 검토 항목 완료가 매수 안전성을 의미하지 않음 |
 | **거래 실행 계획** | 최종 후보 선택 후 계약 전·잔금 전·잔금일·거래 후의 기본 작업 18개를 자동 생성. 계약·잔금 예정일 기준 권장일, 기한 경과·문제·외부 대기와 준비도를 표시하고 실제 확인자·결과·근거·후속 조치를 같은 케이스에 기록 |
-| **동네·단지 탐색** | 전국 행정구역 코드 구조에서 수집된 서울 실거래를 중앙값·분위수·예산 적합률·표본 신뢰도로 비교하고, 관심 지역과 아파트 단지 후보를 케이스에 저장 |
+| **동네 탐색** | 시·도 → 시·군·구 → 법정동의 계층에서 수집된 실거래를 중앙값·분위수·예산 적합률·표본 수준으로 비교하고, 관심 지역과 아파트 단지를 케이스에 저장. 단지는 실제 광고 매물과 구분 |
 | 🏡 **컨시어지 홈** | 사용자 여정(매물 탐색 → 가치 분석 → 안전 점검 → 법률·세금 상담) 기반 홈 화면. 주소 검색 히어로에서 바로 시세추정으로 연결, 시세추정·권리점검·상담을 합친 최근 활동 피드 |
-| 🏠 **AI 시세추정** | 자연어/단계별 입력 → 실거래 비교·수익환원·원가법 기반 추정 시세 산출, 공식 문서 형식 리포트 |
-| 📊 **리포트 영속화** | 결과가 이력 DB에 저장되어 `/report/{id}` URL로 재열람·공유·인쇄(PDF) 가능 |
+| 🏠 **AI 시세추정** | 자연어/단계별 입력 → 유형별 실거래 비교·수익환원·원가법 기반 추정 시세와 참고용 리포트 산출 |
+| 📊 **리포트 영속화** | 결과가 이력 DB에 저장되어 `/report/{id}` URL로 본인 기록을 재열람·인쇄(PDF). URL만으로 타인에게 공개되는 공유 기능은 아님 |
 | ⏱ **비동기 작업 큐** | 30초~2분 걸리는 파이프라인을 job으로 실행, 단계별 진행 상황 실시간 표시. 상태는 Redis에 저장돼 멀티 워커에서도 어느 워커가 폴링을 받든 동일한 진행 상황을 본다 |
-| ✨ **매물 추천** | **실거래 기반 단지 추천 (전국 시군구)** — 예산·면적 조건으로 실거래 데이터를 집계·점수화. 샘플 매물 모드 병행 |
+| ✨ **단지 추천·샘플 도구** | 수집된 실거래를 예산·면적 조건으로 집계해 아파트 단지를 추천. 실제 광고 매물의 존재·호가를 확인한 목록은 아니며 샘플 추천은 별도 개발용 도구 |
 | 📈 **투자 시뮬레이션** | 취득세·대출 상환·현금흐름·3개 시나리오(기준/강세/약세) 수익률 계산 |
-| ⚖️ **매물 비교** | 복수 매물 점수 비교 + 우승 매물 선정 결정 리포트 |
+| ⚖️ **후보 비교·샘플 비교** | 케이스 후보는 근거·가격·자금·위험·검토 상태를 비교하고 사용자가 선택. `/comparison`의 샘플 점수 비교와 구분 |
 | 🔍 **권리관계 위험 점검** | 등기부등본·건축물대장 **PDF 업로드** → 가압류·신탁·근저당 검출, 깡통전세 위험도(경매 배당 시뮬레이션), 소액임차인 최우선변제 판정 |
 | 💬 **법률·세금 AI 안내** | RAG(법령·분쟁사례) + 세금 계산기 도구 호출(증여·상속·양도·보유세) 챗봇 — 수치 가드레일로 계산기 값만 인용, `tools/build_law_corpus.py`로 법령·판례 코퍼스 확장 |
 | 📋 **이력 대시보드** | 사용자별 시세추정 이력 검색·통계 차트·리포트 재열람 |
@@ -45,14 +80,17 @@ AI 기반 부동산 종합 분석 서비스. 자연어 입력으로 국토부 �
 ## 아키텍처 개요
 
 ```
-[Next.js 16 프론트엔드 :3000]
+[Next.js 16 프론트엔드 :3000 — 호스트 기본 :3002]
          │  HTTP (REST) · JWT 쿠키
-[FastAPI 백엔드 :8000]  (uvicorn --workers N 스케일아웃 가능)
+[FastAPI 백엔드 :8000 — 호스트 기본 :8002]  (uvicorn --workers N)
    ├── 작업 큐 (api/jobs.py — Redis Stream 입력·상태, 별도 api.job_worker 실행)
    ├── 레이트 리밋 · 로그인 잠금 (Redis — 워커 간 카운터 공유)
    ├── 인증 / 이력 / 활동 피드 (api/auth_db.py, history_db.py, activity_db.py
    │                          — SQLAlchemy ORM, db/ 공용 세션)
    ├── 비밀번호 재설정 메일 (api/email_service.py — Resend, 키 없으면 서버 로그 폴백)
+   ├── 사용자 매물·변경 관측 (ImportedListing · ListingRevision · ListingObservation)
+   ├── 매수 케이스·후보·분석·선택·거래 준비 (api/case_db.py · case_execution_db.py)
+   ├── 공통 의사결정 평가 (case_decision_assessment.py → 요약·후보 비교)
    │
 [LangGraph 파이프라인 (backend/)]
    ├── 캐시·지역코드 (backend/cache_db.py)         │  PostgreSQL
@@ -62,13 +100,14 @@ AI 기반 부동산 종합 분석 서비스. 자연어 입력으로 국토부 �
    ├── 국토부 MOLIT API      backend/tools/ingest_transactions.py
    ├── 결정론적 지오코딩 (카카오 주소·좌표 → 건축물대장 주용도 → 검증된 장소 규칙)
    ├── Vworld 용도지역·공시지가 보강 (선택, 조회 결과가 없을 수 있음)
-   └── LLM (Ollama Qwen3.5 9B / OpenAI / Anthropic — 자연어 후보 추출·분석 의견)
+   └── LLM (OpenRouter / Ollama / OpenAI / Anthropic / Google — 역할별 환경변수 선택)
 ```
 
 - **프론트엔드**: Next.js 16 (App Router, TypeScript, Tailwind v4) — 딥 그린 브랜드 디자인 토큰,
   Pretendard 가변 폰트(`next/font/local` 셀프호스팅), lucide-react 아이콘, 모바일 반응형 내비게이션
 - **백엔드 API**: FastAPI (`api/`) — uvicorn 실행, 비동기 job + 동기 엔드포인트 병행
-- **파이프라인**: LangGraph (`backend/`) — 시세추정·추천·시뮬레이션·비교 4개 그래프
+- **파이프라인**: LangGraph (`backend/`) — 시세추정·추천·시뮬레이션·비교·종합 컨시어지 그래프
+- **의사결정 서비스**: 기존 케이스 스냅샷에서 근거·최신성·부족 정보를 결정론적으로 정리한다. 요약 조회는 LLM·외부 수집·분석 작업을 새로 실행하지 않는다.
 - **저장소**: PostgreSQL 단일 인스턴스(`real_estate_db`) — 앱 테이블(사용자·이력·활동·캐시·
   지역코드·실거래가·상담 코퍼스, `db/models.py`)과 RAG 벡터스토어(pgvector, `real_estate_docs`)가
   같은 컨테이너를 공유 + Redis(작업 큐 상태·레이트 리밋·로그인 잠금 카운터)
@@ -81,7 +120,7 @@ POST /api/appraisal/jobs               → { job_id } 즉시 반환
   └─ 백그라운드: LangGraph 파이프라인 실행
 GET  /api/appraisal/jobs/{job_id}      → { status, step, ... }  (프론트 2초 폴링)
   └─ 완료 시: history DB 저장 → { status: done, history_id, result }
-프론트 → /report/{history_id}          → 영속 리포트 (새로고침·공유 가능)
+프론트 → /report/{history_id}          → 소유자 전용 영속 리포트 (새로고침·인쇄)
 ```
 
 ---
@@ -89,11 +128,11 @@ GET  /api/appraisal/jobs/{job_id}      → { status, step, ... }  (프론트 2�
 ## 빠른 시작 (Docker Compose)
 
 ```bash
-# 1. 환경변수 설정
+# 1. 최초 환경변수 설정 (.env가 이미 있으면 덮어쓰지 않는다)
 cp .env.example .env
 # .env 파일을 열어 API 키 + POSTGRES_PASSWORD 입력 (예: openssl rand -base64 32)
 
-# 2. 전체 서비스 실행 (백엔드 + 프론트엔드 + PostgreSQL + Redis)
+# 2. 전체 서비스 실행 (API + 작업 실행기 + 프론트엔드 + PostgreSQL + Redis)
 docker compose up --build
 
 # 서비스 주소
@@ -106,7 +145,8 @@ docker compose up --build
 `docker-compose.override.yml`(로컬 편의: 소스 핫리로드·PostgreSQL/Redis 포트 호스트
 노출)을 자동 병합한다. 위 명령이 바로 그 상태 — 로컬 개발에서 쓰는 명령이다.
 
-**운영 배포**는 override를 명시적으로 배제한다:
+**운영 기준 이미지 실행**은 override를 명시적으로 배제한다. 공개 HTTPS 배포에는
+[운영 안내](docs/operations.md)의 별도 배포 파일과 서버·도메인 확인이 필요하다:
 
 ```bash
 docker compose -f docker-compose.yml up -d --build
@@ -121,29 +161,44 @@ PostgreSQL·Redis 포트는 호스트에 노출되지 않는다(도커 내부 �
 
 앱 테이블(사용자·이력·활동·캐시·실거래가·상담 코퍼스)이 PostgreSQL, 작업 큐·레이트
 리밋·로그인 잠금이 Redis 필수라 — SQLite나 인프로세스 메모리로 도망칠 폴백이 없다.
-**Postgres·Redis는 항상 Docker로 띄우고, FastAPI만 네이티브로 돌리는 것**이 기본 흐름이다.
+**Postgres·Redis는 Docker로 띄우고 FastAPI와 작업 실행기를 별도 네이티브 프로세스로 실행**할 수 있다.
+아래 백엔드 명령은 저장소 루트의 WSL에서 실행한다. API만 실행하면 접수된 긴 작업을 완료할 실행기가 없다.
 
 ```bash
 # 1. DB·캐시만 Docker로 기동 (백엔드는 아래에서 네이티브로 띄울 것이므로 제외)
 docker compose up -d pgvector redis
 
 # 2. Python 패키지 설치
-pip install -r requirements.txt
+./venv-wsl/bin/python -m pip install -r requirements.txt
 
-# 3. Ollama 모델 다운로드 (시세추정 LLM 의견 생성에 필요)
+# 3. Ollama를 선택한 역할의 모델만 준비 (OpenRouter 생성 경로와 임베딩은 별도 설정)
 ollama pull qwen3.5:9b
 ollama pull nomic-embed-text
 
-# 4. 환경변수 설정 (.env 에 DATABASE_URL·REDIS_URL 이 로컬 포트를 가리키는지 확인)
+# 4. 최초 환경변수 설정 (.env가 이미 있으면 복사하지 않는다)
 cp .env.example .env
+# DATABASE_URL·REDIS_URL이 Docker의 공개된 로컬 포트를 가리키는지 확인한다.
 
-# 5. FastAPI 백엔드 실행
-uvicorn api.main:app --reload --port 8002
+# 5. FastAPI 백엔드 실행 (.env를 명시적으로 읽는다)
+./venv-wsl/bin/python -m uvicorn api.main:app --reload --port 8002 --env-file .env
+```
 
-# 6. Next.js 프론트엔드 실행 (별도 터미널)
+별도 WSL 터미널에서도 저장소 루트에서 작업 실행기를 시작한다.
+
+```bash
+./venv-wsl/bin/python -m dotenv -f .env run -- ./venv-wsl/bin/python -m api.job_worker
+```
+
+네이티브 실행기는 소스 변경 후 재시작한다. 스키마 변경은 루트 AGENTS의 Alembic 순서를 따른다.
+
+Next.js는 별도 **PowerShell** 터미널에서 실행한다. 이미 실행 중인 서비스와 포트가
+겹치지 않게 하며 Windows에서 연결 가능한 API 주소를 사용한다.
+
+```powershell
 cd frontend
-npm install
-NEXT_PUBLIC_API_URL=http://localhost:8002 npm run dev -- -p 3002
+npm ci
+$env:NEXT_PUBLIC_API_URL = "http://localhost:8002"
+npm run dev -- -p 3002
 # http://localhost:3002
 ```
 
@@ -209,7 +264,7 @@ property_concierge/
 │
 ├── db/                              공용 PostgreSQL 데이터 계층 (SQLAlchemy)
 │   ├── base.py                     엔진·세션 (DATABASE_URL, 지연 생성)
-│   ├── models.py                   ORM 모델 13종 (User/HistoryRecord/PurchaseCase/CaseProperty/CaseRegion/...)
+│   ├── models.py                   사용자·매물 관측·케이스·분석·실거래·법령 등의 ORM 모델
 │   ├── redis_client.py             Redis 커넥션 팩토리 (REDIS_URL)
 │   └── migrations/                 Alembic 마이그레이션 (env.py + versions/)
 ├── alembic.ini                      Alembic 설정 (접속 문자열은 DATABASE_URL 환경변수로)
@@ -220,7 +275,10 @@ property_concierge/
 │
 ├── api/                            FastAPI 진입점 & 라우터
 │   ├── main.py                     FastAPI 앱 설정, CORS, 라우터 등록
-│   ├── jobs.py                     작업 큐 (상태: Redis, 실행: 인프로세스 스레드)
+│   ├── jobs.py                     Redis Stream 작업 입력·상태
+│   ├── job_worker.py               별도 작업 실행기·생존 신호·복구
+│   ├── case_db.py                  사용자별 케이스·후보·분석 연결·원본 변경 재검토
+│   ├── case_execution_db.py        선택 후보의 거래 준비 작업·일정·확인 결과
 │   ├── auth_db.py                  사용자 인증 (db/ 공용 세션)
 │   ├── auth_utils.py               JWT 발급·검증 (비밀번호 변경 시각을 클레임에 심어 세션 무효화)
 │   ├── email_service.py            비밀번호 재설정 메일 발송 (Resend, 키 없으면 로그 출력 폴백)
@@ -228,6 +286,8 @@ property_concierge/
 │   ├── history_db.py               시세추정 이력 (db/ 공용 세션, 리포트 영속화)
 │   ├── activity_db.py              권리점검·상담 활동 (db/ 공용 세션, 홈 통합 피드 데이터 소스)
 │   └── routes/
+│       ├── cases.py                케이스·후보·다섯 축 요약·비교·선택·실행 계획
+│       ├── listings.py             사용자 매물 등록·원본 관측·후보 저장
 │       ├── appraisal.py            POST /api/appraisal (동기) · /api/appraisal/jobs (비동기)
 │       ├── auth.py                 회원가입 / 로그인 / Google OAuth / me / logout
 │       ├── recommendation.py       POST /api/recommendation
@@ -246,7 +306,12 @@ property_concierge/
 │   │   ├── report/page.tsx         방금 실행한 결과 (sessionStorage)
 │   │   ├── report/[id]/page.tsx    저장된 리포트 재열람 (영속 URL)
 │   │   ├── dashboard/page.tsx      이력 대시보드 (검색·차트·리포트 링크)
-│   │   ├── recommendation/page.tsx 매물 추천
+│   │   ├── listings/page.tsx       사용자 매물 보관함
+│   │   ├── cases/[id]/page.tsx     공통 매수 조건·후보·체크리스트
+│   │   ├── cases/[id]/summary/page.tsx    후보별 다섯 판단 축과 근거·다음 행동
+│   │   ├── cases/[id]/comparison/page.tsx 후보 비교·사용자 선택
+│   │   ├── cases/[id]/execution/page.tsx  거래 준비 작업·일정
+│   │   ├── recommendation/page.tsx 단지 추천·개발용 샘플 도구
 │   │   ├── simulation/page.tsx     투자 시뮬레이션
 │   │   ├── comparison/page.tsx     매물 비교
 │   │   ├── rights/page.tsx         권리관계 위험 점검 (PDF 업로드 → 위험도 리포트)
@@ -276,13 +341,18 @@ property_concierge/
 │   ├── chat_corpus.py              법률·세금 상담 RAG 코퍼스 (시드 청크 + 임베딩 검색, PostgreSQL chat_chunks)
 │   ├── tax_rules.py                세금·규제 법령 테이블 (증여·상속·양도·보유세, 기준일 명시)
 │   ├── llm_utils.py                LLM 의견 생성 (수치 창작 금지 가드레일)
-│   ├── model_factory.py            LLM 프로바이더 선택 (ollama/openai/anthropic)
+│   ├── model_factory.py            LLM·챗봇·의도분석·임베딩의 역할별 프로바이더 선택
 │   ├── cache_db.py                 PostgreSQL 캐시 + 지역코드 룩업
 │   ├── building_info.py            건물 정보 조회
 │   ├── models.py                   내부 모델 (ValuationResult)
 │   │
-│   ├── graphs/                     LangGraph 그래프 4종 (appraisal/recommendation/simulation/comparison)
+│   ├── graphs/                     LangGraph 그래프 (appraisal/recommendation/simulation/comparison/concierge)
 │   ├── services/
+│   │   ├── case_decision_assessment.py   다섯 축의 상태·근거·현재 비교 금액
+│   │   ├── case_comparison_service.py   공통 평가 기준을 사용하는 후보 비교
+│   │   ├── candidate_funding.py         자금 입력·저장 요약·부담 판단
+│   │   ├── candidate_next_actions.py    부족 정보·경고·검토 행동
+│   │   ├── analysis_freshness.py        시세·자금·권리 분석의 유효기간
 │   │   ├── chat_service.py             법률·세금 챗봇 서비스 (RAG 검색 + 세금 계산기 도구 라우팅)
 │   │   └── rights_analysis_service.py  권리관계 위험 점검 서비스 (등기부·건축물대장 파싱·위험도 산정)
 │   └── tools/
@@ -321,8 +391,18 @@ property_concierge/
 | `GET` | `/api/auth/me` | 현재 사용자 조회 |
 | `DELETE` | `/api/auth/me` | 회원 탈퇴 — 계정·이력·활동 즉시 삭제 |
 | `POST` | `/api/auth/logout` | 로그아웃 |
+| `GET` / `POST` | `/api/cases` | 본인 매수 케이스 조회·생성 |
+| `GET` | `/api/cases/{id}` | 공통 조건·후보·분석·체크리스트 |
+| `GET` | `/api/cases/{id}/summary` | `case`·`comparison`·`decision`의 다섯 판단 축과 근거 |
+| `GET` | `/api/cases/{id}/comparison` | 같은 평가 기준을 사용하는 후보 비교 |
+| `POST` | `/api/cases/{id}/funding-scenarios` | 공통 조건을 적용한 후보별 자금 시나리오. 기존 분석·선택은 변경하지 않음 |
+| `POST` / `DELETE` | `/api/cases/{id}/decision` | 사용자 선택 이유 저장·선택 해제 |
+| `GET` | `/api/cases/{id}/execution` | 선택한 후보의 거래 준비 작업·일정 |
+| `POST` | `/api/listings/import` | 본인 확인 매물 등록·변경 이력 |
+| `GET` | `/api/listings/{id}/history` | 매물의 관측·변경 기록 |
+| `POST` | `/api/listings/{id}/candidate` | 본인 매물을 케이스 후보로 저장 |
 | `POST` | `/api/recommendation` | 샘플 매물 추천 실행 |
-| `POST` | `/api/recommendation/complexes` | **실거래 기반 단지 추천 (전국)** |
+| `POST` | `/api/recommendation/complexes` | 실거래 기반 단지 추천 (행정구역 코드 조회 구조, 실제 저장·수집된 거래 범위에서 제공) |
 | `POST` | `/api/simulation` | 투자 시뮬레이션 실행 (세후·DSR·민감도 포함) |
 | `GET` | `/api/simulation/market-rate` | 최신 주담대 평균금리 (한국은행 ECOS) |
 | `POST` | `/api/comparison` | 매물 비교 실행 |
@@ -455,7 +535,8 @@ PropertyQuery (지역·예산·면적·유형)
 
 > 전체 환경변수 목록과 설명은 `.env.example` 참고.
 
-LLM 프로바이더 (`model_factory.py`):
+LLM 프로바이더 (`backend/model_factory.py`). 아래는 `.env.example`의 기본 양식이며
+실행 환경의 현재 설정을 뜻하지 않는다. 생성 LLM과 임베딩 제공자는 별도로 설정한다:
 
 | 환경변수 | 기본값 |
 |---------|--------|
@@ -464,7 +545,7 @@ LLM 프로바이더 (`model_factory.py`):
 | `APPRAISAL_INTENT_LLM_PROVIDER` | 빈 값. 시세추정의 주소·유형 자연어 추출을 전환하려면 `openrouter` |
 | `EMBED_PROVIDER` | `ollama` 유지 권장: 기존 pgvector 임베딩과 같은 모델을 사용해야 함 |
 | `OLLAMA_MODEL` | `qwen3.5:9b` |
-| `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` | OpenRouter 선택 시 필수. 기본 모델 `openai/gpt-6-luna`(유료). 이 모델과 무료 모델만 허용 |
+| `OPENROUTER_API_KEY` / `OPENROUTER_MODEL` | OpenRouter 선택 시 필수. 양식의 모델 ID는 `openai/gpt-6-luna`. 코드가 이 ID·`openrouter/free`·`:free`로 끝나는 ID만 허용 |
 | `OPENAI_MODEL` / `ANTHROPIC_MODEL` | 프로바이더 전환 시 |
 
 챗봇만 전환할 때는 `.env`에 `CHAT_LLM_PROVIDER=openrouter`, `OPENROUTER_API_KEY`와
@@ -475,9 +556,8 @@ LLM 프로바이더 (`model_factory.py`):
 확인해야 챗봇의 도구 선택이 안정적으로 동작한다.
 시세추정에서도 주소·유형 검색 힌트를 추출하는 의도분석만 OpenRouter로 전환할 수 있다.
 좌표·법정동코드·지번은 LLM 출력으로 확정하지 않고 카카오 주소 검색과 검증 규칙을 따른다.
-`openai/gpt-6-luna`는 OpenRouter에서 토큰 사용량에 따라 과금되는 유료 모델이다. 이 모델 외의
-유료 모델 ID는 호출 전에 차단한다. 무료 라우터는 요청별로 지원 가능한 무료 모델을 선택하므로
-응답 품질이 달라질 수 있고, 무료 사용량 제한을 넘으면 요청이 실패할 수 있다.
+모델 ID 허용 정책은 사용자가 지정한 설정을 반영한 코드의 제한이며 모델 제공 여부·가격·쿼터를
+보증하지 않는다. 실제 사용 전 공급자의 모델 목록과 계정 상태를 확인한다.
 
 > **카카오 403 오류** 발생 시: 개발자 콘솔 → 플랫폼 → Web → `http://localhost` 등록
 
@@ -497,6 +577,8 @@ LLM 프로바이더 (`model_factory.py`):
 | `RecommendationResult` | `listing`, `total_score`, 4축 점수, `recommendation_label`, `reasons`, `risks` |
 | `SimulationResult` | `acquisition_cost`, `loan`, `cash_flow`, `scenario_base/bull/bear` |
 | `ComparisonResult` | `rows`, `decision_report` |
+| `CaseDecisionAssessment` | `version`, `case_id`, `evaluated_at`, 후보별 다섯 판단 축·현재 비교 금액·다음 행동 |
+| `DecisionAxis` | `key`, `status`, `headline`, `explanation`, `evidence`, `missing`, `limitations`, 검토 화면 연결. [공통 검토 기준](docs/decision-assessment.md) |
 
 ---
 
@@ -539,7 +621,7 @@ state = run_simulation(data=SimulationInput(
 # state["result"].scenario_base.annual_equity_roi — 연환산 수익률 (%)
 
 state = run_comparison(listings=[...])
-# state["result"].rows[0] — 우승 매물
+# state["result"].rows[0] — 샘플 점수 비교의 첫 행. 실제 케이스 후보 선택과는 별개
 ```
 
 ---
@@ -634,7 +716,10 @@ SimulationResult
 
 ---
 
-## 매물 추천 점수 모델
+## 샘플 매물 추천 점수 모델
+
+아래 점수는 개발용 샘플 추천 도구의 기존 모델이다. 사용자 매수 케이스는 다섯 판단 축과
+근거·미확인 사항을 사용하며 이 점수로 자동 매수 결론을 내리지 않는다.
 
 ```
 total = 가격적정성×0.35 + 입지×0.30 + 투자가치×0.20 + (10 − 위험도)×0.15
@@ -646,9 +731,10 @@ total = 가격적정성×0.35 + 입지×0.30 + 투자가치×0.20 + (10 − 위�
 
 ### ⚠️ 샘플 매물 데이터 고지
 
-추천·비교·시뮬레이션의 매물 데이터(`data/sample_listings.csv`)는 **개발·테스트 전용 가상 데이터**
+샘플 추천·비교 도구의 매물 데이터(`data/sample_listings.csv`)는 **개발·테스트 전용 가상 데이터**
 (서울 8개 구 43건)다. 가격·좌표·단지명은 임의 생성 값이며 실제 거래 판단에 사용할 수 없다.
-반면 **시세추정은 국토부 실거래가 실데이터**를 사용한다.
+반면 **시세추정은 국토부 실거래가 실데이터**를 사용한다. 매물 보관함과 매수 케이스는
+사용자가 확인해 등록한 호가·조건을 사용하며 샘플 자료와 구분한다.
 
 ---
 
@@ -683,7 +769,7 @@ docker compose restart api   # 커넥션 풀 재연결
 
 ## 스키마 마이그레이션 (Alembic)
 
-앱 테이블(`db/models.py`, 13종)의 스키마 변경 이력은 `db/migrations/`가 관리한다.
+앱 테이블(`db/models.py`)의 스키마 변경 이력은 `db/migrations/`가 관리한다.
 운영 배포는 `alembic upgrade head`가 uvicorn 워커보다 먼저, 단일 프로세스로
 실행된다([Dockerfile.backend](Dockerfile.backend)) — 여러 워커가 동시에 스키마를
 바꾸려는 경합 자체를 원천 차단하기 위해서다.
@@ -746,7 +832,9 @@ GitHub Actions(`.github/workflows/ci.yml`)에서 push·PR마다 postgres·redis 
 
 결과는 `evaluation-results/<실행ID>/report.html`에서 확인한다. `--live`는 설정된 모델·임베딩을 실제 호출한다.
 초기 계산 기대값은 기존 수기 회귀값으로, 현행 법령이나 외부기관 계산기 대조 완료를 의미하지 않는다.
-CI에는 외부 호출 없는 계산·시드 검색 평가만 포함한다.
+CI에는 외부 호출 없는 의사결정·가상 AVM·의도·계산·검색 평가와 격리 API의 브라우저 흐름을 포함한다. 실제 모델·현재 매물 원문·실거래 AVM 정확도와 사람 검토는 별도 평가다.
+
+최근 구현 검증 기록은 [후보별 의사결정 검토 기준](docs/decision-assessment.md#검증-범위)에 남긴다. 통합 요약은 `scripts/verify_decision_assessment_browser.cjs`, 자금 입력 전달은 `scripts/verify_candidate_funding_browser.cjs`로 확인한다. `evaluation-results/`의 로컬 성공 기록과 원격 GitHub Actions 성공을 구분한다.
 
 > **주의**: `AppraisalResult`는 pydantic 기본 설정상 **모르는 필드를 조용히 무시**한다.
 > 제거된 `judgement`·`gap_rate` 같은 인자를 테스트에서 넘겨도 오류 없이 통과하므로
@@ -766,10 +854,12 @@ CI에는 외부 호출 없는 계산·시드 검색 평가만 포함한다.
 계산 결과는 금융기관의 대출 승인을 뜻하지 않으며 실행 계획의 은행 확인 작업은 별도로 유지한다.
 
 - **시점수정**은 주거용·토지만 부동산원 지수 적용 — 상업·업무·산업용은 적합한 월간 시군구 지수가 없어 근사 변동률 사용. 주거용은 아파트 지수를 연립·단독에도 대표 적용
-- **시세추정·단지 추천은 전국 시군구 지원** — 지오코딩 시군구코드 직접 사용 + 전국 250개 지역코드 시드(`tools/seed_region_codes.py`) + 지오코딩 자동 등록
+- **시세추정·단지 추천의 행정구역 조회 구조는 전국 시군구 기준** — 지역코드 시드와 지오코딩을 사용하되 결과는 실제 저장·수집된 거래 범위에 한정된다. 현재 정기 수집은 서울 25개 구 매매 거래에 적용했으며 전국 데이터·동일 정확도 확보를 뜻하지 않는다.
 - **Vworld 토지 보강은 선택 데이터** — 키와 HTTP 호출이 정상이더라도 좌표에 따라 `NOT_FOUND`가 반환될 수 있으며, 이때 용도지역·공시지가는 빈 값으로 유지
 - **사용자 선택 유형이 공식 주용도보다 우선** — LLM 오분류 방지를 위한 현재 정책. 건축물대장과 충돌할 때 UI 경고를 표시하는 기능은 아직 없음
-- **단지 추천**은 실거래 기반 추정 시세 — 실제 매물 존재 여부·호가는 미포함 (호가 매물은 데이터 제휴 필요). 샘플 매물 모드는 개발용 가상 데이터 유지
-- **로컬 개발도 Docker(PostgreSQL·Redis) 필수** — SQLite·인프로세스 메모리 폴백을 두지 않았다. 완전 오프라인 개발이 필요해지면 SQLite 폴백 재도입을 검토할 것
+- **단지 추천**은 실거래 기반 후보 탐색이며 실제 광고 매물의 존재·호가를 포함하지 않는다. 사용자가 확인한 호가 매물은 보관함에 직접 등록해 검토할 수 있으며, 자체 광고 매물 DB 확대는 공급자 등록·공식 제휴의 후속 계획이다. 샘플 모드는 개발용 가상 데이터다.
+- **근거가 없는 조건은 미확인** — 통근·학군·소음·주차, 후보 준공연도, 문서 발급일·페이지별 근거, 동일 개별 호 식별은 현재 통합 화면이 완전히 검증하지 않는다. 자료 부족을 높은 적합성이나 권리 안전성으로 채우지 않는다.
+- **장기 기획은 구현 완료와 구분** — Listing Time Machine 전용 집계 화면, Buyer Decision Graph의 선호 학습, 범용 Property 객체와 공급자 Marketplace·직거래는 후속 계획이다. 기본 거래 준비 체크리스트는 실제 계약·대출·등기 업무의 완료를 뜻하지 않는다.
+- **로컬 개발도 Docker(PostgreSQL·Redis) 필수** — SQLite·인프로세스 메모리 폴백을 두지 않는다. 테스트는 보호된 격리 DB·Redis에서 수행한다.
 - **비밀번호 재설정 메일은 아직 실제로 발송되지 않는다** — `RESEND_API_KEY` 미설정 시 서버 로그에 재설정 링크를 출력하는 폴백만 동작. 실발송하려면 Resend 도메인 인증(SPF/DKIM)이 필요
-- **TLS·리버스 프록시 미구성** — 외부 도메인으로 배포하려면 프록시 컨테이너 추가 + `FORWARDED_ALLOW_IPS` 지정이 선행되어야 한다 (레이트 리밋이 프록시 IP 하나로 뭉치는 것을 막기 위함)
+- **공개 HTTPS 운영은 미적용** — Caddy·운영 배포 설정은 준비했지만 공개 서버·도메인의 인증서·외부 접속·프록시 신뢰 IP를 확인해야 한다. 설정 준비와 실제 운영 적용을 구분한다. [운영 안내](docs/operations.md) 참조.

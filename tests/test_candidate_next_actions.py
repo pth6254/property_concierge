@@ -57,10 +57,10 @@ def test_manual_review_is_required_and_rejected_candidates_are_quiet():
     assert not compare_case_candidates(case)["rows"][0]["decision_ready"]
 
 
-def test_resolved_candidate_has_no_outstanding_action():
+def test_old_completion_flags_without_evidence_do_not_establish_readiness():
     candidate = reviewed_candidate()
     assert candidate_next_actions({}, candidate) == []
-    assert compare_case_candidates({"id": 1, "title": "케이스", "properties": [candidate]})["rows"][0]["decision_ready"]
+    assert not compare_case_candidates({"id": 1, "title": "케이스", "properties": [candidate]})["rows"][0]["decision_ready"]
 
 
 def test_changed_price_requires_funding_review_and_budget_warning():

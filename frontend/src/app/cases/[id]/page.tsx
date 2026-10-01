@@ -11,7 +11,8 @@ import CaseProgressGuide from "@/components/CaseProgressGuide";
 import DecisionJourney from "@/components/DecisionJourney";
 import { listingEntryHref } from "@/lib/listingNavigation";
 import { setSessionValue } from "@/lib/sessionStore";
-import type { CandidateAnalysis, CaseProperty, HistoryItem, PurchaseCase, PurchaseCaseStatus } from "@/lib/types";
+import { candidateSimulationSeed } from "@/lib/candidateSimulationSeed";
+import type { BuyerProfile, CandidateAnalysis, CaseProperty, HistoryItem, PurchaseCase, PurchaseCaseStatus } from "@/lib/types";
 
 const CASE_STATUS: { value: PurchaseCaseStatus; label: string }[] = [
   { value: "exploring", label: "지역 탐색" }, { value: "reviewing", label: "후보 검토" },
@@ -127,12 +128,12 @@ export default function CaseDetailPage() {
         <select value={historyId} onChange={(event) => setHistoryId(event.target.value)} className="rounded-lg border px-3 py-2 text-sm md:col-span-2"><option value="">시세추정 이력 연결 안 함</option>{histories.map((history) => <option key={history.id} value={history.id}>#{history.id} {history.query} · {won(history.estimated_value)}</option>)}</select><button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white md:col-span-2">후보 저장</button>
       </form>}
       {error && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
-      {properties.length === 0 ? <div className="py-16 text-center text-sm text-slate-400">검토할 부동산을 후보로 추가해보세요.</div> : <div className="space-y-4 p-4">{properties.map((property) => <CandidateCard key={property.id} property={property} caseId={caseId} reload={load} />)}</div>}
+      {properties.length === 0 ? <div className="py-16 text-center text-sm text-slate-400">검토할 부동산을 후보로 추가해보세요.</div> : <div className="space-y-4 p-4">{properties.map((property) => <CandidateCard key={property.id} property={property} caseId={caseId} profile={item.buyer_profile} reload={load} />)}</div>}
     </section>
   </div>;
 }
 
-function CandidateCard({ property, caseId, reload }: { property: CaseProperty; caseId: number; reload: () => Promise<void> }) {
+function CandidateCard({ property, caseId, profile, reload }: { property: CaseProperty; caseId: number; profile: BuyerProfile; reload: () => Promise<void> }) {
   const [sourceBusy, setSourceBusy] = useState(false);
   const [sourceError, setSourceError] = useState("");
   const analyses = new Map(property.analyses.map((analysis) => [analysis.analysis_type, analysis]));
@@ -145,6 +146,8 @@ function CandidateCard({ property, caseId, reload }: { property: CaseProperty; c
     : String(value ?? "미입력");
   return <article className={`rounded-xl border p-5 ${property.status === "rejected" ? "bg-slate-50 opacity-70" : "bg-white"}`}>
     <div className="flex flex-col justify-between gap-3 md:flex-row"><div><div className="flex items-center gap-2"><h3 className="font-bold">{property.name}</h3><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">검토 {property.review_progress}%</span></div><p className="mt-1 text-sm text-slate-500">{property.address || "주소 미입력"}{property.area_sqm ? ` · ${property.area_sqm}㎡` : ""} · 희망가 {won(property.asking_price)}</p></div><div className="flex gap-2"><select disabled={property.status === "selected"} value={property.status} onChange={async (event) => { await api.updateCaseProperty(caseId, property.id, { status: event.target.value as CaseProperty["status"] }); await reload(); }} className="rounded-lg border px-2 py-1 text-xs">{PROPERTY_STATUS.map((status) => <option disabled={status.value === "selected"} key={status.value} value={status.value}>{status.label}</option>)}</select><button disabled={property.status === "selected"} title={property.status === "selected" ? "최종 선택을 변경한 뒤 삭제할 수 있습니다" : "후보 삭제"} onClick={async () => { await api.deleteCaseProperty(caseId, property.id); await reload(); }} aria-label="후보 삭제" className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div></div>
+    {property.alias && <p className="mt-2 break-words text-sm text-primary">별칭: {property.alias}</p>}
+    {property.address_details && <p className="mt-1 break-words text-xs text-slate-500">도로명: {property.address_details.road_address || "제공 정보 없음"} · 지번: {property.address_details.jibun_address}</p>}
     {source && source.status !== "current" && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
       <strong>원본 매물 재확인 필요</strong>
       <p className="mt-1">{source.status === "missing" ? "원본 매물을 더 이상 조회할 수 없습니다." : source.needs_confirmation ? "원본 매물의 거래 가능 상태 또는 확인 시각을 다시 확인해주세요." : "저장 당시와 원본 내용이 달라졌습니다."}</p>
@@ -181,11 +184,11 @@ function CandidateCard({ property, caseId, reload }: { property: CaseProperty; c
     <div className="mt-4 grid gap-2 md:grid-cols-3">{(["appraisal", "simulation", "rights"] as const).map((type) => {
       const analysis = analyses.get(type);
       const href = type === "appraisal" ? `/appraisal?caseId=${caseId}&candidateId=${property.id}` : `/${type}`;
-      const prepare = () => { if (type === "simulation") setSessionValue("simFromListing", JSON.stringify({ asking_price: property.asking_price, property_type: property.category, inputs: analysis?.summary.inputs, case_id: caseId, candidate_id: property.id })); if (type === "rights") setSessionValue("rightsCandidate", JSON.stringify({ market_price: property.appraisal?.estimated_value ?? property.asking_price, address: property.address, case_id: caseId, candidate_id: property.id })); };
+      const prepare = () => { if (type === "simulation") setSessionValue("simFromListing", JSON.stringify(candidateSimulationSeed(property, caseId, profile))); if (type === "rights") setSessionValue("rightsCandidate", JSON.stringify({ market_price: property.appraisal?.estimated_value ?? property.asking_price, address: property.address, case_id: caseId, candidate_id: property.id })); };
       const warning = Boolean(analysis && (analysis.status === "stale" || (type === "rights" && textValue(analysis.summary.risk_grade) !== "safe") || (type === "simulation" && property.next_actions?.some(action => action.target === "simulation"))));
       return <Link key={type} href={href} onClick={prepare} className={`rounded-lg border p-3 text-xs hover:border-emerald-300 ${warning ? "border-amber-200 bg-amber-50" : ""}`}><div className="flex justify-between"><strong>{ANALYSIS_LABEL[type]} 분석</strong>{analysis ? warning ? <AlertTriangle size={15} className="text-amber-600" /> : <CheckCircle2 size={15} className="text-emerald-600" /> : <Circle size={15} className="text-slate-300" />}</div><p className="mt-1 truncate text-slate-500">{analysis ? `${analysis.status === "stale" ? "갱신 필요 · " : ""}${analysisSummary(analysis)}` : type === "rights" ? "서류 업로드 필요" : type === "simulation" ? "금융 조건 입력 필요" : "분석 필요"}</p></Link>;
     })}</div>
-    <CandidateNextActions property={property} caseId={caseId} reload={reload} />
+    <CandidateNextActions property={property} caseId={caseId} profile={profile} reload={reload} />
     <div id={`candidate-checklist-${property.id}`} className="mt-4 flex scroll-mt-24 flex-wrap gap-2">{property.checklist.map((check) => <button key={check.id} title={check.evidence || undefined} onClick={async () => { await api.updateCandidateChecklist(caseId, property.id, check.id, { status: check.status === "done" ? "todo" : "done" }); await reload(); }} className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${check.status === "done" ? "bg-emerald-100 text-emerald-700" : check.status === "warning" ? "bg-amber-100 text-amber-700" : check.status === "blocked" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}>{check.status === "done" ? <CheckCircle2 size={12} /> : check.status === "warning" || check.status === "blocked" ? <AlertTriangle size={12} /> : <Circle size={12} />}{check.title}</button>)}</div>
     {property.history_id && <Link href={`/report/${property.history_id}`} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"><FileSearch size={14} />시세추정 리포트 보기</Link>}
   </article>;

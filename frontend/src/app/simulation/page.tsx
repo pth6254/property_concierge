@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import { removeSessionValue, useSessionValue } from "@/lib/sessionStore";
 import type { SimulationResult, SimulationRequest, ScenarioResult } from "@/lib/types";
 
-const PROP_TYPES   = ["아파트", "연립다세대", "단독다가구", "오피스텔", "상가", "오피스", "공장", "토지"];
+const PROP_TYPES   = ["아파트", "연립다세대", "단독다가구", "오피스텔", "상가", "사무실", "오피스", "공장", "창고", "토지"];
 const REPAY_TYPES  = [
   { value: "equal_payment",   label: "원리금균등상환" },
   { value: "equal_principal", label: "원금균등상환" },
@@ -29,18 +29,22 @@ function signLabel(n?: number) { return n == null ? "—" : n > 0 ? "▲" : n < 
 
 /** 추천·비교 페이지에서 "시뮬레이션 해보기"로 넘길 때 실어 보내는 매물 정보 */
 type ListingSeed = {
-  asking_price?: number;
+  asking_price?: number | null;
   property_type?: string;
   deposit_price?: number;
   maintenance_fee?: number;
   case_id?: number;
   candidate_id?: number;
   inputs?: Partial<SimulationRequest>;
+  profile_inputs?: Partial<SimulationRequest>;
+  input_source?: "saved" | "profile";
+  home_count_basis?: "after_purchase";
 };
 
 const LISTING_TYPE_TO_PROP: Record<string, string> = {
   apartment: "아파트", officetel: "오피스텔", land: "토지",
   row_house: "연립다세대", detached: "단독다가구",
+  non_residential: "상가", industrial: "공장",
   주거용: "아파트", 상업용: "상가", 업무용: "오피스", 산업용: "공장",
 };
 
@@ -76,7 +80,7 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
 
   // 입력 상태
   const [purchasePriceStr, setPurchasePriceStr] = useState(
-    seed.asking_price ? String(Math.round(seed.asking_price / 10000)) + "만" : "",
+    seed.asking_price ? (seed.asking_price % 10000 === 0 ? `${seed.asking_price / 10000}만` : String(seed.asking_price)) : "",
   );
   const [propType, setPropType]     = useState(
     seed.property_type
@@ -117,26 +121,48 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState("");
   const [tab, setTab]       = useState(0);
+  const [profileApplied, setProfileApplied] = useState(false);
+
+  const applyProfile = () => {
+    const inputs = seed.profile_inputs;
+    if (!inputs) return;
+    setCashStr(String(inputs.cash_available ?? ""));
+    setPaymentLimitStr(String(inputs.monthly_payment_limit ?? ""));
+    setAnnualIncomeStr(String(inputs.annual_income ?? ""));
+    setExistingPaymentStr(String(inputs.existing_loan_annual_payment ?? ""));
+    setLoanRatio((inputs.loan_ratio ?? 0.5) * 100);
+    setInterestRate(inputs.annual_interest_rate ?? 4);
+    setLoanYears(inputs.loan_years ?? 30);
+    setOwnedHomes(inputs.owned_homes ?? 1);
+    setAdjustedArea(inputs.adjusted_area ?? false);
+    setRepayType("equal_payment");
+    setRateSource("");
+    setResult(null); setReport(""); setError("");
+    setProfileApplied(true);
+  };
 
   // 최신 주담대 평균금리 자동 세팅 (한국은행 ECOS)
   useEffect(() => {
     let cancelled = false;
     api.marketRate()
       .then(r => {
-        if (!cancelled && r.is_live && previous?.annual_interest_rate == null) {
+        if (!cancelled && !profileApplied && r.is_live && previous?.annual_interest_rate == null) {
           setInterestRate(r.rate);
           setRateSource(r.source);
         }
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [previous?.annual_interest_rate]);
+  }, [previous?.annual_interest_rate, profileApplied]);
 
   // (넘겨받은 매물 정보는 위 useState 초기값으로 이미 반영돼 있다)
 
   const handleSubmit = async () => {
     const purchasePrice = parsePrice(purchasePriceStr);
     if (!purchasePrice) { setError("매수가를 입력해주세요."); return; }
+    if (!Number.isInteger(ownedHomes) || ownedHomes < 1 || ownedHomes > 100) {
+      setError("취득 후 주택 수는 1~100의 정수로 입력해주세요. 첫 주택 취득은 1입니다."); return;
+    }
     if ([cashStr, paymentLimitStr, existingPaymentStr, annualIncomeStr, officialPriceStr, depositStr]
       .some(value => value.trim() !== "" && !Number.isSafeInteger(parsePrice(value)))) {
       setError("금액은 150000000, 1.5억, 1억 5000만처럼 입력해주세요."); return;
@@ -193,6 +219,11 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
       <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg mb-5">
         ⚠️ 이 시뮬레이션은 간이 계산입니다. 실제 세율·대출 조건은 다를 수 있습니다.
       </p>
+      {seed.case_id && seed.input_source && <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+        <p>{seed.input_source === "saved" && !profileApplied ? "이 후보에 저장된 분석 조건으로 입력을 채웠습니다." : "케이스 공통 매수 조건으로 입력을 채웠습니다. 매수에 쓸 현금은 비상자금을 제외한 금액입니다."}</p>
+        {seed.input_source === "saved" && !seed.home_count_basis && !profileApplied && <p className="mt-2 text-amber-800">이전 분석에는 주택 수 기준이 기록되지 않았습니다. 이번 취득을 포함한 수인지 확인한 뒤 다시 계산해주세요.</p>}
+        {seed.input_source === "saved" && seed.profile_inputs && <button type="button" onClick={applyProfile} disabled={loading} className="mt-2 font-semibold text-primary underline disabled:opacity-50">공통 자금 조건 적용</button>}
+      </div>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 왼쪽: 매수·대출 */}
@@ -212,9 +243,10 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1">보유 주택 수 (취득 전)</label>
-                <input type="number" min={1} max={10} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
+                <label htmlFor="owned-homes" className="block text-xs text-slate-500 mb-1">취득 후 주택 수</label>
+                <input id="owned-homes" aria-describedby="owned-homes-help" type="number" min={1} max={100} step={1} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                   value={ownedHomes} onChange={e => setOwnedHomes(Number(e.target.value))} />
+                <p id="owned-homes-help" className="mt-1 text-xs text-slate-500">이번 취득을 포함합니다. 첫 주택 취득은 1, 기존 1주택을 유지하며 추가 취득하면 2입니다.</p>
               </div>
             </div>
           </div>
@@ -224,12 +256,12 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">대출 비율: {loanRatio}%</label>
-                <input type="range" min={0} max={90} step={5} value={loanRatio} onChange={e => setLoanRatio(Number(e.target.value))} className="w-full" />
+                <input aria-label="대출 비율 (%)" type="range" min={0} max={90} step="any" value={loanRatio} onChange={e => setLoanRatio(Number(e.target.value))} className="w-full" />
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">연 이율: {interestRate}%</label>
-                <input type="range" min={0} max={15} step={0.1} value={interestRate}
-                  onChange={e => setInterestRate(parseFloat(Number(e.target.value).toFixed(1)))} className="w-full" />
+                <input aria-label="연 이율 (%)" type="range" min={0} max={30} step="any" value={interestRate}
+                  onChange={e => setInterestRate(parseFloat(Number(e.target.value).toFixed(2)))} className="w-full" />
                 {rateSource && <p className="text-[10px] text-primary mt-0.5">{rateSource} 자동 반영</p>}
               </div>
               <div>
@@ -239,7 +271,7 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">대출 기간: {loanYears}년</label>
-                <input type="range" min={10} max={40} step={5} value={loanYears} onChange={e => setLoanYears(Number(e.target.value))} className="w-full" />
+                <input aria-label="대출 기간 (년)" type="range" min={1} max={50} step={1} value={loanYears} onChange={e => setLoanYears(Number(e.target.value))} className="w-full" />
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">상환 방식</label>

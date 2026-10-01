@@ -58,6 +58,48 @@ def test_case_crud_and_history_link(client):
     assert client.patch(f"/api/cases/{case_id}", json={"status": "reviewing"}).json()["status"] == "reviewing"
 
 
+def test_summary_reports_five_axes_and_keeps_read_only(client):
+    _register(client, "decision-axes@example.com")
+    case_id = client.post("/api/cases", json={"title": "다섯 판단 축 검증", "budget_max": 650_000_000}).json()["id"]
+    assert client.get(f"/api/cases/{case_id}/summary").json()["decision"]["candidates"] == []
+    added = client.post(f"/api/cases/{case_id}/properties", json={
+        "name": "사용자 검증 후보", "category": "apartment", "asking_price": 600_000_000,
+    })
+    assert added.status_code == 201
+    before = client.get(f"/api/cases/{case_id}").json()
+    response = client.get(f"/api/cases/{case_id}/summary")
+    assert response.status_code == 200
+    assert response.json()["case"] == before
+    candidate = response.json()["decision"]["candidates"][0]
+    assert candidate["property_id"] == added.json()["id"]
+    assert [axis["key"] for axis in candidate["axes"]] == ["fit", "price", "funding", "risk", "execution"]
+    assert candidate["metrics"]["monthly_payment"] is None
+    assert candidate["metrics"]["price_gap"] is None
+    assert not candidate["review_ready"]
+    assert client.get(f"/api/cases/{case_id}").json() == before
+
+
+def test_unreadable_rights_pdf_is_not_confirmed_on_decision_summary(client):
+    import base64
+    _register(client, "unreadable-rights@example.com")
+    case_id = client.post("/api/cases", json={"title": "문서 판독 실패 검증"}).json()["id"]
+    candidate_id = client.post(f"/api/cases/{case_id}/properties", json={"name": "문서 검증 후보"}).json()["id"]
+    response = client.post("/api/rights/analyze", json={
+        "case_id": case_id, "candidate_id": candidate_id,
+        "registry_pdf_b64": base64.b64encode(b"%PDF-1.7\nunreadable document").decode(),
+    })
+    assert response.status_code == 200
+    assert response.json()["registry"]["error"]
+    decision = client.get(f"/api/cases/{case_id}/summary").json()
+    rights = next(item for item in decision["case"]["properties"][0]["analyses"] if item["analysis_type"] == "rights")
+    assert rights["summary"]["registry_supplied"] is True
+    assert rights["summary"]["registry_parsed"] is False
+    assert rights["summary"]["building_parsed"] is False
+    risk = next(axis for axis in decision["decision"]["candidates"][0]["axes"] if axis["key"] == "risk")
+    assert risk["status"] != "confirmed"
+    assert "업로드 문서 내 위험 신호 미검출" not in decision["comparison"]["rows"][0]["highlights"]
+
+
 def test_other_user_gets_404_for_case_and_history_link(client):
     from api import history_db
 
@@ -68,6 +110,7 @@ def test_other_user_gets_404_for_case_and_history_link(client):
     client.cookies.clear()
     _register(client, "case-attacker@example.com")
     assert client.get(f"/api/cases/{case_id}").status_code == 404
+    assert client.get(f"/api/cases/{case_id}/summary").status_code == 404
     assert client.patch(f"/api/cases/{case_id}", json={"status": "reviewing"}).status_code == 404
     assert client.delete(f"/api/cases/{case_id}").status_code == 404
     assert client.post(f"/api/cases/{case_id}/properties", json={

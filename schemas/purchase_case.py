@@ -50,7 +50,7 @@ class BuyerProfile(BaseModel):
     loan_ratio: float | None = Field(default=None, ge=0, le=0.9)
     annual_interest_rate: float | None = Field(default=None, ge=0, le=30)
     loan_years: int | None = Field(default=None, ge=1, le=50)
-    owned_homes: int | None = Field(default=None, ge=1, le=100)
+    owned_homes: int | None = Field(default=None, ge=1, le=100, description="취득 후 주택 수. 첫 주택 취득은 1")
     adjusted_area: bool | None = None
     min_area_sqm: float | None = Field(default=None, gt=0, le=100000)
     max_area_sqm: float | None = Field(default=None, gt=0, le=100000)

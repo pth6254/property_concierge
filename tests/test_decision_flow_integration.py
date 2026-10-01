@@ -51,7 +51,10 @@ def test_listing_to_avm_funding_decision_and_re_review(regions, monkeypatch):
 
     first_history = analyze(800000000)
     comparison = client.get(f"/api/cases/{case_id}/comparison").json()["rows"][0]
-    assert comparison["estimated_value"] == 780000000
+    # 금액 단위 변환은 보존하되 비교사례 없는 추정값을 현재 비교 금액으로 쓰지 않는다.
+    stored_candidate = client.get(f"/api/cases/{case_id}").json()["properties"][0]
+    assert stored_candidate["appraisal"]["estimated_value"] == 780000000
+    assert comparison["estimated_value"] is None
     assert comparison["appraisal_confidence"] < 0.5 and comparison["price_gap"] is None
     assert comparison["funding"]["purchase_price"] == 800000000
     assert client.post(f"/api/cases/{case_id}/decision", json={

@@ -33,7 +33,7 @@ def _view(row, session, observation_cache=None):
                 func.max(ListingObservation.fetched_at)).where(*filters, ListingObservation.outcome == "observed")).one()
     except ValueError:
         pass
-    return {**row.payload, "id": row.id, "source_name": row.source_name,
+    return {"alias": "", "address_details": None, **row.payload, "id": row.id, "source_name": row.source_name,
             "needs_confirmation": row.confirmed_at < time.time() - STALE_SECONDS or bool(observation and observation.fetched_at > row.confirmed_at),
             "first_seen_at": first_seen, "last_seen_at": last_seen,
             "last_collection_at": observation.fetched_at if observation else None,
@@ -67,6 +67,18 @@ def import_csv(user_id, source_name, csv_text, *, commit=False):
                     if None in raw or any(value is None for value in raw.values()):
                         raise ValueError("열 개수가 헤더와 다릅니다")
                     item = ListingInput.model_validate({key: value for key, value in raw.items() if value.strip()})
+                    address_details = None
+                    if item.address_token:
+                        from backend.services.listing_address_service import verified_address
+                        verified = verified_address(item.address_token, user_id)
+                        if item.address not in (verified.jibun_address, verified.road_address):
+                            raise ValueError("선택한 주소와 입력 주소가 다릅니다. 주소를 다시 선택해주세요.")
+                        expected_name = verified.building_name or verified.jibun_address[:150]
+                        if item.name != expected_name:
+                            raise ValueError("선택한 주소의 이름과 입력 이름이 다릅니다. 사용자 이름은 별칭에 입력해주세요.")
+                        item.legal_region_code = verified.legal_region_code
+                        item.address = verified.jibun_address
+                        address_details = verified.model_dump()
                     if item.external_id in seen:
                         raise ValueError("CSV 안에서 external_id가 중복됩니다")
                     seen.add(item.external_id)
@@ -76,12 +88,27 @@ def import_csv(user_id, source_name, csv_text, *, commit=False):
                     region = by_code.get(item.legal_region_code) if item.legal_region_code else next((r for r in by_name if address == r.full_name or address.startswith(r.full_name + " ")), None)
                     if item.legal_region_code and not region:
                         raise ValueError("유효한 법정 읍·면·동 코드가 아닙니다")
+                    if address_details and region:
+                        parts, full = address.split(), region.full_name.split()
+                        aliases = {"11": "서울", "26": "부산", "27": "대구", "28": "인천", "29": "광주",
+                                   "30": "대전", "31": "울산", "36": "세종", "41": "경기", "42": "강원",
+                                   "43": "충북", "44": "충남", "45": "전북", "46": "전남", "47": "경북",
+                                   "48": "경남", "50": "제주", "51": "강원", "52": "전북"}
+                        if parts[0] not in (full[0], aliases.get(region.code[:2])) or parts[1:len(full)] != full[1:]:
+                            raise ValueError("주소 검색 결과와 법정동 기준정보가 일치하지 않습니다. 주소를 다시 확인해주세요.")
+                        address = " ".join(full + parts[len(full):])
+                        item.address = address
+                        address_details["jibun_address"] = address
+                        if address_details["road_address"]:
+                            address_details["road_address"] = full[0] + " " + address_details["road_address"].split(" ", 1)[-1]
+                        if not address_details["building_name"]:
+                            item.name = address[:150]
                     if region and not (address == region.full_name or address.startswith(region.full_name + " ")):
                         raise ValueError("법정동 코드와 주소가 일치하지 않습니다. 법정동 주소를 확인해주세요")
                     item.legal_region_code = region.code if region else None
                     if not region:
                         warnings.append({"row": index, "message": "법정동 미연결: 저장은 가능하지만 지역 검색·후보 저장에서 제외됩니다"})
-                    rows.append((index, item))
+                    rows.append((index, item, address_details))
                 except (ValidationError, ValueError) as exc:
                     if isinstance(exc, ValidationError):
                         message = "; ".join(f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in exc.errors(include_input=False))
@@ -93,21 +120,27 @@ def import_csv(user_id, source_name, csv_text, *, commit=False):
         if not rows and not errors:
             raise HTTPException(422, "CSV에 매물 행이 없습니다")
         output = {"valid": not errors, "errors": errors, "warnings": warnings,
-                  "total": len(rows) + len(errors), "preview": [item.model_dump(mode="json") for _, item in rows[:20]],
+                  "total": len(rows) + len(errors), "preview": [item.model_dump(mode="json") |
+                    ({"address_details": details} if details else {}) for _, item, details in rows[:20]],
                   "created": 0, "updated": 0, "unchanged": 0, "skipped_older": 0, "committed": False}
         if errors or not commit:
             return output
         # 같은 사용자·출처의 동시 업로드를 직렬화해 유일성 제약 경합을 방지한다.
         session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:key))"), {"key": f"listing-import:{user_id}:{source_name}"})
-        for index, item in rows:
+        for index, item, address_details in rows:
             existing = session.scalar(select(ImportedListing).where(ImportedListing.user_id == user_id,
                 ImportedListing.source_name == source_name, ImportedListing.external_id == item.external_id))
             payload = item.model_dump(mode="json")
+            if address_details:
+                payload["address_details"] = address_details
             confirmed = item.confirmed_at.timestamp()
             if existing and confirmed < existing.confirmed_at:
                 output["skipped_older"] += 1
                 continue
-            if existing and payload == existing.payload:
+            # 새 선택 필드의 빈 기본값 때문에 기존 CSV 재업로드가 상충 갱신으로 바뀌면 안 된다.
+            comparable = {key: value for key, value in payload.items() if key != "alias" or value}
+            stored = {key: value for key, value in (existing.payload if existing else {}).items() if key != "alias" or value}
+            if existing and comparable == stored:
                 output["unchanged"] += 1
                 continue
             if existing and confirmed == existing.confirmed_at:

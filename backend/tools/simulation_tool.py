@@ -547,6 +547,8 @@ def run_simulation(inp: SimulationInput) -> SimulationResult:
     return SimulationResult(
         purchase_price   = inp.purchase_price,
         loan_amount      = inp.loan_amount,
+        owned_homes      = inp.owned_homes,
+        home_count_basis = "after_purchase",
         required_cash    = required_cash,
         equity           = equity,
         acquisition_cost = acq,

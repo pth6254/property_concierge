@@ -1,359 +1,75 @@
-# DeepAgent 부동산 가치 감정평가 — 백엔드 개발 학습 정리
+# Property Concierge 백엔드 도메인 안내
 
-> 이 문서는 백엔드를 구성하면서 배우고 기억해야 할 핵심 개념을 정리한 것입니다.
+`backend/`는 부동산 분석과 의사결정의 도메인 로직을 담당한다. HTTP·인증·작업 접수는 `api/`, 영속 저장은 `db/`, 입출력 계약은 `schemas/`에 있다. 개발 전에 [루트 작업 지침](../AGENTS.md)을 읽고, 제품 범위는 [제품 전략](../docs/product-strategy.md)과 [인수인계](../docs/project-handoff.md)를 확인한다.
 
----
+## 현재 제품의 중심 흐름
 
-## 목차
+사용자가 URL·직접 입력·CSV로 등록한 관심 매물을 매수 케이스에 저장하고, 가격·자금·권리 분석을 근거로 적합성·가격성·자금성·위험성·실행성을 검토한다. 비교 후 사용자가 선택·제외 이유를 기록하고 다음 행동과 거래 준비 작업을 관리한다. 초기 대상은 아파트 매매이며 모바일 앱은 후속 단계다.
 
-1. [프로젝트 구조 이해](#1-프로젝트-구조-이해)
-2. [LangGraph — 에이전트 워크플로우](#2-langgraph--에이전트-워크플로우)
-3. [LLM 로컬 실행 (Ollama)](#3-llm-로컬-실행-ollama)
-4. [Pydantic vs TypedDict — State 설계](#4-pydantic-vs-typeddict--state-설계)
-5. [API 연동 핵심 정리](#5-api-연동-핵심-정리)
-6. [감정평가 모델 구조](#6-감정평가-모델-구조)
-7. [자주 발생한 오류와 해결법](#7-자주-발생한-오류와-해결법)
-8. [실행 순서](#8-실행-순서)
-9. [파일 구조와 역할](#9-파일-구조와-역할)
+네이버 지도 연결과 원문 수집은 보조 입력 경로다. 추출이 실패해도 사용자 확인값으로 등록할 수 있어야 한다. 실거래·사용자 호가·AVM 추정값은 서로 다른 자료이며 동일 단지 확인이 개별 호의 동일성을 보증하지 않는다.
 
----
-
-## 1. 프로젝트 구조 이해
-
-이 시스템은 웹 서비스 4개 레이어 중 **백엔드 비즈니스 로직(Layer 3)** 에 해당한다.
-
-```
-Layer 1  프론트엔드     Streamlit / React (미구현)
-Layer 2  API 레이어    FastAPI (미구현)
-Layer 3  비즈니스 로직  ← 지금 만든 영역
-Layer 4  데이터 레이어  국토부 API, 카카오 API, SQLite, pgvector
+```text
+Next.js → FastAPI: 인증·소유자 확인·입력 검증
+              ├ 저장 자료 조회 → 도메인 서비스 → PostgreSQL
+              └ 오래 걸리는 분석 → Redis Stream → 별도 job-worker
+                                                   → 분석 결과·이력 저장
 ```
 
-### 핵심 파이프라인 흐름
+## 핵심 코드와 연결 위치
 
-```
-사용자 자연어 입력
-  → intent_agent.py      의도 분석 (카테고리/위치/면적/호가 추출)
-  → geocoding.py         좌표 변환 (지명 → 위도/경도)
-  → router.py            카테고리별 에이전트 분기
-  → agents.py            감정평가 계산 (추정가치/평당가/고저평가/수익률)
-  → appraisal_report.py  마크다운 리포트 생성
-```
+| 코드 | 역할 |
+|---|---|
+| [case_decision_assessment.py](services/case_decision_assessment.py) | 같은 케이스 스냅샷에서 다섯 판단 축·근거·현재 비교 금액·다음 행동 산출 |
+| [case_comparison_service.py](services/case_comparison_service.py) | 공통 평가 결과를 후보 비교에 적용하고 오래된 값·근거 부족을 구분 |
+| [candidate_funding.py](services/candidate_funding.py) · [case_funding_scenarios.py](services/case_funding_scenarios.py) | 후보의 저장된 자금 입력과 공통 프로필을 연결하고 시나리오 계산 |
+| [candidate_next_actions.py](services/candidate_next_actions.py) · [analysis_freshness.py](services/analysis_freshness.py) | 누락·실패·만료·원본 변경에 따른 보완 행동과 유효 시점 |
+| [listing_store.py](services/listing_store.py) · [listing_observations.py](services/listing_observations.py) | 사용자별 등록 매물, 저장 변경 이력, 원문 관측과 재확인 상태 |
+| [listing_address_service.py](services/listing_address_service.py) | 주소·건물명 조회와 선택 정보 검증. 분석 이름과 사용자 선택 별칭은 별도 저장 |
+| [naver_listing_collector.py](services/naver_listing_collector.py) | 개별 링크의 Playwright 수집. 실패·접근 제한·미노출을 거래 완료와 구분 |
+| [appraisal_graph.py](graphs/appraisal_graph.py) | 자연어 분석·위치 해석·유형별 AVM·참고용 리포트 파이프라인 |
+| [simulation_service.py](services/simulation_service.py) | 공통 입력에 따른 대출·비용·자금·수익 시뮬레이션 |
+| [rights_analysis_service.py](services/rights_analysis_service.py) | 사용자 문서의 판독 결과와 규칙 기반 위험 신호 점검 |
+| [law_retrieval.py](services/law_retrieval.py) · [concierge_graph.py](graphs/concierge_graph.py) | 법령 근거 검색과 대화 맥락·조건부 도구 실행 |
+| [model_factory.py](model_factory.py) | 역할별 LLM·임베딩 제공자 생성. OpenRouter 등 지원 제공자 선택 |
+| [API 케이스 라우터](../api/routes/cases.py) · [케이스 저장소](../api/case_db.py) | 소유자 확인, 요약·비교·선택·후보 및 분석 결과 저장 |
+| [작업 큐](../api/jobs.py) · [작업 실행기](../api/job_worker.py) | 긴 작업의 영속 접수·실행·복구 경계 |
 
----
+## 의사결정 결과 계약
 
-## 2. LangGraph — 에이전트 워크플로우
+`GET /api/cases/{id}/summary`는 소유자 확인 후 `case`, `comparison`, `decision`을 반환한다. 다섯 축의 스키마는 [decision_assessment.py](../schemas/decision_assessment.py)에 있으며, 요약과 비교가 같은 평가 결과를 사용한다. 이 조회는 외부 API·LLM·새 작업·DB 변경 없이 저장된 자료로 계산한다.
 
-### 기본 개념
+자료 부족·판독 실패는 미확인이고, 만료·기준일 누락·원본 변경은 현재 비교 금액에서 제외한다. 유효한 주의 결과의 금액은 표시할 수 있으나 근거가 없는 값을 0이나 안전으로 대체하지 않는다. 사용자 선택과 `review_ready`는 구분하며 자동 매수 결론을 만들지 않는다. 자세한 확인 조건은 [의사결정 검토 기준](../docs/decision-assessment.md)을 따른다.
 
-LangGraph는 **노드(Node)** 와 **엣지(Edge)** 로 에이전트 흐름을 정의한다.
+자금 입력의 `owned_homes`는 취득 후 주택 수다. 첫 주택은 1이고 `home_count_basis="after_purchase"`를 기록한다. 공통 프로필의 비상자금은 한 번만 제외하며 저장된 후보별 가용 현금에서 재차 제외하지 않는다. 개별 조건과 공통 조건이 다르다는 이유만으로 저장 결과를 무효화하지 않는다. 공통 변환은 [simulation.py](../schemas/simulation.py), 입력·검증 기준은 [자금 문서](../docs/funding-consistency.md)를 따른다.
 
-- **노드**: 실제 작업을 수행하는 함수
-- **엣지**: 노드 간 연결 (다음에 어떤 노드로 갈지)
-- **조건부 엣지**: 상태값에 따라 분기 (라우터가 이걸 사용)
+권리 점검은 업로드 여부와 등기부·건축물대장 판독 성공을 별도로 기록한다. 빈 PDF·판독 실패·일부 문서만 있는 결과를 안전으로 승격하지 않는다. 원문 PDF는 현재 영구 저장하지 않는다.
 
-```python
-graph = StateGraph(AgentState)
-graph.add_node("의도분석", intent_analysis_node)
-graph.add_node("검증",     validate_node)
-graph.set_entry_point("의도분석")
-graph.add_edge("의도분석", "검증")
-graph.add_conditional_edges(
-    "검증",
-    should_retry,
-    {"retry": "의도분석", "end": "지오코딩"}
-)
-app = graph.compile()
-result = app.invoke({"user_input": "마포구 아파트 매매 8억", "error": "", "retry_count": 0})
-```
+## 기존 분석과 데이터의 범위
 
-### 재시도 로직 — 노드 안에서 직접 재호출 금지
+AVM은 국토부 실거래를 사용하고 `CATEGORY_TO_AGENT`에서 주거·상업·업무·산업·토지로 분기한다. 비교사례·유형·지역별 정확도에 차이가 있으므로 분기 존재를 모든 유형의 검증 완료로 설명하지 않는다. AVM은 법적 감정평가가 아닌 참고용 분석이다. `backend/models.py`의 가치 결과는 만원 단위이며 API 금액 원 단위로 바꿀 때 변환을 유지한다.
 
-```python
-# ❌ 잘못된 방법 — 결과가 중복 출력됨
-def validate_node(state):
-    if state.get("error"):
-        return intent_analysis_node(state)  # 직접 재호출 금지
+법령 RAG는 수집 문서를 임베딩해 pgvector에 저장하고 질문과 관련된 근거를 검색하는 구조다. 모델을 해당 문서로 재학습한 것이 아니다. 생성 모델과 임베딩 모델의 설정은 별도이며 임베딩 설정을 바꾸면 기존 벡터와의 호환·재적재 여부를 확인해야 한다. 수집 범위·검색·인용 품질은 [평가 안내](../evaluation/README.md)에서 구분한다.
 
-# ✅ 올바른 방법 — 엣지(should_retry)가 재시도를 담당
-def validate_node(state):
-    if state.get("error"):
-        return state  # 그냥 반환, should_retry 엣지가 처리
+샘플 추천·비교는 `data/sample_listings.csv`의 가상 자료다. 매수 케이스의 사용자 등록 후보와 혼합하지 않는다. 기존 관측·변경 이력과 거래 준비 모델을 먼저 활용하고, 기획안의 새 `Property` 체계·개인화 그래프·Marketplace를 이미 구현한 모델처럼 취급하지 않는다.
 
-def should_retry(state):
-    if state.get("error") and state.get("retry_count", 0) <= 2:
-        return "retry"
-    return "end"
-```
+## 실행과 검증
 
----
-
-## 3. LLM 로컬 실행 (Ollama)
-
-### 모델 선택 기준 (한국어 부동산 도메인)
-
-| 모델 | 한국어 | JSON 준수 | 권장 |
-|------|--------|-----------|------|
-| Qwen 3.5 9B | ★★★★★ | ★★★★★ | ✅ |
-| EXAONE 3.5 7.8B | ★★★★★ | ★★★★ | 대안 |
-| Solar 10.7B | ★★★ | ★★ | ✗ |
-| llama3.1 8B | ★★ | ★★★ | ✗ |
-
-Solar는 JSON 구조를 임의로 변경하고 영어로 응답하는 경향이 있음.
-현재 기본 모델은 한국어 조건 추출과 JSON 응답을 확인한 Qwen 3.5 9B임.
-
-### 핵심 설정
-
-```python
-ChatOllama(
-    model=os.getenv("OLLAMA_MODEL", "qwen3.5:9b"),
-    temperature=0.0,   # 결정론적 결과를 위해 0으로 고정
-    format="json",     # JSON 모드 강제
-    num_predict=1024,  # 반드시 설정 — 없으면 JSON이 중간에 잘림
-)
-```
-
-### 소형 모델 3중 방어 전략
-
-소형 LLM은 프롬프트를 완벽하게 따르지 않으므로 3가지로 방어해야 한다.
-
-**① 모든 Pydantic 필드에 default 설정**
-```python
-# ❌ 모델이 필드 빠뜨리면 ValidationError 발생
-category_detail: str = Field(description="...")
-
-# ✅ 빠뜨려도 기본값으로 채워짐
-category_detail: str = Field(default="")
-confidence: float    = Field(default=0.5)
-```
-
-**② 프롬프트에 JSON 예시 템플릿 포함**
-
-설명만 쓰면 소형 모델은 필드를 생략하거나 구조를 바꾼다.
-프롬프트 끝에 실제 출력 예시를 반드시 포함한다.
-
-```
-EXAMPLE OUTPUT:
-{"category":"주거용","category_detail":"아파트","location_raw":"마포구",...}
-```
-
-**③ normalize_parsed_data() — 정규화 레이어**
-
-LLM 응답을 파싱한 직후, Pydantic에 넣기 전에 실행한다.
-
-```python
-# 모델이 배열로 반환한 경우
-"category": ["주거용", "아파트"]  →  "category": "주거용"
-
-# 중첩 딕셔너리로 반환한 경우
-"location": {"name": "마포구"}    →  "location_raw": "마포구"
-
-# 영문으로 반환한 경우
-"category": "residential"         →  "category": "주거용"
-"transaction_type": "lease"       →  "transaction_type": "전세"
-```
-
----
-
-## 4. Pydantic vs TypedDict — State 설계
-
-### 핵심 규칙
-
-**LangGraph State는 반드시 TypedDict로 선언한다.**
-
-LangGraph는 내부적으로 state를 dict로 관리하기 때문에 Pydantic BaseModel은 호환되지 않는다.
-
-```python
-# ❌ 잘못된 방법
-from pydantic import BaseModel
-class AgentState(BaseModel):
-    user_input: str
-    error: str = ""
-# → state.get("intent") 호출 시 AttributeError 발생
-
-# ✅ 올바른 방법
-from typing_extensions import TypedDict
-class AgentState(TypedDict, total=False):
-    user_input:  str
-    intent:      Optional[PropertyIntent]
-    error:       str
-    retry_count: int
-```
-
-### Pydantic은 어디에 써야 하나
-
-State가 아닌 **데이터 모델**에 사용한다. LLM 파싱 결과, API 응답, 감정평가 결과 등.
-
-```python
-class PropertyIntent(BaseModel):     # LLM 파싱 결과
-    category: str = Field(default="주거용")
-
-class ValuationResult(BaseModel):    # 감정평가 결과
-    estimated_value: int = Field(default=0)
-```
-
----
-
-## 5. API 연동 핵심 정리
-
-### 카카오 로컬 API
-
-- **키 종류**: REST API 키만 사용 (JavaScript 키 아님)
-- **인증 헤더**: `{"Authorization": f"KakaoAK {키}"}`
-- **403 오류**: 개발자 콘솔 → 플랫폼 → Web → `http://localhost` 등록 필수
-- **폴백 구조**: 주소 검색 실패 → 키워드 검색으로 자동 전환
-
-### 국토부 실거래가 API
-
-- **매매 전용** — 상업용·산업용·토지는 전월세 API 없음
-- **지역코드**: 법정동코드 앞 5자리 (카카오 b_code에서 추출)
-- **응답 형식**: XML → `xml.etree.ElementTree`로 파싱 (JSON 아님)
-- **속도 느림** → SQLite 캐시 24시간 적용 필수
-
-### 유형별 API 엔드포인트 (매매)
-
-| 유형 | 서비스명 |
-|------|----------|
-| 아파트 | `RTMSDataSvcAptTradeDev` |
-| 연립·다세대 | `RTMSDataSvcRHTrade` |
-| 단독·다가구 | `RTMSDataSvcSHTrade` |
-| 오피스텔 | `RTMSDataSvcOffiTrade` |
-| 상업·업무용 | `RTMSDataSvcNrgTrade` |
-| 공장·창고 | `RTMSDataSvcInduTrade` |
-| 토지 | `RTMSDataSvcLandTrade` |
-
-### 파일명 충돌 주의
-
-`report.py`, `utils.py`, `test.py` 같은 일반적인 이름은 외부 패키지와 충돌한다.
-→ `appraisal_report.py`처럼 프로젝트에 특화된 이름을 사용할 것.
-
----
-
-## 6. 감정평가 모델 구조
-
-### 4가지 핵심 출력물
-
-| 출력물 | 산출 방식 |
-|--------|----------|
-| 추정 시장가치 | 인근 실거래 평균 ㎡당 단가 × 면적 (±10% 오차 범위) |
-| 평당가 분석 | ㎡당 단가 × 3.3058, 지역 평균과 비교 |
-| 고/저평가 판단 | (추정가 - 인근 평균) / 인근 평균 × 100 |
-| 투자 수익률 | 추정가 × Cap Rate, 유형별 기준 상이 |
-
-### 고/저평가 판정 기준
-
-| 괴리율 | 판정 |
-|--------|------|
-| -10% 이하 | 저평가 |
-| -10% ~ +5% | 적정 |
-| +5% ~ +15% | 소폭 고평가 |
-| +15% 초과 | 고평가 |
-
-### 유형별 Cap Rate
-
-| 유형 | Cap Rate |
-|------|----------|
-| 주거용 | 3.5% |
-| 상업용 | 5.0% |
-| 업무용 | 4.5% |
-| 산업용 | 6.0% |
-| 토지 | 2.5% |
-
-### 면적 변환
-
-```
-1평 = 3.3058㎡
-20평대 → area_min: 66.1㎡, area_max: 99.2㎡
-300평 이상 → area_min: 991.7㎡
-```
-
----
-
-## 7. 자주 발생한 오류와 해결법
-
-| 오류 | 원인 | 해결법 |
-|------|------|--------|
-| `model 'llama3' not found` | 모델명 불일치 | `ollama list`로 확인 후 `.env` 수정 |
-| `Field required` (ValidationError) | LLM이 JSON 필드 생략 | 모든 필드에 `default=""` 추가 |
-| `AgentState has no attribute 'get'` | State를 Pydantic으로 선언 | TypedDict로 교체 |
-| `ImportError from 'report'` | 파일명이 외부 패키지와 충돌 | `appraisal_report.py`로 이름 변경 |
-| 카카오 `403 Forbidden` | 플랫폼 미등록 | 개발자 콘솔에서 Web 플랫폼 등록 |
-| JSON이 중간에 잘림 | `num_predict` 기본값 낮음 | `num_predict=1024` 설정 |
-| 결과 중복 출력 | validate_node 안에서 재귀 호출 | 노드 안 직접 재호출 금지, 엣지로 처리 |
-| `category`가 영문으로 옴 | 소형 모델 한국어 응답 불안정 | `normalize_parsed_data()`로 한국어 변환 |
-
----
-
-## 8. 실행 순서
-
-### 최초 환경 준비
+모든 명령은 저장소 루트에서 실행한다. 이 환경에서는 Python과 Docker가 WSL에 있다. PostgreSQL·Redis가 필수이며 SQLite·인프로세스 큐 폴백은 없다. 전체 서비스는 다음처럼 실행한다.
 
 ```bash
-pip install -r requirements.txt
-pip install typing_extensions
-
-ollama pull qwen3.5:9b
-ollama pull nomic-embed-text
-
-cp .env.example .env
-# .env 파일에서 API 키 입력
-
-python cache_db.py   # SQLite 초기화 (최초 1회)
+docker compose up -d --build
 ```
 
-### 단계별 테스트 순서
+기본 호스트 포트는 프론트엔드 3002, API 8002이고 컨테이너 내부는 각각 3000·8000이다. API·별도 `job-worker`·PostgreSQL·Redis를 함께 실행한다. API만 띄우면 접수된 긴 작업을 완료할 실행기가 없다. 네이티브 실행과 설정은 [루트 README](../README.md), 운영 적용과 복구는 [운영 안내](../docs/operations.md)와 [작업 복구](../docs/job-recovery.md)를 따른다.
+
+테스트는 서비스 DB에 연결하지 않고 전용 DB `real_estate_test`·Redis DB 15로 실행한다.
 
 ```bash
-python intent_agent.py      # 카테고리·위치·면적 한국어 출력 확인
-python geocoding.py         # 위도/경도 반환 확인
-python analysis_tools.py    # 실거래가 + 감정평가 계산 확인
-python agents.py            # 5개 에이전트 출력 확인
-python router.py            # 전체 파이프라인 end-to-end 실행
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 ```
 
----
+도메인 계약은 `tests/test_case_decision_assessment.py`, 자금 입력은 `tests/test_funding_consistency.py`, API 소유자 격리와 권리 판독 상태는 `tests/test_purchase_cases.py`에서 검증한다. 브라우저 명령·최신 결과·미검증 범위는 [의사결정 검토 문서](../docs/decision-assessment.md#검증-범위)에 있다. 백엔드 변경 후 프론트엔드 타입·린트·빌드도 확인한다.
 
-## 9. 파일 구조와 역할
+## 다음 구현 순서
 
-```
-프로젝트/
-│
-├── intent_agent.py       자연어 → 구조화 (카테고리/위치/면적/호가)
-├── geocoding.py          지명 → 위도/경도 (카카오 API + Vworld)
-├── router.py             파이프라인 연결 + LangGraph 그래프 정의
-├── agents.py             5개 유형별 감정평가 계산 로직
-├── analysis_tools.py     공통 도구 (실거래가 API, 계산 함수, LLM 의견서)
-├── appraisal_report.py   마크다운 리포트 생성 노드
-├── cache_db.py           SQLite 캐시 + 지역코드 37개 룩업
-├── rag_pipeline.py       pgvector 벡터 검색 (선택적)
-├── deep_analysis.py      API + RAG 통합 노드
-│
-├── .env                  API 키 (Git에 절대 올리지 말 것)
-├── .env.example          키 템플릿
-├── requirements.txt      패키지 목록
-└── cache.db              SQLite 캐시 (자동 생성)
-```
-
-### 파일 간 의존 관계
-
-```
-router.py
-  ├── intent_agent.py
-  ├── geocoding.py
-  ├── agents.py
-  │     └── analysis_tools.py
-  └── appraisal_report.py
-```
-
----
-
-## 기억해야 할 핵심 3가지
-
-**① LangGraph State는 TypedDict**
-Pydantic BaseModel로 만들면 `.get()` 오류가 발생한다.
-
-**② 소형 LLM은 3중 방어**
-`default` 설정 + 프롬프트 예시 + `normalize_parsed_data()` 정규화로 어떤 모델도 대응 가능하게 만든다.
-
-**③ 파일명은 구체적으로**
-`report.py`, `utils.py`처럼 흔한 이름은 외부 패키지와 충돌한다.
+주소와 부동산 객체의 식별 수준을 연결하고, 실거래 비교사례·문서 항목의 근거를 보강한 뒤 실제 아파트 전체 흐름을 검증한다. 기능을 추가할 때는 입력 출처·기준일·누락과 실패 상태·소유권·재검토 영향·검증 사례를 함께 정의한다. 모바일 앱과 자산 유형 확대는 그 이후다.

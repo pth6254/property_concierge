@@ -82,6 +82,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../frontend/
     assert.equal(await page.getByRole('link',{name:'찾은 매물 등록',exact:true}).count(),0);
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
     await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:path.join(output,'navigation-register-mobile.png'),fullPage:true});
+    await page.getByRole('button',{name:'네이버 링크로 등록',exact:true}).click();
     await page.getByLabel('네이버 개별 매물 링크',{exact:true}).fill('https://fin.land.naver.com/articles/9990001234');
     await page.getByLabel('매물 이름',{exact:true}).fill('연결검증 가상 매물');
     await page.getByLabel('확인한 주소',{exact:true}).fill('서울특별시 강남구 역삼동 123');

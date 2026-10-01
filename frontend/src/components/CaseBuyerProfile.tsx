@@ -37,6 +37,10 @@ export default function CaseBuyerProfile({ caseId, profile, budgetMax, onSaved, 
         setMessage(`${label} 입력값을 확인해주세요.`);
         return;
       }
+      if (key === "owned_homes" && parsed !== null && (!Number.isInteger(parsed) || parsed < 1 || parsed > 100)) {
+        setMessage("취득 후 주택 수는 1~100의 정수로 입력해주세요. 첫 주택 취득은 1입니다.");
+        return;
+      }
       // 숫자 필드만 순회하므로 동적 키의 타입을 여기에서 제한한다.
       (next as unknown as Record<NumberField, number | null>)[key] = parsed;
     }
@@ -64,10 +68,11 @@ export default function CaseBuyerProfile({ caseId, profile, budgetMax, onSaved, 
   return <details open={!profile.cash_available || !budgetMax} className="rounded-xl border bg-white p-4">
     <summary className="cursor-pointer font-bold">공통 매수 조건</summary>
     <p className="mt-2 text-sm text-slate-600">같은 케이스의 후보에 공통으로 적용됩니다. 자금 비교에서는 보유 현금에서 비상자금을 제외합니다.</p>
+    <p className="mt-1 text-xs text-slate-500">주택 수는 이번 취득을 포함한 취득 후 기준입니다. 무주택자가 첫 주택을 취득하면 1, 기존 1주택을 유지하면서 추가 취득하면 2를 입력하세요.</p>
     <form onSubmit={submit} className="mt-4 space-y-3">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <label className="text-sm">최대 예산 (원)<input name="budget_max" type="number" min="0" step="1" defaultValue={budgetMax ?? ""} className="mt-1 w-full rounded border p-2" /></label>
-        {NUMBER_FIELDS.map(([key, label]) => <label key={key} className="text-sm">{label}<input name={key} type="number" min="0" step={["loan_ratio", "annual_interest_rate", "min_area_sqm", "max_area_sqm"].includes(key) ? "0.01" : "1"} defaultValue={profile[key] ?? ""} className="mt-1 w-full rounded border p-2" /></label>)}
+        {NUMBER_FIELDS.map(([key, label]) => <label key={key} className="text-sm">{label}<input name={key} type="number" min={["owned_homes", "loan_years", "market_months"].includes(key) ? "1" : "0"} max={key === "owned_homes" ? 100 : key === "loan_years" ? 50 : undefined} step={["loan_ratio", "annual_interest_rate", "min_area_sqm", "max_area_sqm"].includes(key) ? "0.01" : "1"} defaultValue={profile[key] ?? ""} className="mt-1 w-full rounded border p-2" /></label>)}
         <label className="text-sm">가장 중요한 기준<select name="priority" defaultValue={profile.priority ?? "cash"} className="mt-1 w-full rounded border p-2"><option value="cash">필요 현금</option><option value="monthly">월 상환 부담</option><option value="value">가격 수준</option><option value="liquidity">거래량</option><option value="age">연식</option></select></label>
         <label className="flex items-center gap-2 text-sm"><input name="adjusted_area" type="checkbox" defaultChecked={profile.adjusted_area ?? false} />조정대상지역으로 가정</label>
       </div>

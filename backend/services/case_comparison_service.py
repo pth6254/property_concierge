@@ -4,19 +4,26 @@
 가격·자금·권리·검토 완성도를 독립 축과 경고로 반환한다.
 """
 from __future__ import annotations
-from backend.services.candidate_next_actions import candidate_next_actions
+from datetime import datetime
+
+from backend.services.case_decision_assessment import assess_case_decision
+from schemas.decision_assessment import CaseDecisionAssessment
 
 
 def _analysis(candidate: dict, analysis_type: str) -> dict | None:
     return next((item for item in candidate.get("analyses", []) if item.get("analysis_type") == analysis_type), None)
 
 
-def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -> dict:
+def compare_case_candidates(case: dict, property_ids: list[int] | None = None, *,
+                            now: datetime | None = None, assessment: CaseDecisionAssessment | None = None) -> dict:
     candidates = case.get("properties") or []
     if property_ids:
         selected = set(property_ids)
         candidates = [candidate for candidate in candidates if candidate["id"] in selected]
 
+    # 요약과 비교가 서로 다른 자료를 검토 완료로 판단하지 않게 같은 계약을 사용한다.
+    decision = assessment or assess_case_decision({**case, "properties": candidates}, now=now)
+    assessed = {candidate.property_id: candidate for candidate in decision.candidates}
     rows = []
     for candidate in candidates:
         appraisal = _analysis(candidate, "appraisal")
@@ -28,9 +35,10 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
         asking = candidate.get("asking_price")
         estimated = appraisal_summary.get("estimated_value")
         confidence = appraisal_summary.get("confidence")
-        usable_estimate = (appraisal or {}).get("status") == "completed" and isinstance(confidence, (int, float)) and confidence >= 0.5
-        gap = asking - estimated if usable_estimate and isinstance(asking, int) and isinstance(estimated, int) else None
-        gap_ratio = round(gap / estimated * 100, 1) if gap is not None and estimated else None
+        candidate_decision = assessed[candidate["id"]]
+        axis_status = {axis.key: axis.status for axis in candidate_decision.axes}
+        gap = candidate_decision.metrics.price_gap
+        gap_ratio = candidate_decision.metrics.price_gap_ratio
 
         missing = []
         warnings = []
@@ -59,11 +67,13 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
         rights_grade = rights_summary.get("risk_grade")
         if rights_grade in {"caution", "danger"}:
             warnings.append(f"권리 위험: {rights_summary.get('risk_label') or rights_grade}")
+        elif rights_grade == "safe" and (rights or {}).get("status") == "completed" and rights_summary.get("registry_parsed") is True and rights_summary.get("building_parsed") is True:
+            highlights.append("업로드 문서 내 위험 신호 미검출")
         elif rights_grade == "safe":
-            highlights.append("권리분석 안전")
+            missing.append("최신 권리 문서의 판독 여부 확인 필요")
         warning_checks = [item for item in candidate.get("checklist", []) if item.get("status") in {"warning", "blocked"}]
         warnings.extend(item["title"] for item in warning_checks)
-        next_actions = candidate_next_actions(case, candidate)
+        next_actions = [action.model_dump() for action in candidate_decision.next_actions]
         missing.extend(action["title"] for action in next_actions if action["priority"] != "warning")
         warnings.extend(action["title"] for action in next_actions if action["priority"] == "warning")
 
@@ -83,12 +93,12 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
             "property_id": candidate["id"], "name": candidate["name"],
             "address": candidate.get("address") or "", "status": candidate.get("status"),
             "asking_price": asking, "area_sqm": candidate.get("area_sqm"),
-            "estimated_value": estimated, "price_gap": gap, "price_gap_ratio": gap_ratio,
+            "estimated_value": estimated if gap is not None else None, "price_gap": gap, "price_gap_ratio": gap_ratio,
             "appraisal_confidence": confidence, "appraisal_match_level": appraisal_summary.get("match_level"),
             "appraisal_comparable_count": appraisal_summary.get("comparable_count"),
             "source_status": candidate.get("source_status"),
-            "funding": simulation_summary if simulation else None,
-            "rights": rights_summary if rights else None,
+            "funding": simulation_summary if axis_status["funding"] in {"confirmed", "warning"} else None,
+            "rights": rights_summary if axis_status["risk"] in {"confirmed", "warning"} else None,
             "analysis_status": {
                 "appraisal": (appraisal or {}).get("status", "missing"),
                 "simulation": (simulation or {}).get("status", "missing"),
@@ -98,7 +108,7 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None) -
             "review_stage": review_stage,
             "missing": list(dict.fromkeys(missing)), "warnings": list(dict.fromkeys(warnings)),
             "highlights": list(dict.fromkeys(highlights)),
-            "decision_ready": candidate.get("status") != "rejected" and not next_actions,
+            "decision_ready": candidate_decision.review_ready,
         })
 
     return {

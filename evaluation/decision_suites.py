@@ -28,7 +28,7 @@ def decision(case: DecisionCase) -> dict:
             candidates.append(candidate)
         workspace = {"id": 1, "title": case.id, "budget_max": step.budget_max_won,
                      "properties": candidates, "selected_property_id": step.selected_property_id}
-        comparison = compare_case_candidates(workspace)
+        comparison = compare_case_candidates(workspace, now=step.as_of)
         rows = {str(row["property_id"]): row for row in comparison["rows"]}
         actions = {str(c["id"]): candidate_next_actions(workspace, c) for c in candidates}
         actual_ready = sorted(row["property_id"] for row in rows.values() if row["decision_ready"])

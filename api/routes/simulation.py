@@ -31,7 +31,7 @@ class SimulationRequest(BaseModel):
     rent_fee: Optional[int] = None
     monthly_management_fee: Optional[int] = None
     property_type: str = "아파트"
-    owned_homes: int = Field(1, ge=1)
+    owned_homes: int = Field(1, ge=1, le=100, description="취득 후 주택 수. 첫 주택 취득은 1")
     # 세금·규제 (선택)
     official_price: Optional[int] = None            # 공시가격 (원)
     residence_years: Optional[int] = None           # 거주 연수
@@ -39,6 +39,13 @@ class SimulationRequest(BaseModel):
     adjusted_area: bool = False                     # 조정대상지역
     annual_income: Optional[int] = None             # 연소득 (원, DSR)
     existing_loan_annual_payment: int = Field(0, ge=0)
+
+    def to_simulation_input(self):
+        from schemas.simulation import SimulationInput
+
+        # 화면·대화·시나리오에서 필드를 따로 복사하면 같은 조건도 서로 다른 계산이 된다.
+        values = self.model_dump(exclude={"case_id", "candidate_id", "loan_ratio", "monthly_payment_limit"})
+        return SimulationInput(**values, loan_amount=int(self.purchase_price * self.loan_ratio))
 
 
 class SimulationFromListingRequest(BaseModel):
@@ -62,34 +69,11 @@ async def run_simulation_endpoint(req: SimulationRequest, user: dict | None = De
 def execute_simulation(req: SimulationRequest, user: dict | None):
     """화면과 대화가 동일한 계산 및 후보 저장 경로를 사용한다."""
     from backend.router import run_simulation
-    from schemas.simulation import SimulationInput
 
     if req.case_id is not None or req.candidate_id is not None:
         if req.case_id is None or req.candidate_id is None or not user or not case_db.validate_candidate(req.case_id, req.candidate_id, user["id"]):
             raise HTTPException(status_code=404, detail="검토 후보가 없습니다")
-    loan_amount = int(req.purchase_price * req.loan_ratio)
-
-    inp = SimulationInput(
-        purchase_price              = req.purchase_price,
-        cash_available              = req.cash_available,
-        loan_amount                 = loan_amount,
-        annual_interest_rate        = req.annual_interest_rate,
-        loan_years                  = req.loan_years,
-        repayment_type              = req.repayment_type,
-        holding_years               = req.holding_years,
-        expected_annual_growth_rate = req.expected_annual_growth_rate,
-        rent_deposit                = req.rent_deposit,
-        rent_fee                    = req.rent_fee,
-        monthly_management_fee      = req.monthly_management_fee,
-        property_type               = req.property_type,
-        owned_homes                 = req.owned_homes,
-        official_price              = req.official_price,
-        residence_years             = req.residence_years,
-        vacancy_rate                = req.vacancy_rate,
-        adjusted_area               = req.adjusted_area,
-        annual_income               = req.annual_income,
-        existing_loan_annual_payment = req.existing_loan_annual_payment,
-    )
+    inp = req.to_simulation_input()
 
     logger.info("시뮬레이션 요청 — 매수가 %s원, 대출비율 %.0f%%", req.purchase_price, req.loan_ratio * 100)
     result = run_simulation(inp)

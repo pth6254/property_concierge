@@ -8,6 +8,8 @@ class ListingInput(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, allow_inf_nan=False)
     external_id: str = Field(min_length=1, max_length=100)
     name: str = Field(min_length=1, max_length=150)
+    alias: str = Field(default="", max_length=100)
+    address_token: str | None = Field(default=None, max_length=20000, exclude=True)
     property_type: Literal["apartment", "officetel", "row_house", "detached", "non_residential", "industrial", "land"]
     transaction_type: Literal["purchase", "lease", "rent"]
     address: str = Field(min_length=1, max_length=500)

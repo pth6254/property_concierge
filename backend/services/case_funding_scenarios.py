@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 from api.routes.simulation import SimulationRequest
-from backend.services.candidate_funding import funding_summary, funding_issues
+from backend.services.candidate_funding import funding_summary, funding_issues, profile_funding_inputs
 from backend.router import run_simulation
-from schemas.simulation import SimulationInput
 
 PROPERTY_TYPES = {
     "apartment": "아파트", "아파트": "아파트",
@@ -37,25 +36,9 @@ def _calculate(candidate: dict, profile: dict, *, price_delta_won: int = 0,
     rate = profile["annual_interest_rate"] + interest_delta_pct
     if not 0 <= rate <= 30:
         return {"status": "invalid", "missing": ["annual_interest_rate"]}
-    request = SimulationRequest(
-        purchase_price=price + price_delta_won, property_type=property_type,
-        cash_available=cash, monthly_payment_limit=profile["monthly_payment_limit"],
-        loan_ratio=profile["loan_ratio"], annual_interest_rate=rate,
-        loan_years=profile["loan_years"], owned_homes=profile["owned_homes"],
-        adjusted_area=profile["adjusted_area"], annual_income=profile.get("annual_income"),
-        existing_loan_annual_payment=profile.get("existing_loan_annual_payment", 0),
-    )
-    inp = SimulationInput(
-        purchase_price=request.purchase_price, cash_available=request.cash_available,
-        loan_amount=int(request.purchase_price * request.loan_ratio),
-        annual_interest_rate=request.annual_interest_rate, loan_years=request.loan_years,
-        repayment_type=request.repayment_type, holding_years=request.holding_years,
-        expected_annual_growth_rate=request.expected_annual_growth_rate,
-        property_type=request.property_type, owned_homes=request.owned_homes,
-        adjusted_area=request.adjusted_area, annual_income=request.annual_income,
-        existing_loan_annual_payment=request.existing_loan_annual_payment,
-    )
-    result = run_simulation(inp)
+    values = profile_funding_inputs(profile, {"cash_available": cash, "annual_interest_rate": rate})
+    request = SimulationRequest(purchase_price=price + price_delta_won, property_type=property_type, **values)
+    result = run_simulation(request.to_simulation_input())
     if not isinstance(result, dict) or result.get("error"):
         return {"status": "failed", "missing": []}
     raw = result.get("result")

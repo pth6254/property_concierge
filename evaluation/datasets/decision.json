@@ -47,7 +47,15 @@
                   "title": "?? ?? ??",
                   "status": "todo"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -111,7 +119,15 @@
                   "title": "?? ?? ??",
                   "status": "todo"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -144,7 +160,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -162,7 +180,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -170,7 +195,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -205,7 +234,15 @@
                   "title": "?? ?? ??",
                   "status": "todo"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -232,7 +269,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -250,7 +289,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -258,7 +304,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -293,7 +343,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -322,7 +380,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -340,7 +400,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -348,7 +415,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "danger",
-                    "risk_label": "???"
+                    "risk_label": "???",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -383,7 +454,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             },
             {
               "id": 2,
@@ -394,7 +473,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -412,7 +493,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -420,7 +508,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -455,7 +547,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 2,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -489,7 +589,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -507,7 +609,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -515,7 +624,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "danger",
-                    "risk_label": "???"
+                    "risk_label": "???",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -550,7 +663,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             },
             {
               "id": 2,
@@ -561,7 +682,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -579,7 +702,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -587,7 +717,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -622,7 +756,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 2,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -657,7 +799,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -675,7 +819,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -683,7 +834,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -718,7 +873,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-08T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -741,7 +904,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -759,7 +924,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -767,7 +939,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -802,7 +978,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-08T12:00:01"
+                }
+              }
             }
           ],
           "expected": {
@@ -834,7 +1018,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -852,7 +1038,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -860,7 +1053,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -895,7 +1092,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-15T12:00:01"
+                }
+              }
             }
           ],
           "expected": {
@@ -927,7 +1132,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -945,7 +1152,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -953,7 +1167,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -988,7 +1206,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-10-01T12:00:01"
+                }
+              }
             }
           ],
           "expected": {
@@ -1022,7 +1248,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1040,7 +1268,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1048,7 +1283,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1083,7 +1322,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1109,7 +1356,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1127,7 +1376,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1135,7 +1391,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1170,7 +1430,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1204,7 +1472,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   },
                   "status": "failed"
                 },
@@ -1223,7 +1493,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   },
                   "status": "pending"
                 },
@@ -1232,7 +1509,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1267,7 +1548,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1300,7 +1589,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1318,7 +1609,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1326,7 +1624,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "danger",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1362,7 +1664,15 @@
                   "status": "done"
                 }
               ],
-              "status": "rejected"
+              "status": "rejected",
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1396,7 +1706,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1414,7 +1726,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1422,7 +1741,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1457,7 +1780,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1483,7 +1814,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1501,7 +1834,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1509,7 +1849,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1544,7 +1888,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1577,7 +1929,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1595,7 +1949,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1603,7 +1964,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1638,7 +2003,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1675,7 +2048,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1693,7 +2068,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1701,7 +2083,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1736,7 +2122,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-20T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1788,7 +2182,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1806,7 +2202,14 @@
                       "dsr": 0.3,
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
-                    }
+                    },
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    },
+                    "loan_amount": 400000000
                   }
                 },
                 {
@@ -1814,7 +2217,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1849,7 +2256,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1887,7 +2302,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1906,7 +2323,13 @@
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
                     },
-                    "loan_amount": 400000000
+                    "loan_amount": 400000000,
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    }
                   }
                 },
                 {
@@ -1914,7 +2337,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -1949,7 +2376,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -1978,7 +2413,9 @@
                   "analysis_type": "appraisal",
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
-                    "estimated_value": 900000000, "confidence": 0.8
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
                   }
                 },
                 {
@@ -1997,7 +2434,13 @@
                       "ltv_exceeded": false,
                       "dsr_exceeded": false
                     },
-                    "loan_amount": 400000000
+                    "loan_amount": 400000000,
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    }
                   }
                 },
                 {
@@ -2005,7 +2448,11 @@
                   "analyzed_at": "2026-09-01T12:00:00",
                   "summary": {
                     "risk_grade": "safe",
-                    "risk_label": "?? ?? ?? ??"
+                    "risk_label": "?? ?? ?? ??",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
                   }
                 }
               ],
@@ -2040,7 +2487,15 @@
                   "title": "?? ?? ??",
                   "status": "done"
                 }
-              ]
+              ],
+              "source": "manual",
+              "source_listing_id": 1,
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              }
             }
           ],
           "expected": {
@@ -2073,14 +2528,68 @@
               "source": "manual",
               "asking_price": 900000000,
               "analyses": [
-                {"analysis_type": "appraisal", "analyzed_at": "2026-09-01T12:00:00", "summary": {"estimated_value": 900000000}},
-                {"analysis_type": "simulation", "analyzed_at": "2026-09-01T12:00:00", "summary": {"purchase_price": 900000000, "loan_amount": 0, "required_cash": 920000000, "monthly_payment": 0, "cash_available": 920000000, "cash_shortfall": 0}},
-                {"analysis_type": "rights", "analyzed_at": "2026-09-01T12:00:00", "summary": {"risk_grade": "safe"}}
+                {
+                  "analysis_type": "appraisal",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "estimated_value": 900000000
+                  }
+                },
+                {
+                  "analysis_type": "simulation",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "purchase_price": 900000000,
+                    "loan_amount": 0,
+                    "required_cash": 920000000,
+                    "monthly_payment": 0,
+                    "cash_available": 920000000,
+                    "cash_shortfall": 0,
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    }
+                  }
+                },
+                {
+                  "analysis_type": "rights",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "risk_grade": "safe",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
+                  }
+                }
               ],
-              "checklist": [{"id": 1, "category": "site", "title": "현장 확인", "status": "done"}]
+              "checklist": [
+                {
+                  "id": 1,
+                  "category": "site",
+                  "title": "현장 확인",
+                  "status": "done"
+                }
+              ]
             }
           ],
-          "expected": {"ready_ids": [], "required_actions": {"1": ["source_unverified", "appraisal_confidence"]}, "comparison_values": {"1": {"price_gap": null, "decision_ready": false}}}
+          "expected": {
+            "ready_ids": [],
+            "required_actions": {
+              "1": [
+                "source_unverified",
+                "appraisal_confidence"
+              ]
+            },
+            "comparison_values": {
+              "1": {
+                "price_gap": null,
+                "decision_ready": false
+              }
+            }
+          }
         },
         {
           "name": "출처 연결 및 신뢰도 확인",
@@ -2091,17 +2600,81 @@
               "name": "가상 후보",
               "source": "manual",
               "source_listing_id": 1,
-              "source_status": {"status": "current"},
+              "source_status": {
+                "status": "current",
+                "current": {
+                  "confirmed_at": "2026-09-02T12:00:00"
+                }
+              },
               "asking_price": 900000000,
               "analyses": [
-                {"analysis_type": "appraisal", "analyzed_at": "2026-09-01T12:00:00", "summary": {"estimated_value": 900000000, "confidence": 0.8}},
-                {"analysis_type": "simulation", "analyzed_at": "2026-09-01T12:00:00", "summary": {"purchase_price": 900000000, "loan_amount": 0, "required_cash": 920000000, "monthly_payment": 0, "cash_available": 920000000, "cash_shortfall": 0}},
-                {"analysis_type": "rights", "analyzed_at": "2026-09-01T12:00:00", "summary": {"risk_grade": "safe"}}
+                {
+                  "analysis_type": "appraisal",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
+                  }
+                },
+                {
+                  "analysis_type": "simulation",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "purchase_price": 900000000,
+                    "loan_amount": 0,
+                    "required_cash": 920000000,
+                    "monthly_payment": 0,
+                    "cash_available": 920000000,
+                    "cash_shortfall": 0,
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    }
+                  }
+                },
+                {
+                  "analysis_type": "rights",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "risk_grade": "safe",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
+                  }
+                }
               ],
-              "checklist": [{"id": 1, "category": "site", "title": "현장 확인", "status": "done"}]
+              "checklist": [
+                {
+                  "id": 1,
+                  "category": "site",
+                  "title": "현장 확인",
+                  "status": "done"
+                }
+              ]
             }
           ],
-          "expected": {"ready_ids": [1], "forbidden_actions": {"1": ["source_unverified", "appraisal_confidence"]}, "comparison_values": {"1": {"price_gap": 0, "decision_ready": true}}}
+          "expected": {
+            "ready_ids": [
+              1
+            ],
+            "forbidden_actions": {
+              "1": [
+                "source_unverified",
+                "appraisal_confidence"
+              ]
+            },
+            "comparison_values": {
+              "1": {
+                "price_gap": 0,
+                "decision_ready": true
+              }
+            }
+          },
+          "budget_max_won": 950000000
         },
         {
           "name": "가상 추천 매물은 검토 완료 아님",
@@ -2113,14 +2686,68 @@
               "source": "recommendation",
               "asking_price": 900000000,
               "analyses": [
-                {"analysis_type": "appraisal", "analyzed_at": "2026-09-01T12:00:00", "summary": {"estimated_value": 900000000, "confidence": 0.8}},
-                {"analysis_type": "simulation", "analyzed_at": "2026-09-01T12:00:00", "summary": {"purchase_price": 900000000, "loan_amount": 0, "required_cash": 920000000, "monthly_payment": 0, "cash_available": 920000000, "cash_shortfall": 0}},
-                {"analysis_type": "rights", "analyzed_at": "2026-09-01T12:00:00", "summary": {"risk_grade": "safe"}}
+                {
+                  "analysis_type": "appraisal",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "estimated_value": 900000000,
+                    "confidence": 0.8,
+                    "comparable_count": 6
+                  }
+                },
+                {
+                  "analysis_type": "simulation",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "purchase_price": 900000000,
+                    "loan_amount": 0,
+                    "required_cash": 920000000,
+                    "monthly_payment": 0,
+                    "cash_available": 920000000,
+                    "cash_shortfall": 0,
+                    "home_count_basis": "after_purchase",
+                    "inputs": {
+                      "owned_homes": 1,
+                      "annual_interest_rate": 4,
+                      "loan_years": 30
+                    }
+                  }
+                },
+                {
+                  "analysis_type": "rights",
+                  "analyzed_at": "2026-09-01T12:00:00",
+                  "summary": {
+                    "risk_grade": "safe",
+                    "registry_supplied": true,
+                    "building_supplied": true,
+                    "registry_parsed": true,
+                    "building_parsed": true
+                  }
+                }
               ],
-              "checklist": [{"id": 1, "category": "site", "title": "현장 확인", "status": "done"}]
+              "checklist": [
+                {
+                  "id": 1,
+                  "category": "site",
+                  "title": "현장 확인",
+                  "status": "done"
+                }
+              ]
             }
           ],
-          "expected": {"ready_ids": [], "required_actions": {"1": ["demo_listing"]}, "comparison_values": {"1": {"decision_ready": false}}}
+          "expected": {
+            "ready_ids": [],
+            "required_actions": {
+              "1": [
+                "demo_listing"
+              ]
+            },
+            "comparison_values": {
+              "1": {
+                "decision_ready": false
+              }
+            }
+          }
         }
       ]
     }

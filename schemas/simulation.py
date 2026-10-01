@@ -44,7 +44,7 @@ class SimulationInput(BaseModel):
 
     # 물건 정보 (취득세율 결정)
     property_type: Optional[str] = Field("아파트", description="매물 유형 (아파트·오피스텔·상가·토지 등)")
-    owned_homes: int = Field(1, ge=1, description="현재 보유 주택 수 (취득 전 기준, 주거용 취득세 중과 산정용)")
+    owned_homes: int = Field(1, ge=1, le=100, description="취득하는 주택을 포함한 취득 후 주택 수. 무주택자의 첫 주택 취득은 1")
 
     # 세금 산정 (양도세·보유세)
     official_price: Optional[int] = Field(None, ge=0, description="공시가격 (원, 보유세 산정용). None이면 시세×현실화율로 추정")
@@ -151,6 +151,8 @@ class SimulationResult(BaseModel):
     # 입력 요약 (검증용 echo)
     purchase_price: int
     loan_amount: int
+    owned_homes: int | None = None
+    home_count_basis: Literal["after_purchase"] | None = None
     equity: int             # 실투자금 = 필요 현금 − 전세 보증금 (원)
     required_cash: int      # 필요 현금 = 매수가 − 대출 + 취득 비용 (원)
 

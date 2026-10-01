@@ -1,4 +1,4 @@
-import type { ActivityItem, CaseCandidateComparison, CaseExecution, CaseProperty, ComplexAddress, ConciergeResponse, ExecutionActor, ExecutionPhase, ExecutionTaskStatus, PurchaseCase, RecommendationRequest, SimulationRequest } from "./types";
+import type { ActivityItem, CaseCandidateComparison, CaseDecisionSummary, CaseExecution, CaseProperty, ComplexAddress, ConciergeResponse, ExecutionActor, ExecutionPhase, ExecutionTaskStatus, PurchaseCase, RecommendationRequest, SimulationRequest } from "./types";
 
 const BASE = "/api";
 
@@ -212,6 +212,9 @@ export const api = {
   }) => req<PurchaseCase>("/cases", { method: "POST", body: JSON.stringify(data) }),
 
   caseOne: (id: number) => req<PurchaseCase>(`/cases/${id}`),
+
+  caseDecisionSummary: (id: number, signal?: AbortSignal) =>
+    req<CaseDecisionSummary>(`/cases/${id}/summary`, { signal, cache: "no-store" }),
 
   caseComparison: (id: number, propertyIds: number[]) => {
     const query = new URLSearchParams();

@@ -119,7 +119,10 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
     <p className="text-xs text-slate-500">본인이 등록한 자료만 표시합니다. 확인일이 오래된 매물은 제공자에게 상태를 다시 확인하세요.</p>
     {loading && <p role="status" className="p-6 text-center text-slate-500">매물을 불러오는 중입니다.</p>}
     <div className="grid gap-3 md:grid-cols-2">{!loading && items.map(item=><article className="space-y-2 rounded-xl border border-slate-200 bg-white p-4" key={item.id}>
-      <h2 className="font-bold">{item.name}</h2><p className="text-sm">{item.address} · {item.area_sqm}㎡ · {item.floor||"층 미입력"}</p>
+      <h2 className="break-words font-bold">{item.name}</h2>
+      {item.alias && <p className="break-words text-sm text-primary">별칭: {item.alias}</p>}
+      {item.address_details ? <div className="space-y-1 text-sm"><p>도로명: {item.address_details.road_address || "제공 정보 없음"}</p><p>지번: {item.address_details.jibun_address}</p><p className="text-xs text-slate-500">{item.address_details.building_name ? `조회 이름 · ${item.address_details.name_source === "building_register" ? "건축물대장" : "카카오 주소 검색"}` : "건물명 미확인 · 주소로 등록"} · 조회일 {new Date(item.address_details.checked_at).toLocaleDateString("ko-KR")}</p></div> : <p className="text-sm">{item.address} · 주소 조회 미확인</p>}
+      <p className="text-sm">{item.area_sqm}㎡ · {item.floor || "층 미입력"}</p>
       <p>{item.transaction_type==="purchase"?`희망가 ${money(item.asking_price)}`:`보증금 ${money(item.deposit)}${item.monthly_rent?` / 월세 ${money(item.monthly_rent)}`:""}`}</p>
       <p className="text-xs text-slate-600">{STATUS[item.status]} · {item.needs_confirmation?"재확인 필요":"최근 사용자 확인 자료"} · {!item.region_linked&&"법정동 미연결"}</p>
       <p className="text-xs">출처 {item.source_name} / {item.external_id} · 확인 {new Date(item.confirmed_at).toLocaleString("ko-KR")}</p>

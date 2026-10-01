@@ -1,6 +1,16 @@
+export type ListingAddressDetails = {
+  road_address: string; jibun_address: string; legal_region_code: string;
+  latitude: number; longitude: number; building_name: string;
+  name_source: "kakao_address" | "building_register" | "unknown";
+  name_status: "found" | "unknown" | "ambiguous"; name_candidates: string[];
+  source: "kakao_address"; checked_at: string; identity_level: "building" | "parcel";
+};
+export type ListingAddressChoice = ListingAddressDetails & { token: string };
+
 export type ImportedListing = {
   id: number; external_id: string; name: string; source_name: string; source_url: string | null;
   address: string; legal_region_code: string | null; property_type: string; transaction_type: string;
+  alias?: string; address_details?: ListingAddressDetails | null;
   area_sqm: number; floor: string; asking_price: number | null; deposit: number | null; monthly_rent: number | null;
   confirmed_at: string; status: string; needs_confirmation: boolean; region_linked: boolean;
   first_seen_at?: number | null; last_seen_at?: number | null; last_collection_at?: number | null; last_collection_outcome?: string | null;
@@ -19,8 +29,8 @@ export type ListingImportResult = {
 export class ListingRequestError extends Error {
   constructor(message: string, public readonly retryAfterSeconds: number = 0) { super(message); }
 }
-async function request<T>(path: string, body?: object): Promise<T> {
-  const response = await fetch(`/api/listings${path}`, { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(15000),
+async function request<T>(path: string, body?: object, timeout = 15000): Promise<T> {
+  const response = await fetch(`/api/listings${path}`, { credentials: "include", cache: "no-store", signal: AbortSignal.timeout(timeout),
     ...(body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}) });
   if (!response.ok) {
     const error: { detail?: unknown } = await response.json().catch(() => ({}));
@@ -31,6 +41,7 @@ async function request<T>(path: string, body?: object): Promise<T> {
   return response.json();
 }
 export const listingApi = {
+  addresses: (query: string) => request<{items:ListingAddressChoice[]}>(`/address/search?${new URLSearchParams({query})}`, undefined, 25000),
   get: (id: number) => request<ImportedListing>(`/${id}`),
   collect: (source_url: string) => request<{job_id:string}>("/collection/jobs", {source_url}),
   collectionJob: (id: string) => request<{status:string; error:string; result?:ListingObservation}>(`/collection/jobs/${encodeURIComponent(id)}`),

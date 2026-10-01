@@ -55,9 +55,9 @@ class ConciergeFunding(BaseModel):
     annual_interest_rate: float | None = Field(None, ge=0, le=30)
     loan_years: int | None = Field(None, ge=1, le=50)
     repayment_type: Literal["equal_payment", "equal_principal", "interest_only"] | None = None
-    owned_homes: int | None = Field(None, ge=1, le=100)
+    owned_homes: int | None = Field(None, ge=1, le=100, description="취득 후 주택 수. 첫 주택 취득은 1")
     adjusted_area: bool | None = None
-    annual_income: int | None = Field(None, gt=0)
+    annual_income: int | None = Field(None, ge=0)
     existing_loan_annual_payment: int | None = Field(None, ge=0)
 
 

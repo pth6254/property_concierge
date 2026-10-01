@@ -35,7 +35,7 @@ def _case(user_id, context):
 
 def simulate_investment(criteria, user_id, candidate_context=None, *, funding=None):
     from api.routes.simulation import SimulationRequest, execute_simulation
-    from backend.services.candidate_funding import funding_issues
+    from backend.services.candidate_funding import funding_issues, profile_funding_inputs
     tool = "simulate_investment"
     case = _case(user_id, candidate_context)
     candidate = next((p for p in (case or {}).get("properties", [])
@@ -45,11 +45,7 @@ def simulate_investment(criteria, user_id, candidate_context=None, *, funding=No
                                    data={"answer": "자금을 분석할 케이스와 후보를 선택해주세요."})
     # 케이스 공통 조건을 기본값으로 쓰되 대화에서 지정한 값이 우선한다.
     profile = (case or {}).get("buyer_profile") or {}
-    profile_funding = {key: profile[key] for key in FUNDING_LABELS if profile.get(key) is not None}
-    profile_funding.setdefault("repayment_type", "equal_payment")
-    values = ConciergeFunding.model_validate({**profile_funding, **(funding or {})}).model_dump(exclude_none=True)
-    if "cash_available" in profile_funding and "cash_available" not in (funding or {}):
-        values["cash_available"] = profile_funding["cash_available"] - profile.get("emergency_reserve", 0)
+    values = profile_funding_inputs(profile, funding)
     required = ["cash_available", "loan_ratio", "owned_homes", "adjusted_area"]
     if values.get("loan_ratio", 1) > 0:
         required += ["annual_interest_rate", "loan_years", "repayment_type", "existing_loan_annual_payment"]
@@ -78,6 +74,7 @@ def simulate_investment(criteria, user_id, candidate_context=None, *, funding=No
         return f"{value:,}원" if value is not None else "미확인"
     data.update(candidate_funding=summary, warnings=warnings,
         answer=f"{candidate['name']}의 현재 희망가 {money(candidate['asking_price'])}을 기준으로 계산하고 후보에 저장했습니다.\n"
+        f"주택 수는 이번 취득을 포함한 취득 후 {req.owned_homes}주택으로 적용했습니다.\n"
         f"필요 현금 {money(summary.get('required_cash'))}, 현금 부족액 {money(summary.get('cash_shortfall'))}, 월 상환액 {money(summary.get('monthly_payment'))}.\n"
         + ("확인할 항목: " + ", ".join(warnings) + ".\n" if warnings else "")
         + "참고용 시뮬레이션이며 대출 승인을 보장하지 않습니다. 부가 시나리오는 보유 3년·가격 상승률 0%·임대수입 없음으로 계산했습니다.")

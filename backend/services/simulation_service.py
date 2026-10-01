@@ -206,6 +206,7 @@ def generate_simulation_report(
             ("보유 기간",      f"{inp.holding_years}년"),
             ("예상 연 상승률", _fmt_pct_plain(inp.expected_annual_growth_rate)),
             ("매물 유형",      inp.property_type or "—"),
+            ("취득 후 주택 수", f"{inp.owned_homes}주택 (이번 취득 포함)"),
         ]
         if inp.rent_deposit:
             rows.append(("전세 보증금", _fmt_won(inp.rent_deposit)))

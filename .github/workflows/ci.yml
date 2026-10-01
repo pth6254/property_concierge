@@ -111,6 +111,9 @@ jobs:
           node scripts/verify_listing_import_browser.cjs http://127.0.0.1:8000
           node scripts/verify_navigation_browser.cjs http://127.0.0.1:8000
           node scripts/verify_service_quality_browser.cjs http://127.0.0.1:8000
+          node scripts/verify_candidate_funding_browser.cjs http://127.0.0.1:8000
+          node scripts/verify_decision_assessment_browser.cjs http://127.0.0.1:8000
+          node scripts/verify_listing_address_browser.cjs http://127.0.0.1:8000
 
       - name: Save decision flow evidence
         if: always()
@@ -125,6 +128,12 @@ jobs:
             evaluation-results/navigation-*.png
             evaluation-results/service-quality-browser.json
             evaluation-results/service-quality-*.png
+            evaluation-results/funding-browser*.json
+            evaluation-results/funding-browser*.png
+            evaluation-results/assessment-browser*.json
+            evaluation-results/assessment-browser*.png
+            evaluation-results/address-browser*.json
+            evaluation-results/address-browser*.png
           if-no-files-found: ignore
 
   # ────────────────────────────────────────────

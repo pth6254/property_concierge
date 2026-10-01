@@ -10,7 +10,7 @@ from backend.concierge.decision_tools import merge_funding
 
 @pytest.mark.parametrize("field,value", [("cash_available", True), ("cash_available", -1),
     ("loan_ratio", 50), ("annual_interest_rate", float("inf")), ("loan_years", "30"),
-    ("adjusted_area", "false"), ("purchase_price", 1), ("annual_income", 0)])
+    ("adjusted_area", "false"), ("purchase_price", 1), ("annual_income", -1)])
 def test_invalid_funding_does_not_replace_previous(field, value):
     previous = {"cash_available": 300000000}
     values, invalid = merge_funding({field: value}, previous)

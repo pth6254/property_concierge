@@ -109,7 +109,9 @@ async def analyze_rights_endpoint(
                 req.case_id, req.candidate_id, user["id"], "rights",
                 {"risk_grade": grade, "risk_label": result.get("risk_label"),
                  "risk_score": result.get("risk_score"), "reasons": result.get("reasons") or [],
-                 "registry_supplied": registry is not None, "building_supplied": building is not None},
+                 "registry_supplied": registry is not None, "building_supplied": building is not None,
+                 "registry_parsed": bool(result.get("registry") and not result["registry"].get("error")),
+                 "building_parsed": bool(result.get("building") and not result["building"].get("error"))},
                 checklist_status="done" if grade == "safe" else "warning",
                 evidence=f"업로드 문서 기반 권리분석 완료 · {result.get('risk_label') or grade}",
             )

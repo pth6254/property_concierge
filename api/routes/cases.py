@@ -70,7 +70,10 @@ def decision_summary(case_id: int, user: dict = Depends(get_current_user)):
     if not case:
         raise HTTPException(404, "검토 케이스가 없습니다")
     # 같은 조회 스냅샷으로 요약과 다음 행동을 만들어 가격 변경 도중의 혼합을 피한다.
-    return {"case": case, "comparison": compare_case_candidates(case)}
+    from backend.services.case_decision_assessment import assess_case_decision
+    assessment = assess_case_decision(case)
+    return {"case": case, "comparison": compare_case_candidates(case, assessment=assessment),
+            "decision": assessment.model_dump(mode="json")}
 
 
 @router.post("/cases/{case_id}/funding-scenarios")

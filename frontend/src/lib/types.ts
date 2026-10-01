@@ -1,4 +1,5 @@
 // TypeScript types mirroring Pydantic schemas
+import type { ListingAddressDetails } from "./listings";
 
 export interface ComparableTransaction {
   complex_name?: string;
@@ -116,6 +117,8 @@ export interface RateSensitivityCell {
 export interface SimulationResult {
   purchase_price: number;
   loan_amount: number;
+  owned_homes?: number | null;
+  home_count_basis?: "after_purchase" | null;
   equity: number;
   required_cash: number;
   acquisition_cost: AcquisitionCost;
@@ -191,6 +194,8 @@ export interface CaseProperty {
   id: number;
   case_id: number;
   name: string;
+  alias?: string;
+  address_details?: ListingAddressDetails | null;
   address: string;
   category: string;
   asking_price: number | null;
@@ -231,7 +236,7 @@ export interface CandidateNextAction {
   code: string;
   title: string;
   reason: string;
-  target: "price" | "appraisal" | "simulation" | "rights" | "checklist" | "listings";
+  target: "price" | "appraisal" | "simulation" | "rights" | "checklist" | "listings" | "profile";
   priority: "warning" | "input" | "normal";
   checklist_id: number | null;
 }
@@ -306,7 +311,8 @@ export interface BuyerProfile {
   monthly_payment_limit: number | null; annual_income: number | null;
   existing_loan_annual_payment: number; loan_ratio: number | null;
   annual_interest_rate: number | null; loan_years: number | null;
-  owned_homes: number | null; adjusted_area: boolean | null;
+  owned_homes: number | null; // 이번 취득을 포함한 취득 후 주택 수
+  adjusted_area: boolean | null;
   min_area_sqm: number | null; min_build_year: number | null;
   max_area_sqm?: number | null; max_build_year?: number | null; market_months?: number;
   property_types: string[]; priority: "cash" | "monthly" | "value" | "liquidity" | "age";
@@ -364,6 +370,35 @@ export interface CaseCandidateComparison {
   decision_reason: string;
   decided_at: string | null;
   rows: CaseCandidateComparisonRow[];
+}
+
+export type DecisionAssessmentStatus = "confirmed" | "warning" | "unknown" | "stale" | "error" | "pending";
+
+export interface DecisionEvidence {
+  key: string; label: string; value: string | number | boolean | null;
+  unit: string; source: "user_input" | "calculation" | "document" | "workflow";
+  as_of: string | null; usable: boolean; reference_url: string | null;
+}
+
+export interface DecisionAxis {
+  key: "fit" | "price" | "funding" | "risk" | "execution";
+  label: string; status: DecisionAssessmentStatus; headline: string; explanation: string;
+  evidence: DecisionEvidence[]; missing: string[]; limitations: string[];
+  review_target: "profile" | "appraisal" | "simulation" | "rights" | "checklist" | "execution";
+  review_label: string;
+}
+
+export interface CandidateDecisionAssessment {
+  property_id: number; name: string; status: CaseProperty["status"]; review_ready: boolean;
+  metrics: { asking_price: number | null; required_cash: number | null; monthly_payment: number | null;
+    cash_shortfall: number | null; price_gap: number | null; price_gap_ratio: number | null };
+  axes: DecisionAxis[]; next_actions: CandidateNextAction[];
+}
+
+export interface CaseDecisionSummary {
+  case: PurchaseCase; comparison: CaseCandidateComparison;
+  decision: { version: 1; case_id: number; evaluated_at: string;
+    candidates: CandidateDecisionAssessment[]; boundary: string };
 }
 
 export type ExecutionPhase = "before_contract" | "before_closing" | "closing_day" | "after_closing";
@@ -546,7 +581,7 @@ export interface SimulationRequest {
   rent_fee?: number;
   monthly_management_fee?: number;
   property_type: string;
-  owned_homes: number;
+  owned_homes: number; // 이번 취득을 포함한 취득 후 주택 수
   official_price?: number;
   residence_years?: number;
   vacancy_rate?: number;
