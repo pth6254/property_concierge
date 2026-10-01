@@ -15,31 +15,8 @@ def profile_funding_inputs(profile: dict, overrides: dict | None = None) -> dict
 
 
 def funding_summary(request, calculated: dict) -> dict:
-    loan = calculated.get("loan") or {}
-    finance = calculated.get("finance_check") or {}
-    required = calculated.get("required_cash")
-    monthly = loan.get("monthly_payment")
-    cash = request.cash_available
-    limit = request.monthly_payment_limit
-    return {
-        "funding_version": 1,
-        "home_count_basis": "after_purchase",
-        "purchase_price": request.purchase_price,
-        "loan_amount": calculated.get("loan_amount"),
-        "annual_interest_rate": request.annual_interest_rate,
-        "monthly_payment": monthly,
-        "required_cash": required,
-        "acquisition_cost": (calculated.get("acquisition_cost") or {}).get("total"),
-        "cash_available": cash,
-        # 임대보증금은 수령 시점과 반환 의무가 있으므로 잔금 자금으로 자동 차감하지 않는다.
-        "cash_shortfall": max(required - cash, 0) if required is not None and cash is not None else None,
-        "monthly_payment_limit": limit,
-        "monthly_payment_exceeded": monthly > limit if monthly is not None and limit is not None else None,
-        "dsr_ratio": finance.get("dsr"),
-        "finance_check": finance,
-        "annual_equity_roi": (calculated.get("scenario_base") or {}).get("annual_equity_roi"),
-        "inputs": request.model_dump(mode="json", exclude={"case_id", "candidate_id"}),
-    }
+    from backend.services.core_calculations import calculate
+    return calculate("funding_summary", {"request": request.model_dump(mode="json"), "calculated": calculated})
 
 
 def funding_issues(summary: dict) -> list[tuple[str, str, str, str]]:

@@ -19,9 +19,12 @@
 [인수인계 문서](docs/project-handoff.md)를 따른다.
 
 ```
-Next.js 16 (App Router) 컨테이너 :3000 / 기본 호스트 :3002
-   │ REST · JWT 쿠키
-FastAPI 컨테이너 :8000 / 기본 호스트 :8002  (uvicorn --workers 4)
+웹 호스트 :3002 → Caddy → Next.js 16 (App Router) 내부 :3000
+   │ /api · JWT 쿠키 (Caddy가 Spring으로 전달)
+Kotlin Spring 내부 :8080 / 기본 API 호스트 :8002
+   ├── core-service/ 회원·매물·케이스·거래 상태·분석 이력·작업 저장·자금/세금 계산
+   │ 내부 REST (서비스 인증)
+FastAPI 내부 :8000 (공개 포트 없음, uvicorn --workers 4)
    ├── api/          라우터 · 인증 · Redis Stream 작업 큐/별도 실행기
    ├── backend/      LangGraph 파이프라인 + 도메인 로직
    ├── db/           SQLAlchemy 모델 + Alembic + Redis 클라이언트
@@ -42,6 +45,30 @@ PostgreSQL(+pgvector) · Redis
 ---
 
 ## 2. 절대 되돌리면 안 되는 결정
+
+**백엔드 전환:** 언어는 사용자 결정에 따라 Kotlin이다. `core-service/`의 Spring은 저장·소유자 확인·트랜잭션을,
+고정 수식의 금융·세금 계산도 담당한다. Python은 모델 추정·입력 해석·AI 분석을 담당한다.
+기본 API 8002는 Spring이며 Python은 내부 전용이다.
+`CORE_STORAGE_URL`은 필수이며 전환된 영역은 `api/core_bridge.py`를 통해 Spring에 저장한다. 중복 Python SQL 구현은 제거했다. 실패 시 Python SQL로
+폴백하거나 양쪽 저장소에 이중 저장하지 않는다. AI 원격 호출을 DB 트랜잭션 안에 추가하지 않는다.
+Kotlin에서 `!!`로 필수 값을 강제하지 말고, 외부 JSON의 null·목록 원소·소수 금액을 검증한다.
+Alembic은 전환 중에도 스키마의 단일 관리 도구다. Hibernate 자동 DDL을 켜지 않는다.
+Compose는 API·실행기 모두 Spring 저장 계약으로 고정한다. 한쪽만 이전 저장소로 바꾸지 않는다.
+Caddy가 웹 3002의 `/api/*`를 Spring에 직접 전달한다. Spring은 Caddy 172.30.92.2,
+Python은 Spring 172.31.244.2만 IP 헤더를 신뢰한다. Next나 사설망 전체를 신뢰 목록에 추가하지 않는다.
+계약·실행·검증 경계는 [백엔드 전환 안내](docs/backend-migration.md)를 확인한다.
+Spring 검증도 `real_estate_test`·Redis 15만 사용한다. Python 테스트와 Spring 검증을 동시에 실행하면
+같은 테스트 DB를 비우는 작업이 충돌하므로 두 실행기는 순서대로 실행한다.
+
+**계산 책임:** `core-service/.../calculations/`의 `FinanceCalculator`·`TaxRules`가 자금·세금 수치의 실행 원본이다.
+Python 시뮬레이션·챗봇 세금 도구는 `core_calculations.py`로 같은 계산기를 호출한다.
+연결 실패 시 Python 수식·LLM 계산으로 대체하지 않는다. 중복 수식은 제거했고 기존 54개 결과는 고정 회귀 자료로 보존한다.
+Python 테스트도 격리 Spring에 연결한다. `TEST_CORE_URL` 일치와 실제 DB 이름·Redis 15 확인을 우회하지 않는다.
+금액은 BigDecimal로 중간 계산하고 원 단위 HALF_EVEN, 대출 비율의 원 단위 변환만 버림을 적용한다.
+금액 범위 초과는 422로 거부하며 결과에 엔진·계산 버전·세율 기준일을 보존한다.
+`2026-01-01` 간이 정책을 이관한 것이며 최신 법령·대출 심사를 검증했다는 뜻으로 설명하지 않는다.
+AVM 통계 보정·추천 점수·다섯 판단 축 등의 기존 Python 규칙까지 전부 이전했다고 말하지 않는다.
+계산 경계·검증은 [계산 책임 문서](docs/calculation-architecture.md)를 따른다.
 
 아래는 모두 **문제를 겪고 내린 결정**이다. "단순화"하려다 되돌리기 쉬우니 주의할 것.
 

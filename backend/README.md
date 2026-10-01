@@ -1,6 +1,12 @@
 # Property Concierge 백엔드 도메인 안내
 
-`backend/`는 부동산 분석과 의사결정의 도메인 로직을 담당한다. HTTP·인증·작업 접수는 `api/`, 영속 저장은 `db/`, 입출력 계약은 `schemas/`에 있다. 개발 전에 [루트 작업 지침](../AGENTS.md)을 읽고, 제품 범위는 [제품 전략](../docs/product-strategy.md)과 [인수인계](../docs/project-handoff.md)를 확인한다.
+`backend/`는 부동산 분석과 의사결정의 도메인 로직을 담당한다. 공개 업무 API·인증·저장·트랜잭션은
+Kotlin `core-service/`, 분석 HTTP와 실행기는 Python `api/`, Python 계약은 `schemas/`에 있다.
+고정 수식의 자금·세금 계산은 Kotlin이다. `core_calculations.py`가 같은 엔진으로 화면·대화·비교를 연결한다.
+`db/`의 모델·Alembic은 공통 스키마를 관리하며 실거래·RAG·분석 캐시는 Python이 관리한다.
+이전된 사용자·매물·케이스·분석 이력 저장 함수는 `api/core_bridge.py`를 통해 Spring을 호출한다.
+개발 전에 [루트 작업 지침](../AGENTS.md)을 읽고, 제품 범위는 [제품 전략](../docs/product-strategy.md),
+현재 전환 상태는 [백엔드 전환 안내](../docs/backend-migration.md)를 확인한다.
 
 ## 현재 제품의 중심 흐름
 
@@ -9,10 +15,11 @@
 네이버 지도 연결과 원문 수집은 보조 입력 경로다. 추출이 실패해도 사용자 확인값으로 등록할 수 있어야 한다. 실거래·사용자 호가·AVM 추정값은 서로 다른 자료이며 동일 단지 확인이 개별 호의 동일성을 보증하지 않는다.
 
 ```text
-Next.js → FastAPI: 인증·소유자 확인·입력 검증
-              ├ 저장 자료 조회 → 도메인 서비스 → PostgreSQL
-              └ 오래 걸리는 분석 → Redis Stream → 별도 job-worker
-                                                   → 분석 결과·이력 저장
+웹 → Caddy → Kotlin Spring: 인증·소유자 확인·저장·확정 조건
+                  ├ 고정 수식: 자금·대출·세금·수익 계산
+                  ├ 스냅샷 → 내부 FastAPI → 도메인 분석
+                  └ Redis Stream → 별도 Python job-worker
+                                          → Spring 저장 계약 → PostgreSQL / Redis
 ```
 
 ## 핵심 코드와 연결 위치
@@ -27,7 +34,7 @@ Next.js → FastAPI: 인증·소유자 확인·입력 검증
 | [listing_address_service.py](services/listing_address_service.py) | 주소·건물명 조회와 선택 정보 검증. 분석 이름과 사용자 선택 별칭은 별도 저장 |
 | [naver_listing_collector.py](services/naver_listing_collector.py) | 개별 링크의 Playwright 수집. 실패·접근 제한·미노출을 거래 완료와 구분 |
 | [appraisal_graph.py](graphs/appraisal_graph.py) | 자연어 분석·위치 해석·유형별 AVM·참고용 리포트 파이프라인 |
-| [simulation_service.py](services/simulation_service.py) | 공통 입력에 따른 대출·비용·자금·수익 시뮬레이션 |
+| [simulation_service.py](services/simulation_service.py) · [core_calculations.py](services/core_calculations.py) | 입력 정규화·Kotlin 계산 호출·리포트 표현 |
 | [rights_analysis_service.py](services/rights_analysis_service.py) | 사용자 문서의 판독 결과와 규칙 기반 위험 신호 점검 |
 | [law_retrieval.py](services/law_retrieval.py) · [concierge_graph.py](graphs/concierge_graph.py) | 법령 근거 검색과 대화 맥락·조건부 도구 실행 |
 | [model_factory.py](model_factory.py) | 역할별 LLM·임베딩 제공자 생성. OpenRouter 등 지원 제공자 선택 |
@@ -60,7 +67,7 @@ AVM은 국토부 실거래를 사용하고 `CATEGORY_TO_AGENT`에서 주거·상
 docker compose up -d --build
 ```
 
-기본 호스트 포트는 프론트엔드 3002, API 8002이고 컨테이너 내부는 각각 3000·8000이다. API·별도 `job-worker`·PostgreSQL·Redis를 함께 실행한다. API만 띄우면 접수된 긴 작업을 완료할 실행기가 없다. 네이티브 실행과 설정은 [루트 README](../README.md), 운영 적용과 복구는 [운영 안내](../docs/operations.md)와 [작업 복구](../docs/job-recovery.md)를 따른다.
+기본 호스트 포트는 웹 3002, Spring API 8002이고 내부는 Next 3000·Spring 8080·Python 8000이다. Spring·Python API·별도 `job-worker`·PostgreSQL·Redis를 함께 실행한다. Python에는 중복 업무 저장·금융 수식 구현을 두지 않는다. 실행과 설정은 [루트 README](../README.md), 운영 적용과 복구는 [운영 안내](../docs/operations.md)와 [작업 복구](../docs/job-recovery.md)를 따른다.
 
 테스트는 서비스 DB에 연결하지 않고 전용 DB `real_estate_test`·Redis DB 15로 실행한다.
 

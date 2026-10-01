@@ -50,6 +50,20 @@ def test_readiness_detects_dead_worker_and_alert_transitions(client):
     redis.delete(WORKERS)
 
 
+def test_monitor_detects_core_failure_and_recovery(client, monkeypatch):
+    from api.operational_health import snapshot
+    import requests
+
+    monkeypatch.setenv('CORE_HEALTH_URL', 'http://isolated-core:8080/health')
+    monkeypatch.setattr(requests, 'get', lambda *args, **kwargs: (_ for _ in ()).throw(requests.ConnectionError()))
+    assert snapshot()['checks']['core'] == 'down'
+    assert snapshot()['status'] == 'degraded'
+    monkeypatch.setattr(requests, 'get', lambda *args, **kwargs: type('Reply', (), {
+        'status_code': 200, 'json': lambda self: {'status': 'ok'},
+    })())
+    assert snapshot()['checks']['core'] == 'ok'
+
+
 def test_catalog_retains_identity_and_marks_failed_recheck(client,monkeypatch):
     from backend.services.complex_catalog import lookup
     from services import complex_address_service as addresses

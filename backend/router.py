@@ -12,6 +12,7 @@ import logging
 import os
 import sys
 from typing import Optional
+from fastapi import HTTPException
 
 logger = logging.getLogger(__name__)
 
@@ -248,6 +249,8 @@ def run_simulation(
 
     try:
         return graph.invoke(state)
+    except HTTPException:
+        raise
     except Exception as exc:
         logger.exception("[router] run_simulation 실패")
         return {"error": str(exc), "report": f"# 시뮬레이션 실패\n\n> {exc}", "result": None}

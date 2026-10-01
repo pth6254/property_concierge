@@ -248,18 +248,26 @@ def test_single_candidate_can_be_reviewed_before_final_selection(client):
     assert response.json()["rows"][0]["decision_ready"] is False
 
 
-def test_decision_and_execution_roll_back_together(client, monkeypatch):
-    from api import case_execution_db
+def test_decision_and_execution_roll_back_together(client):
+    from db.base import session_scope
+    from sqlalchemy import text
     _register(client, "atomic-decision@example.com")
     case_id = client.post("/api/cases", json={"title": "원자적 선택"}).json()["id"]
     candidate = client.post(f"/api/cases/{case_id}/properties", json={"name": "후보"}).json()
-    original = case_execution_db.sync_execution_plan
-    def fail_after_seed(session, case):
-        original(session, case)
-        raise RuntimeError("injected_failure")
-    monkeypatch.setattr(case_execution_db, "sync_execution_plan", fail_after_seed)
-    with pytest.raises(RuntimeError, match="injected_failure"):
-        client.post(f"/api/cases/{case_id}/decision", json={"property_id": candidate["id"], "reason": "선택 근거"})
+    # 다른 프로세스의 Spring 트랜잭션에 실제 DB 오류를 주입해 선택과 실행 계획의 원자성을 검증한다.
+    with session_scope() as session:
+        session.execute(text("""
+            CREATE FUNCTION test_execution_failure() RETURNS trigger LANGUAGE plpgsql AS
+            $$ BEGIN RAISE EXCEPTION 'injected_failure'; END $$;
+            CREATE TRIGGER test_execution_failure BEFORE INSERT ON case_execution_tasks
+            FOR EACH ROW EXECUTE FUNCTION test_execution_failure();
+        """))
+    try:
+        response = client.post(f"/api/cases/{case_id}/decision", json={"property_id": candidate["id"], "reason": "선택 근거"})
+        assert response.status_code == 503
+    finally:
+        with session_scope() as session:
+            session.execute(text("DROP TRIGGER test_execution_failure ON case_execution_tasks; DROP FUNCTION test_execution_failure();"))
     value = client.get(f"/api/cases/{case_id}").json()
     assert value["selected_property_id"] is None
     assert value["properties"][0]["status"] == "reviewing"

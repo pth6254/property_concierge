@@ -79,19 +79,27 @@
 
 ## 아키텍처 개요
 
+백엔드는 **Kotlin + Spring Boot의 저장·권한·거래 상태·고정 수식 계산**과 **Python + FastAPI의 모델 추정·AI 분석**으로 단계적으로 분리한다.
+`core-service/`에 기존 JWT와 호환되는 인증, 사용자 매물·케이스·후보·거래 준비 저장, 분석 이력과 Redis 작업 계약을 추가했다.
+필수 값과 미확인 값을 Kotlin 타입으로 구분하고 외부 JSON의 null·금액·필드를 별도로 검사한다.
+기본 실행은 웹 **3002** → Caddy → Next.js / Kotlin Spring이며 공개 API **8002**도 Spring이다.
+Python은 내부 전용이고 API·별도 실행기의 업무 저장은 Spring 계약으로 연결한다. 일부 HTTP 경로는 Python 라우터를 중계한다.
+저장 책임 전환 설정·검증 결과·남은 HTTP 경로는 [백엔드 전환 안내](docs/backend-migration.md)를 따른다.
+대출·취득비용·세금·LTV/DSR·현금흐름·수익 시나리오는 Kotlin의 같은 계산기를 화면·챗봇·비교에서 호출한다.
+모델이 제시한 상승률은 입력 가정이며 복리·수익률 계산 자체는 Kotlin이 수행한다. 자세한 경계는 [계산 책임](docs/calculation-architecture.md)을 따른다.
+
 ```
-[Next.js 16 프론트엔드 :3000 — 호스트 기본 :3002]
-         │  HTTP (REST) · JWT 쿠키
-[FastAPI 백엔드 :8000 — 호스트 기본 :8002]  (uvicorn --workers N)
-   ├── 작업 큐 (api/jobs.py — Redis Stream 입력·상태, 별도 api.job_worker 실행)
-   ├── 레이트 리밋 · 로그인 잠금 (Redis — 워커 간 카운터 공유)
-   ├── 인증 / 이력 / 활동 피드 (api/auth_db.py, history_db.py, activity_db.py
-   │                          — SQLAlchemy ORM, db/ 공용 세션)
-   ├── 비밀번호 재설정 메일 (api/email_service.py — Resend, 키 없으면 서버 로그 폴백)
-   ├── 사용자 매물·변경 관측 (ImportedListing · ListingRevision · ListingObservation)
-   ├── 매수 케이스·후보·분석·선택·거래 준비 (api/case_db.py · case_execution_db.py)
-   ├── 공통 의사결정 평가 (case_decision_assessment.py → 요약·후보 비교)
-   │
+[Caddy — 웹 호스트 :3002]
+   ├── 화면 → Next.js 16 내부 :3000
+   └── /api → Kotlin Spring 내부 :8080 — API 호스트 :8002
+                 ├── 인증·소유자·매물·케이스·선택·거래 준비
+                 ├── 분석 이력·관측 기록·Redis 작업 저장
+                 ├── 대출·세금·자금·수익 고정 수식 계산
+                 └── 내부 REST → Python FastAPI 내부 :8000
+                                    ├── AVM·권리·추천·LLM·RAG
+                                    ├── 자금 입력 해석·리포트 표현 → Spring 계산 계약
+                                    └── 별도 실행기 → Spring에 결과 저장
+
 [LangGraph 파이프라인 (backend/)]
    ├── 캐시·지역코드 (backend/cache_db.py)         │  PostgreSQL
    ├── 실거래가 로컬 스토어 (backend/transaction_store.py)  │  (real_estate_db,
@@ -105,7 +113,8 @@
 
 - **프론트엔드**: Next.js 16 (App Router, TypeScript, Tailwind v4) — 딥 그린 브랜드 디자인 토큰,
   Pretendard 가변 폰트(`next/font/local` 셀프호스팅), lucide-react 아이콘, 모바일 반응형 내비게이션
-- **백엔드 API**: FastAPI (`api/`) — uvicorn 실행, 비동기 job + 동기 엔드포인트 병행
+- **업무 API**: Kotlin + Spring Boot (`core-service/`) — 인증·권한·저장·트랜잭션·작업 상태·자금/세금 계산
+- **AI 서비스**: FastAPI (`api/`, `backend/`) — 분석·LLM·RAG와 별도 Python 실행기
 - **파이프라인**: LangGraph (`backend/`) — 시세추정·추천·시뮬레이션·비교·종합 컨시어지 그래프
 - **의사결정 서비스**: 기존 케이스 스냅샷에서 근거·최신성·부족 정보를 결정론적으로 정리한다. 요약 조회는 LLM·외부 수집·분석 작업을 새로 실행하지 않는다.
 - **저장소**: PostgreSQL 단일 인스턴스(`real_estate_db`) — 앱 테이블(사용자·이력·활동·캐시·
@@ -130,15 +139,16 @@ GET  /api/appraisal/jobs/{job_id}      → { status, step, ... }  (프론트 2�
 ```bash
 # 1. 최초 환경변수 설정 (.env가 이미 있으면 덮어쓰지 않는다)
 cp .env.example .env
-# .env 파일을 열어 API 키 + POSTGRES_PASSWORD 입력 (예: openssl rand -base64 32)
+# .env 파일을 열어 API 키 + POSTGRES_PASSWORD + JWT_SECRET_KEY + INTERNAL_SERVICE_SECRET 입력
+# 내부 서비스 키는 32자 이상의 무작위 값이며 JWT 키와 다른 값으로 설정한다.
 
-# 2. 전체 서비스 실행 (API + 작업 실행기 + 프론트엔드 + PostgreSQL + Redis)
+# 2. 전체 서비스 실행 (Spring + Python + 실행기 + Next + Caddy + PostgreSQL + Redis)
 docker compose up --build
 
 # 서비스 주소
 # 프론트엔드: http://localhost:3002
 # 백엔드 API: http://localhost:8002
-# API 문서:   http://localhost:8002/docs
+# 실행·계약 안내: docs/backend-migration.md (Spring 공개 Swagger는 아직 없음)
 ```
 
 `-f` 없이 실행하면 Compose가 `docker-compose.yml`(운영 기준 베이스)과
@@ -157,50 +167,21 @@ PostgreSQL·Redis 포트는 호스트에 노출되지 않는다(도커 내부 �
 `scripts/backup_db.sh`·`restore_db.sh`는 호스트 포트가 아니라 `docker exec`로
 컨테이너 내부에 접속하므로 이 차이와 무관하게 그대로 동작한다.
 
-### 로컬 개발 (백엔드만 네이티브 실행)
+### 로컬 개발
 
-앱 테이블(사용자·이력·활동·캐시·실거래가·상담 코퍼스)이 PostgreSQL, 작업 큐·레이트
-리밋·로그인 잠금이 Redis 필수라 — SQLite나 인프로세스 메모리로 도망칠 폴백이 없다.
-**Postgres·Redis는 Docker로 띄우고 FastAPI와 작업 실행기를 별도 네이티브 프로세스로 실행**할 수 있다.
-아래 백엔드 명령은 저장소 루트의 WSL에서 실행한다. API만 실행하면 접수된 긴 작업을 완료할 실행기가 없다.
-
-```bash
-# 1. DB·캐시만 Docker로 기동 (백엔드는 아래에서 네이티브로 띄울 것이므로 제외)
-docker compose up -d pgvector redis
-
-# 2. Python 패키지 설치
-./venv-wsl/bin/python -m pip install -r requirements.txt
-
-# 3. Ollama를 선택한 역할의 모델만 준비 (OpenRouter 생성 경로와 임베딩은 별도 설정)
-ollama pull qwen3.5:9b
-ollama pull nomic-embed-text
-
-# 4. 최초 환경변수 설정 (.env가 이미 있으면 복사하지 않는다)
-cp .env.example .env
-# DATABASE_URL·REDIS_URL이 Docker의 공개된 로컬 포트를 가리키는지 확인한다.
-
-# 5. FastAPI 백엔드 실행 (.env를 명시적으로 읽는다)
-./venv-wsl/bin/python -m uvicorn api.main:app --reload --port 8002 --env-file .env
-```
-
-별도 WSL 터미널에서도 저장소 루트에서 작업 실행기를 시작한다.
+기본 Compose에서 Spring·Python·별도 실행기를 함께 실행한다. 전환된 회원·매물·케이스·작업 저장 및
+고정 금융·세금 수식의 중복 Python 구현은 제거했다. Python 모듈은 내부 계약 클라이언트이며
+`CORE_STORAGE_URL`과 32자 이상 내부 인증키가 필수다. Python만 띄우는 이전 실행법은 지원하지 않는다.
 
 ```bash
-./venv-wsl/bin/python -m dotenv -f .env run -- ./venv-wsl/bin/python -m api.job_worker
+docker compose up -d --build
+./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
+./venv-wsl/bin/python scripts/run_spring_tests.py --browser
 ```
 
-네이티브 실행기는 소스 변경 후 재시작한다. 스키마 변경은 루트 AGENTS의 Alembic 순서를 따른다.
-
-Next.js는 별도 **PowerShell** 터미널에서 실행한다. 이미 실행 중인 서비스와 포트가
-겹치지 않게 하며 Windows에서 연결 가능한 API 주소를 사용한다.
-
-```powershell
-cd frontend
-npm ci
-$env:NEXT_PUBLIC_API_URL = "http://localhost:8002"
-npm run dev -- -p 3002
-# http://localhost:3002
-```
+테스트 실행기는 임시 Spring·Python 서비스를 만들어 `real_estate_test`·Redis 15를 실제로 확인한 뒤
+검증하고 종료한다. 두 실행기를 동시에 돌리지 않는다. 서비스 DB·Redis에는 테스트를 연결하지 않는다.
+원본 데이터·벡터스토어·Alembic·AI 분석은 Python에 남아 있다.
 
 ### 실거래가 배치 수집 (선택 — 응답 속도 대폭 개선)
 
@@ -414,7 +395,8 @@ property_concierge/
 | `POST` | `/api/rights/analyze` | 등기부·건축물대장 PDF 권리 위험 점검 (base64) |
 | `POST` | `/api/chat` | 법률·세금 AI 정보 안내 챗봇 |
 
-> 전체 API 명세: `http://localhost:8002/docs` (Swagger UI)
+> 위 경로는 Spring API와 호환된다. 내부 FastAPI의 Swagger는 내부 서비스 인증이 필요한 개발 환경에서 확인한다.
+> Spring 저장 책임과 중계 경로의 구분은 [백엔드 전환 안내](docs/backend-migration.md)를 참고한다.
 
 ---
 
@@ -811,7 +793,8 @@ docker compose up -d pgvector redis
 ```
 
 `tests/conftest.py`는 `real_estate_test`와 Redis DB 15가 아니면 실행을 거부한다.
-직접 `pytest`를 실행할 때도 `TEST_DATABASE_URL`과 `TEST_REDIS_URL`을 명시해야 한다.
+실행기가 만든 Spring 주소는 `TEST_CORE_URL`과 일치해야 하고, 내부 점검에서 실제 연결된 DB 이름과
+Redis 번호를 대조한다. `TEST_DATABASE_URL`·`TEST_REDIS_URL`만 바꿔 운영 Spring을 호출할 수 없다.
 
 GitHub Actions(`.github/workflows/ci.yml`)에서 push·PR마다 postgres·redis 서비스 컨테이너와
 함께 전체 스위트를 실행한다.

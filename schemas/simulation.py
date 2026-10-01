@@ -177,3 +177,7 @@ class SimulationResult(BaseModel):
     finance_check: Optional[FinanceCheck] = None    # LTV·DSR 검증
     breakeven_growth_rate: Optional[float] = None   # 세후 손익분기 연 상승률 (%)
     rate_sensitivity: list[RateSensitivityCell] = []  # 성장률×금리 3×3
+    # 과거 저장 리포트를 읽기 위한 메타데이터다. Python 계산 실행 경로는 제거했다.
+    calculator_engine: Literal["python-legacy", "kotlin-spring"] = "python-legacy"
+    calculation_version: str = "finance-v1"
+    rounding_policy: str = "half_even_won"

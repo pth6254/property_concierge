@@ -92,26 +92,23 @@ def test_observation_failure_preserves_listing_and_blocks_fresh_recommendation(r
     assert regions.get("/api/listings?fresh_only=true").json()["total"] == 1
 
 
-def test_listing_page_fetches_observations_in_batches(regions):
-    from sqlalchemy import event
-    from db.base import get_engine
+def test_listing_page_fetches_observations_in_batches(regions, monkeypatch):
+    import requests
 
     rows = [row(external_id=f"listing-{i}", source_url=f"https://fin.land.naver.com/articles/{123450+i}")
             for i in range(5)]
     assert upload(regions, rows).json()["created"] == 5
-    statements = []
-
-    def record(_connection, _cursor, statement, _parameters, _context, _many):
-        if "listing_observations" in statement:
-            statements.append(statement)
-
-    event.listen(get_engine(), "before_cursor_execute", record)
-    try:
-        response = regions.get("/api/listings")
-    finally:
-        event.remove(get_engine(), "before_cursor_execute", record)
+    calls = []
+    original = requests.post
+    def record(url, *args, **kwargs):
+        if "/internal/v1/store/listings/" in url:
+            calls.append(url)
+        return original(url, *args, **kwargs)
+    monkeypatch.setattr(requests, "post", record)
+    response = regions.get("/api/listings")
     assert response.status_code == 200 and response.json()["total"] == 5
-    assert len(statements) == 2
+    # SQL 조회 수는 Kotlin ListingContractTest에서 검증한다. Python은 건별 요청을 보내지 않는다.
+    assert len(calls) == 1
 
 
 def test_collection_job_and_owner_isolation(regions, monkeypatch):

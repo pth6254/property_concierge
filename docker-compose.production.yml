@@ -4,31 +4,19 @@ services:
     ports: !reset []
     environment:
       APP_ENV: production
-      FORWARDED_ALLOW_IPS: 172.30.92.2,172.30.92.3
+      FORWARDED_ALLOW_IPS: 172.31.244.2
       COOKIE_SAMESITE: lax
       FRONTEND_URL: https://${SERVICE_DOMAIN:?SERVICE_DOMAIN을 설정하세요}
       CORS_ORIGINS: https://${SERVICE_DOMAIN:?}
-    networks:
-      default:
-      ingress:
-        ipv4_address: 172.30.92.4
-  frontend:
+  core:
     ports: !reset []
-    networks:
-      default:
-      ingress:
-        ipv4_address: 172.30.92.3
+    environment:
+      APP_ENV: production
+      COOKIE_SAMESITE: lax
   gateway:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    depends_on:
-      api:
-        condition: service_healthy
-      frontend:
-        condition: service_started
     environment:
       SERVICE_DOMAIN: ${SERVICE_DOMAIN:?}
-    ports: ["80:80", "443:443"]
+    ports: !override ["80:80", "443:443"]
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - gateway_data:/data
@@ -36,11 +24,6 @@ services:
     networks:
       ingress:
         ipv4_address: 172.30.92.2
-networks:
-  ingress:
-    ipam:
-      config:
-        - subnet: 172.30.92.0/24
 volumes:
   gateway_data:
   gateway_config:

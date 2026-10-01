@@ -7,14 +7,12 @@ import pytest
 from tests.test_purchase_cases import client, _register
 
 
-def test_job_result_serializes_real_pipeline_models(monkeypatch):
-    import json
+def test_job_result_serializes_real_pipeline_models():
     from api import jobs
     from backend.intent_agent import PropertyIntent
-    captured = {}
-    monkeypatch.setattr(jobs, "get_redis", lambda: SimpleNamespace(set=lambda key, value, ex: captured.update(value=value)))
-    jobs._save("serialization", {"result": {"intent": PropertyIntent(area_min=84.9)}}, 30)
-    assert json.loads(captured["value"])["result"]["intent"]["area_min"] == 84.9
+    job_id = "abcdef0123456789"
+    jobs._save(job_id, {"id": job_id, "status": "done", "result": {"intent": PropertyIntent(area_min=84.9)}}, 30)
+    assert jobs._load(job_id)["result"]["intent"]["area_min"] == 84.9
 
 
 def test_confirmed_area_overrides_model_interpretation(monkeypatch):

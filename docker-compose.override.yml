@@ -28,4 +28,4 @@ services:
       - ./api:/app/api
       - ./schemas:/app/schemas
       - ./data:/app/data
-    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["sh", "-c", "alembic upgrade head && uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload"]

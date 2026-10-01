@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
 import logging
 from typing import Literal, Optional
 
@@ -45,7 +46,7 @@ class SimulationRequest(BaseModel):
 
         # 화면·대화·시나리오에서 필드를 따로 복사하면 같은 조건도 서로 다른 계산이 된다.
         values = self.model_dump(exclude={"case_id", "candidate_id", "loan_ratio", "monthly_payment_limit"})
-        return SimulationInput(**values, loan_amount=int(self.purchase_price * self.loan_ratio))
+        return SimulationInput(**values, loan_amount=int(Decimal(self.purchase_price) * Decimal(str(self.loan_ratio))))
 
 
 class SimulationFromListingRequest(BaseModel):

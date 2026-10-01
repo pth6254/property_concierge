@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import os
 import sys
+from decimal import Decimal
 from typing import Any, Optional
 
 _SVC_DIR      = os.path.dirname(os.path.abspath(__file__))
@@ -118,7 +119,7 @@ def listing_to_simulation_input(
         ptype_raw       = getattr(listing, "property_type", "주거용")
 
     property_type = _PROP_TYPE_MAP.get(ptype_raw, ptype_raw)
-    loan_amount   = int(purchase_price * loan_ratio)
+    loan_amount   = int(Decimal(purchase_price) * Decimal(str(loan_ratio)))
 
     # 월세 모드이면 jeonse 무시
     if rent_fee is not None:

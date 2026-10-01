@@ -115,6 +115,9 @@ export interface RateSensitivityCell {
 }
 
 export interface SimulationResult {
+  calculator_engine?: "kotlin-spring" | "python-legacy";
+  calculation_version?: string;
+  rounding_policy?: "half_even_won";
   purchase_price: number;
   loan_amount: number;
   owned_homes?: number | null;

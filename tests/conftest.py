@@ -20,6 +20,17 @@ if _database.scheme not in {"postgresql", "postgresql+psycopg2"} or unquote(_dat
     raise RuntimeError("pytest는 TEST_DATABASE_URL=postgresql://.../real_estate_test 격리 DB가 필요합니다.")
 if _redis.scheme not in {"redis", "rediss"} or _redis.path != "/15":
     raise RuntimeError("pytest는 TEST_REDIS_URL=redis://.../15 격리 Redis DB가 필요합니다.")
+_core = os.getenv("CORE_STORAGE_URL", "").strip()
+if not _core or _core != os.getenv("TEST_CORE_URL", "").strip():
+    raise RuntimeError("pytest는 서비스 Spring 저장 주소를 사용할 수 없습니다. scripts/run_isolated_tests.py를 사용하세요")
+import requests
+try:
+    _storage = requests.get(_core + "/internal/v1/testing/storage",
+        headers={"X-Internal-Service-Key": os.environ["INTERNAL_SERVICE_SECRET"]}, timeout=5)
+    if _storage.status_code != 200 or _storage.json() != {"database": "real_estate_test", "redis_database": 15}:
+        raise RuntimeError("격리 Spring 저장소 검증 실패")
+except (requests.RequestException, KeyError, ValueError) as _error:
+    raise RuntimeError("격리 Spring 저장소에 연결할 수 없습니다") from _error
 os.environ["DATABASE_URL"] = _test_database_url
 os.environ["REDIS_URL"] = _test_redis_url
 
@@ -48,3 +59,39 @@ def truncate_tables(*models) -> None:
     with session_scope() as session:
         for model in models:
             session.query(model).delete()
+
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolated_http_job_worker(request):
+    """HTTP 회귀 테스트의 모의 AI를 실제 큐·저장 계약과 연결한다. 운영 코드에는 테스트 분기를 두지 않는다."""
+    if "client" not in request.fixturenames or request.node.path.name == "test_durable_job_worker.py":
+        yield
+        return
+    import threading
+    from api import jobs, job_worker
+    from db.redis_client import get_redis
+    original = jobs.create_task
+    threads = []
+    job_worker.ensure_group()
+    def submit(*args, **kwargs):
+        job_id = original(*args, **kwargs)
+        redis = get_redis()
+        record = next((entry for entry in redis.xrange(jobs.STREAM) if entry[1].get("job_id") == job_id), None)
+        if record is None:
+            raise AssertionError("접수된 작업이 실제 Redis Stream에 없습니다")
+        def execute():
+            job_worker.process_record(*record)
+            redis.xdel(jobs.STREAM, record[0])
+        thread = threading.Thread(target=execute)
+        threads.append(thread)
+        thread.start()
+        return job_id
+    with pytest.MonkeyPatch.context() as worker_patch:
+        worker_patch.setattr(jobs, "create_task", submit)
+        yield
+        for thread in threads:
+            thread.join(timeout=30)
+            assert not thread.is_alive(), "격리 실행기가 종료되지 않았습니다"

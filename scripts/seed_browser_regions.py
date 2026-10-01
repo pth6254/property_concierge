@@ -33,6 +33,17 @@ def main():
                 depth=depth, lawd_code=code[:5] if depth > 1 else None, resident_code="",
                 cadastral_code="", sort_order=1, remarks="", is_active=True, synced_at=time.time()))
     if args.transactions:
+        from sqlalchemy.dialects.postgresql import insert
+        from db.models import ComplexCatalog
+        # 주소 정책을 끄지 않고 양쪽 주소가 확인된 가상 기준정보를 함께 준비한다.
+        address = {"road_address": "서울특별시 강남구 검증로 123", "jibun_address": "서울특별시 강남구 역삼동 123",
+            "address_status": "matched", "address_source": "browser_fixture", "address_version": 4,
+            "address_checked_at": datetime.now().isoformat(), "official_jibuns": ["123"]}
+        with session_scope() as session:
+            values = dict(lawd_code="11680", dong="역삼동", canonical_name="품질검증용가상단지", name="품질검증용가상단지",
+                region="서울특별시 강남구", aliases=["품질검증용가상단지"], address=address, status="matched", checked_at=time.time())
+            session.execute(insert(ComplexCatalog).values(**values).on_conflict_do_update(
+                index_elements=["lawd_code", "dong", "canonical_name"], set_={"address": address, "status": "matched", "checked_at": time.time()}))
         from backend.transaction_store import put_month
         now = datetime.now()
         month = now.year * 12 + now.month - 1
@@ -41,7 +52,7 @@ def main():
             ym = f"{year:04d}{index+1:02d}"
             # 해당 테스트 구간만 교체한다. 위 DB 이름 검사를 통과하지 않으면 여기에 도달할 수 없다.
             rows = [{"apt_name":"품질검증용가상단지", "dong":"역삼동", "bjdong_code":"1168010100",
-                "price":price,"area_sqm":area,"per_sqm":round(price/area),"year_built":built,
+                "price":price,"area_sqm":area,"per_sqm":round(price/area),"year_built":built,"jibun":"123",
                 "deal_year":str(year),"deal_month":str(index+1),"deal_day":"1","floor":"10","is_cancelled":False}
                 for price,area,built in [(60000,84,"2018"),(61000,84,"2018"),(62000,84,"2018"),
                     (90000,130,"2018"),(50000,84,"미상")]]

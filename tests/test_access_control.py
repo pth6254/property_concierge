@@ -95,7 +95,7 @@ class TestJobOwnerIsolation:
         _register(client, "jobowner@example.com")
         owner_id = client.get("/api/auth/me").json()["id"]
 
-        job_id = jobs.create(lambda set_step: {"final_report": "ok"}, owner_id=owner_id)
+        job_id = jobs.create_task("probe", {}, owner_id=owner_id)
 
         assert client.get(f"/api/appraisal/jobs/{job_id}").status_code == 200
 
@@ -108,5 +108,5 @@ class TestJobOwnerIsolation:
         """비로그인 작업은 추측 불가한 job_id 자체가 접근 토큰 — 폴링이 계속 동작해야 한다."""
         from api import jobs
 
-        job_id = jobs.create(lambda set_step: {"final_report": "ok"}, owner_id=None)
+        job_id = jobs.create_task("probe", {}, owner_id=None)
         assert client.get(f"/api/appraisal/jobs/{job_id}").status_code == 200

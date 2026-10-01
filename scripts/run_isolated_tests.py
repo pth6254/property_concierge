@@ -54,11 +54,14 @@ def main() -> int:
         "TEST_REDIS_URL": redis_url, "REDIS_URL": redis_url,
         "LANGCHAIN_TRACING_V2": "false", "LANGSMITH_TRACING": "false",
         "DISABLE_RATE_LIMIT": "1", "APP_ENV": "development",
-        "JWT_SECRET_KEY": os.getenv("JWT_SECRET_KEY", "isolated-test-secret"),
+        "JWT_SECRET_KEY": "isolated-test-secret-not-used-in-production",
+        # 실행기가 별도 Spring을 만들기 전까지 서비스 주소를 상속하지 않는다.
+        "CORE_STORAGE_URL": "", "REQUIRE_INTERNAL_SERVICE_AUTH": "0", "CORE_HEALTH_URL": "",
     })
     print("격리 DB real_estate_test에 마이그레이션을 적용합니다.", flush=True)
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=ROOT, env=env, check=True)
-    return subprocess.call([sys.executable, "-m", "pytest", *(sys.argv[1:] or ["tests/", "-q"])], cwd=ROOT, env=env)
+    return subprocess.call([sys.executable, "scripts/run_spring_tests.py", "--pytest",
+                            *(sys.argv[1:] or ["tests/", "-q"])], cwd=ROOT, env=env)
 
 
 if __name__ == "__main__":

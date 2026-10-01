@@ -6,6 +6,12 @@ Next.js 16 App Router·React 19·TypeScript로 작성한 웹 서비스다. 사�
 
 ## 주요 화면
 
+기본 웹 3002는 Caddy가 제공하며 `/api/*`는 Kotlin Spring으로 직접 전달한다.
+Next 서버의 내부 대상과 Docker 빌드 시 rewrites도 `http://core:8080`으로 맞춘다.
+Spring 공개 API는 8002, Python은 내부 전용이다. 인증 쿠키·화면 응답 계약은 유지한다.
+작업 상태 SSE API는 추가했으며 현재 화면의 작업 대기는 기존 폴링을 사용한다.
+실행·검증 범위는 [백엔드 전환 안내](../docs/backend-migration.md)를 따른다.
+
 | 경로 | 역할 |
 |---|---|
 | `/listings` | 주소 검색·확인 이름 자동 채움·선택 별칭, URL·직접 입력·CSV 등록, 원문 관측·변경 이력, 후보 저장 |

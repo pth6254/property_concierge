@@ -47,7 +47,8 @@ docker compose -f docker-compose.yml -f docker-compose.production.yml --profile 
 ```
 
 운영 파일은 Caddy HTTPS와 같은 출처 API를 제공하고 API 직접 노출을 제거한다.
-`SERVICE_DOMAIN`이 필요하다. `FORWARDED_ALLOW_IPS`는 고정된 gateway·frontend IP만 신뢰한다.
+`SERVICE_DOMAIN`이 필요하다. Spring은 고정 gateway IP만 신뢰하고 Python의 `FORWARDED_ALLOW_IPS`는 고정 Spring IP만 신뢰한다.
+로컬 웹 3002도 Caddy를 통과하며 `/api/*`를 Spring으로 전달한다. Next 서버의 내부 요청 대상도 Spring이다.
 이 파일 작성만으로 공개 서버·DNS·인증서 발급이 완료되는 것은 아니다.
 
 호스트 밖에서 `python scripts/check_external_readiness.py --url https://실제도메인/ready`를 실행한다.
@@ -78,7 +79,7 @@ CI는 보호된 `real_estate_test`에 가상 거래를 준비한 뒤 동일 브�
 ## 준비 상태와 알림
 
 - `/health`: API 기동 확인. Docker 시작 순서에 사용한다.
-- `/ready`: DB·서울 법정동 기준정보·Redis·실행기·큐가 정상일 때 200, 그 외 503. 공개 응답에는 상태만 반환한다.
+- `/ready`: Spring·Python의 DB·서울 법정동 기준정보·Redis·실행기·큐가 정상일 때 200, 그 외 503. 공개 응답에는 상태만 반환한다.
 - 실행기는 5초마다 Redis에 생존 신호를 기록한다. 30초 이상 없으면 중단으로 판단한다.
 - 미전달 대기 100건 초과 또는 가장 오래된 대기 작업이 120초 초과이면 지연으로 표시한다.
 - 별도 `operations-monitor` 컨테이너가 15초마다 확인하고 상태 전환을 Redis 알림함(최근 200개)과 로그에 남긴다.

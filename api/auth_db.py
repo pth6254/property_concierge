@@ -1,106 +1,38 @@
-"""
-auth_db.py — 사용자 인증 DB (PostgreSQL, SQLAlchemy)
-
-이전에는 SQLite 파일(data/auth.db)을 직접 열었다. db/base.py 의 공용
-세션으로 옮기되, 호출부(api/routes/auth.py, api/deps.py 등)가 기대하는
-함수 시그니처와 반환 형태(dict)는 그대로 유지한다.
-"""
+"""accounts 내부 계약 클라이언트. 저장·권한·트랜잭션은 Kotlin에서 처리한다."""
 from __future__ import annotations
 
 from typing import Optional
-
-from sqlalchemy import select
-
-from db.base import init_db, session_scope
-from db.models import User
+from api.core_bridge import core_store
 
 
-def init():
-    """앱 전체 테이블을 생성한다 (history_db.init()/activity_db.init() 과 동일한 진입점).
-
-    이름은 하위 호환을 위해 유지 — 실제로는 db.base.init_db() 로 위임한다.
-    """
-    init_db()
-
-
-def _to_dict(user: User) -> dict:
-    return {
-        "id":                  user.id,
-        "email":               user.email,
-        "password_hash":       user.password_hash,
-        "name":                user.name,
-        "avatar_url":          user.avatar_url,
-        "provider":            user.provider,
-        "provider_id":         user.provider_id,
-        "created":             user.created,
-        "password_changed_at": user.password_changed_at,
-    }
-
-
+@core_store("accounts")
 def create_local_user(email: str, password_hash: str, name: str = "") -> dict:
-    with session_scope() as session:
-        user = User(email=email, password_hash=password_hash, name=name, provider="local")
-        session.add(user)
-        session.flush()
-        return _to_dict(user)
+    ...
 
-
+@core_store("accounts")
 def get_or_create_oauth_user(
     email: str, name: str, avatar_url: str, provider: str, provider_id: str
 ) -> dict:
-    with session_scope() as session:
-        user = session.scalar(select(User).where(User.email == email))
-        if user:
-            user.name = name
-            user.avatar_url = avatar_url
-            user.provider = provider
-            user.provider_id = provider_id
-            session.flush()
-            return _to_dict(user)
-        user = User(
-            email=email, name=name, avatar_url=avatar_url,
-            provider=provider, provider_id=provider_id,
-        )
-        session.add(user)
-        session.flush()
-        return _to_dict(user)
+    ...
 
-
+@core_store("accounts")
 def get_by_email(email: str) -> Optional[dict]:
-    with session_scope() as session:
-        user = session.scalar(select(User).where(User.email == email))
-        return _to_dict(user) if user else None
+    ...
 
-
+@core_store("accounts")
 def get_by_id(user_id: int) -> Optional[dict]:
-    with session_scope() as session:
-        user = session.get(User, user_id)
-        return _to_dict(user) if user else None
+    ...
 
-
+@core_store("accounts")
 def update_password(user_id: int, password_hash: str) -> Optional[dict]:
-    """
-    비밀번호 변경 + 변경 시각 기록.
+    ...
 
-    password_changed_at 이 갱신되면 그 이전에 발급된 JWT 는 전부 무효가 된다
-    (auth_utils.is_session_valid 참고) — 재설정 직후 기존 세션이 끊기는 것이
-    의도된 동작이다.
-    """
-    from db.models import _now_str
-
-    with session_scope() as session:
-        user = session.get(User, user_id)
-        if not user:
-            return None
-        user.password_hash = password_hash
-        user.password_changed_at = _now_str()
-        session.flush()
-        return _to_dict(user)
-
-
+@core_store("accounts")
 def delete_user(user_id: int) -> None:
-    """회원 탈퇴 — 계정 행 삭제 (이력·활동 삭제는 호출 측에서 함께 수행)"""
-    with session_scope() as session:
-        user = session.get(User, user_id)
-        if user:
-            session.delete(user)
+    ...
+
+
+def init():
+    """Alembic 없이 띄우는 경로의 공통 스키마 안전망만 유지한다."""
+    from db.base import init_db
+    init_db()

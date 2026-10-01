@@ -64,6 +64,8 @@ if _SENTRY_DSN:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from api.core_bridge import require_core_configuration
+    require_core_configuration()
     _hdb.init()
     _adb.init()
     _actdb.init()
@@ -82,6 +84,21 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+from api.internal_contracts import router as internal_router
+app.include_router(internal_router)
+
+
+@app.middleware("http")
+async def internal_service_boundary(request, call_next):
+    if os.getenv("REQUIRE_INTERNAL_SERVICE_AUTH", "0") == "1" and request.url.path not in ("/health", "/ready"):
+        import hmac
+        from fastapi.responses import JSONResponse
+        expected = os.getenv("INTERNAL_SERVICE_SECRET", "")
+        provided = request.headers.get("X-Internal-Service-Key", "")
+        if len(expected) < 32 or not provided or not hmac.compare_digest(expected, provided):
+            return JSONResponse({"detail": "내부 서비스 인증이 필요합니다"}, status_code=401)
+    return await call_next(request)
 
 
 @app.middleware("http")

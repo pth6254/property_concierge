@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from sqlalchemy import text
 
@@ -55,6 +56,17 @@ def snapshot() -> dict:
                 checks["queue"] = "delayed" if age > 120 or (waiting or 0) > 100 else "ok"
     except Exception:
         pass
+    core_url = os.getenv("CORE_HEALTH_URL", "").strip()
+    if core_url:
+        # /ready는 Python을 다시 점검하므로 순환 호출을 피하고 Spring 생존만 따로 확인한다.
+        import requests
+        checks["core"] = "down"
+        try:
+            response = requests.get(core_url, timeout=2, allow_redirects=False)
+            if response.status_code == 200 and response.json().get("status") == "ok":
+                checks["core"] = "ok"
+        except (requests.RequestException, ValueError, AttributeError):
+            pass
     return {"status": "ready" if all(v == "ok" for v in checks.values()) else "degraded",
             "checks": checks, "queue": queue, "checked_at": time.time()}
 

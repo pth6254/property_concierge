@@ -7,17 +7,17 @@ from tests.test_purchase_cases import client, _register
 def test_pending_stream_job_is_recovered_by_another_worker(client, monkeypatch):
     from api import jobs, job_worker
 
-    stream = f"property-jobs-test-{uuid.uuid4().hex}"
-    monkeypatch.setattr(jobs, "STREAM", stream)
-    monkeypatch.setattr(jobs, "GROUP", "recovery")
-    monkeypatch.delenv("PYTEST_CURRENT_TEST")
+    from db.redis_client import get_redis
+    stream = jobs.STREAM
+    get_redis().delete(stream)
+    monkeypatch.setattr(jobs, "GROUP", "recovery-" + uuid.uuid4().hex)
     job_worker.ensure_group()
     called = []
     monkeypatch.setattr(job_worker, "run_task", lambda task_type, payload, owner_id, job_id, set_step:
                         (called.append((task_type, payload, owner_id)) or {"ok": True}, {}))
     owner_id = _register(client, "recovered-worker@example.com")
-    job_id = jobs.create_task("fixture", {"value": 7}, owner_id=owner_id)
-    redis = jobs.get_redis()
+    job_id = jobs.create_task("probe", {"value": 7}, owner_id=owner_id)
+    redis = get_redis()
     abandoned = redis.xreadgroup(jobs.GROUP, "terminated-worker", {stream: ">"}, count=1)[0][1]
     assert abandoned[0][1]["job_id"] == job_id
     claimed = redis.xautoclaim(stream, jobs.GROUP, "replacement-worker", 0, "0-0", count=1)[1]
@@ -25,7 +25,7 @@ def test_pending_stream_job_is_recovered_by_another_worker(client, monkeypatch):
     job_worker.process_record(*claimed[0])
     assert jobs.get(job_id, requester_id=owner_id)["status"] == "done"
     assert jobs.get(job_id, requester_id=owner_id)["result"] == {"ok": True}
-    assert called == [("fixture", {"value": 7}, owner_id)]
+    assert called == [("probe", {"value": 7}, owner_id)]
     # ACK 이후 같은 메시지를 다시 전달해도 실행 결과를 중복 생성하지 않는다.
     job_worker.process_record(*claimed[0])
     assert len(called) == 1
@@ -53,14 +53,14 @@ def test_appraisal_history_save_is_idempotent_for_job(client):
 def test_interrupted_chat_does_not_generate_second_answer(client, monkeypatch):
     from api import jobs, job_worker
 
-    stream = f"property-jobs-test-{uuid.uuid4().hex}"
-    monkeypatch.setattr(jobs, "STREAM", stream)
-    monkeypatch.setattr(jobs, "GROUP", "chat-recovery")
-    monkeypatch.delenv("PYTEST_CURRENT_TEST")
+    from db.redis_client import get_redis
+    stream = jobs.STREAM
+    get_redis().delete(stream)
+    monkeypatch.setattr(jobs, "GROUP", "chat-recovery-" + uuid.uuid4().hex)
     job_worker.ensure_group()
     owner_id = _register(client, "chat-restart@example.com")
     job_id = jobs.create_task("chat", {"request": {"message": "질문"}}, owner_id=owner_id)
-    redis = jobs.get_redis()
+    redis = get_redis()
     record = redis.xreadgroup(jobs.GROUP, "stopped", {stream: ">"}, count=1)[0][1][0]
     job = jobs._load(job_id)
     job["status"] = "running"

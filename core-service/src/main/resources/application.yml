@@ -1,0 +1,22 @@
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: native
+  error:
+    include-message: never
+    include-stacktrace: never
+  tomcat:
+    max-http-form-post-size: 25MB
+    remoteip:
+      # 사설망 전체를 신뢰하면 같은 네트워크의 요청으로 IP 제한을 우회할 수 있다.
+      internal-proxies: '^$'
+      trusted-proxies: ${TRUSTED_PROXY_IPS:^$}
+spring:
+  application:
+    name: property-concierge-core
+  data:
+    redis:
+      url: ${REDIS_URL}
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    deserialization:
+      fail-on-unknown-properties: true

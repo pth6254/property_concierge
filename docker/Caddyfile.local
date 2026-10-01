@@ -1,0 +1,15 @@
+:3000 {
+    encode zstd gzip
+    handle /health {
+        reverse_proxy core:8080
+    }
+    handle /ready {
+        reverse_proxy core:8080
+    }
+    handle /api/* {
+        reverse_proxy core:8080
+    }
+    handle {
+        reverse_proxy frontend:3000
+    }
+}

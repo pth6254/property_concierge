@@ -26,6 +26,7 @@ import sys
 from typing import Any, Optional
 
 from typing_extensions import TypedDict
+from fastapi import HTTPException
 from langgraph.graph import END, StateGraph
 
 _GRAPHS_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -124,6 +125,9 @@ def run_simulation_node(state: SimulationState) -> SimulationState:
             inp.purchase_price, inp.loan_amount,
         )
         return {**state, "result": result}
+    except HTTPException:
+        # 계산 서비스 장애를 정상 분석 결과로 저장하거나 200 오류 리포트로 감추지 않는다.
+        raise
     except Exception as exc:
         logger.exception("[시뮬레이션그래프] run_property_simulation 실패")
         return {**state, "error": f"시뮬레이션 실행 오류: {exc}"}

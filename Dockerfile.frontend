@@ -5,7 +5,9 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend/ .
-ENV NEXT_PUBLIC_API_URL=http://api:8000
+# Next rewrites는 빌드 시 고정되므로 실행 환경과 같은 상위 API를 전달한다.
+ARG NEXT_PUBLIC_API_URL=http://core:8080
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN npm run build
 
 # ─── 실행 이미지 ────────────────────────────────
