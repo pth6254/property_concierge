@@ -13,7 +13,9 @@ import java.nio.charset.StandardCharsets.UTF_8
 @Service
 class ListingObservationStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper) {
     private fun view(raw: Map<String, Any?>): ObjectNode = (json.readTree(raw["payload"].toString()) as ObjectNode).put("observation_id", (raw["id"] as Number).toLong())
+    fun canonical(url: String): String = "https://fin.land.naver.com/articles/${article(url)}"
     private fun article(url: String): String {
+        if (url.length > 2000) throw ApiFailure(422, "개별 매물 링크 형식을 확인해주세요")
         val uri = try { URI(url) } catch (_: java.net.URISyntaxException) { throw ApiFailure(422, "개별 매물 링크 형식을 확인해주세요") }
         if (uri.scheme != "https" || uri.host !in setOf("land.naver.com", "new.land.naver.com", "fin.land.naver.com", "m.land.naver.com") || uri.userInfo != null || uri.port != -1)
             throw ApiFailure(422, "네이버 부동산 개별 매물 HTTPS 링크가 필요합니다")

@@ -46,6 +46,9 @@ jobs:
           docker compose up -d pgvector redis
           docker compose -f docker-compose.yml build api core
 
+      - name: Reject duplicate Python HTTP routes
+        run: python scripts/audit_python_routes.py
+
       - name: Run Python regressions through isolated Kotlin contracts
         run: python scripts/run_isolated_tests.py tests/ -v --junitxml=evaluation-results/backend-junit.xml
 

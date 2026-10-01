@@ -1,5 +1,5 @@
 """
-auth_utils.py — JWT 생성/검증 + 비밀번호 해싱
+이전 JWT·비밀번호의 Spring 호환 검증 자료. 실행 코드에서 임포트하지 않는다.
 """
 from __future__ import annotations
 
@@ -9,14 +9,7 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "")
-if not SECRET_KEY:
-    if os.getenv("APP_ENV", "development") == "production":
-        raise RuntimeError(
-            "JWT_SECRET_KEY 환경변수가 설정되지 않았습니다. "
-            "운영 환경(APP_ENV=production)에서는 필수입니다."
-        )
-    SECRET_KEY = "dev-secret-change-in-production"  # 개발 환경 전용
+SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 ALGORITHM = "HS256"
 EXPIRE_DAYS = 7
 

@@ -5,11 +5,13 @@ import asyncio
 import logging
 from typing import Literal, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["recommendation"])
+from api.internal_contracts import require_service
+
+router = APIRouter(prefix="/internal/v1/ai", dependencies=[Depends(require_service)], tags=["recommendation"])
 
 
 class RecommendationRequest(BaseModel):

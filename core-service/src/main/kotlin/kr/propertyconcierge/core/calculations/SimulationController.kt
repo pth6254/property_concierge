@@ -8,17 +8,31 @@ import kr.propertyconcierge.core.auth.SessionService
 import kr.propertyconcierge.core.bridge.PythonClient
 import kr.propertyconcierge.core.store.CaseStore
 import org.springframework.web.bind.annotation.*
+import org.springframework.core.env.Environment
+import java.security.MessageDigest
+
+data class InternalFundingRequest(val request: FundingRequest, val userId: Long? = null)
 
 @RestController
 class SimulationController(private val calculator: FinanceCalculator, private val sessions: SessionService,
-    private val store: CaseStore, private val python: PythonClient, private val json: ObjectMapper) {
+    private val store: CaseStore, private val python: PythonClient, private val json: ObjectMapper, env: Environment) {
+    private val key = env.getRequiredProperty("INTERNAL_SERVICE_SECRET").also { require(it.length >= 32) }
     @PostMapping("/api/simulation")
-    fun simulate(request: HttpServletRequest, @RequestBody body: FundingRequest): Map<String, Any> {
-        val user = sessions.optional(request)
+    fun simulate(request: HttpServletRequest, @RequestBody body: FundingRequest) = execute(body, sessions.optional(request)?.id)
+
+    @PostMapping("/internal/v1/simulation")
+    fun internal(@RequestBody body: InternalFundingRequest,
+        @RequestHeader("X-Internal-Service-Key", required = false) provided: String?): Map<String, Any> {
+        if (provided == null || !MessageDigest.isEqual(key.toByteArray(), provided.toByteArray())) throw ApiFailure(401, "내부 서비스 인증이 필요합니다")
+        if (body.userId != null && (body.userId <= 0 || sessions.userById(body.userId) == null)) throw ApiFailure(404, "사용자를 찾을 수 없습니다")
+        return execute(body.request, body.userId)
+    }
+
+    fun execute(body: FundingRequest, userId: Long?): Map<String, Any> {
         val linked = body.caseId != null || body.candidateId != null
-        if (linked && (user == null || body.caseId == null || body.candidateId == null))
+        if (linked && (userId == null || body.caseId == null || body.candidateId == null))
             throw ApiFailure(422, "케이스와 후보를 함께 지정하고 로그인해주세요")
-        val owner = if (linked) json.valueToTree<JsonNode>(mapOf("user_id" to requireNotNull(user).id,
+        val owner = if (linked) json.valueToTree<JsonNode>(mapOf("user_id" to requireNotNull(userId),
             "case_id" to body.caseId, "property_id" to body.candidateId)) else null
         if (owner != null && store.dispatch("validate_candidate", owner) != true) throw ApiFailure(404, "검토 후보를 찾을 수 없습니다")
         val expectedInputs = owner?.let { store.dispatch("candidate_inputs", it) }
@@ -32,7 +46,7 @@ class SimulationController(private val calculator: FinanceCalculator, private va
             "report" to report.path("report"), "report_output" to report.path("report_output"), "error" to "")
         if (owner != null) {
             val summary = body.summary(result, json)
-            val args = json.valueToTree<JsonNode>(mapOf("user_id" to requireNotNull(user).id, "case_id" to body.caseId,
+            val args = json.valueToTree<JsonNode>(mapOf("user_id" to requireNotNull(userId), "case_id" to body.caseId,
                 "property_id" to body.candidateId, "analysis_type" to "simulation", "summary" to summary,
                 "checklist_status" to if (body.needsReview(result)) "warning" else "done",
                 "evidence" to "사용자가 입력한 금융 조건으로 자금 시뮬레이션 완료", "expected_inputs" to expectedInputs))

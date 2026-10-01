@@ -9,11 +9,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from api import case_db, history_db, jobs
-from api.deps import get_optional_user
-from api.rate_limit import limiter
+from api.ai_context import get_optional_user
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["appraisal"])
+from api.internal_contracts import require_service
+
+router = APIRouter(prefix="/internal/v1/ai", dependencies=[Depends(require_service)], tags=["appraisal"])
 
 
 class AppraisalRequest(BaseModel):
@@ -41,19 +42,6 @@ def _validate_candidate_link(req: AppraisalRequest, user: Optional[dict]) -> Non
         raise HTTPException(status_code=422, detail="후보 연결 분석은 이력 저장이 필요합니다")
 
 
-def _save_history(req: AppraisalRequest, user: Optional[dict]):
-    """성공 결과 → history DB 영속화 콜백 생성. 반환: job extra dict"""
-    def on_done(result: dict) -> dict:
-        if not req.save_history:
-            return {}
-        history_id = history_db.save(
-            req.user_input, result, user_id=user["id"] if user else None
-        )
-        if req.case_id is not None and req.candidate_id is not None and user:
-            if not case_db.link_appraisal(req.case_id, req.candidate_id, history_id, user["id"], result):
-                raise ValueError("candidate_link_failed")
-        return {"history_id": history_id}
-    return on_done
 
 
 # ─────────────────────────────────────────
@@ -61,7 +49,6 @@ def _save_history(req: AppraisalRequest, user: Optional[dict]):
 # ─────────────────────────────────────────
 
 @router.post("/appraisal")
-@limiter.limit("5/minute")
 async def run_appraisal_endpoint(request: Request, req: AppraisalRequest, user: Optional[dict] = Depends(get_optional_user)):
     from backend.router import run_appraisal
 
@@ -97,29 +84,3 @@ async def run_appraisal_endpoint(request: Request, req: AppraisalRequest, user: 
 # ─────────────────────────────────────────
 #  비동기 job 실행
 # ─────────────────────────────────────────
-
-@router.post("/appraisal/jobs")
-@limiter.limit("5/minute")
-async def create_appraisal_job(request: Request, req: AppraisalRequest, user: Optional[dict] = Depends(get_optional_user)):
-    """작업 생성 → 즉시 job_id 반환. 진행 상태는 GET /appraisal/jobs/{id} 폴링."""
-    from backend.router import run_appraisal
-
-    _validate_candidate_link(req, user)
-
-    logger.info("시세추정 요청(job) — %s / %s", req.user_input, req.building_name)
-
-    expected_inputs = (case_db.candidate_inputs(req.case_id, req.candidate_id, user["id"])
-                        if req.case_id is not None and req.candidate_id is not None and user else None)
-    job_id = jobs.create_task("appraisal", {"request": req.model_dump(mode="json"),
-                                                  "expected_candidate_inputs": expected_inputs},
-                              owner_id=user["id"] if user else None)
-    return {"job_id": job_id}
-
-
-@router.get("/appraisal/jobs/{job_id}")
-def get_appraisal_job(job_id: str, user: Optional[dict] = Depends(get_optional_user)):
-    """작업 상태 조회. done이면 result + history_id 포함. 로그인 상태로 생성한 작업은 본인만 조회 가능."""
-    job = jobs.get(job_id, requester_id=user["id"] if user else None)
-    if job is None:
-        raise HTTPException(status_code=404, detail="작업 없음 (만료되었을 수 있음)")
-    return job

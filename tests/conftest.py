@@ -75,9 +75,12 @@ def isolated_http_job_worker(request):
     from db.redis_client import get_redis
     original = jobs.create_task
     threads = []
+    started = set()
     job_worker.ensure_group()
-    def submit(*args, **kwargs):
-        job_id = original(*args, **kwargs)
+    def launch(job_id):
+        if job_id in started:
+            return
+        started.add(job_id)
         redis = get_redis()
         record = next((entry for entry in redis.xrange(jobs.STREAM) if entry[1].get("job_id") == job_id), None)
         if record is None:
@@ -88,9 +91,13 @@ def isolated_http_job_worker(request):
         thread = threading.Thread(target=execute)
         threads.append(thread)
         thread.start()
+    def submit(*args, **kwargs):
+        job_id = original(*args, **kwargs)
+        launch(job_id)
         return job_id
     with pytest.MonkeyPatch.context() as worker_patch:
         worker_patch.setattr(jobs, "create_task", submit)
+        worker_patch.setattr('tests.service_client.on_job_submitted', launch)
         yield
         for thread in threads:
             thread.join(timeout=30)

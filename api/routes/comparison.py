@@ -5,11 +5,13 @@ import asyncio
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["comparison"])
+from api.internal_contracts import require_service
+
+router = APIRouter(prefix="/internal/v1/ai", dependencies=[Depends(require_service)], tags=["comparison"])
 
 
 class ComparisonRequest(BaseModel):

@@ -1,7 +1,7 @@
 """같은 매수 조건을 화면·대화·케이스 비교에 전달해 실제 계산과 저장 내용을 대조한다."""
 import pytest
 
-from api.routes.simulation import SimulationRequest
+from schemas.funding_request import SimulationRequest
 from backend.concierge.decision_tools import simulate_investment
 from backend.services.candidate_funding import profile_funding_inputs
 from schemas.simulation import SimulationInput

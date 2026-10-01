@@ -21,15 +21,14 @@ class PythonClient(env: Environment, private val json: ObjectMapper) {
     private val secret = env.getRequiredProperty("INTERNAL_SERVICE_SECRET").also { require(it.length >= 32) }
     private val client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).followRedirects(HttpClient.Redirect.NEVER).build()
 
-    fun send(method: String, path: String, body: ByteArray = byteArrayOf(), cookie: String? = null, contentType: String? = null, clientIp: String? = null,
-        timeoutSeconds: Long = 180): PythonReply {
-        require(path.startsWith("/api/") || path.startsWith("/internal/v1/") || path == "/ready")
+    fun send(method: String, path: String, body: ByteArray = byteArrayOf(), contentType: String? = null,
+        timeoutSeconds: Long = 180, userId: Long? = null): PythonReply {
+        require(path.startsWith("/internal/v1/") || path == "/ready")
         require(!path.contains('\r') && !path.contains('\n'))
         val request = HttpRequest.newBuilder(URI(root + path)).timeout(Duration.ofSeconds(timeoutSeconds))
             .header("X-Internal-Service-Key", secret).header("Accept", "application/json")
-        cookie?.let { request.header("Cookie", it) }
         contentType?.let { request.header("Content-Type", it) }
-        clientIp?.let { request.header("X-Forwarded-For", it) }
+        userId?.let { request.header("X-AI-User-Id", it.toString()) }
         request.method(method, if (body.isEmpty()) HttpRequest.BodyPublishers.noBody() else HttpRequest.BodyPublishers.ofByteArray(body))
         try {
             val response = client.send(request.build(), HttpResponse.BodyHandlers.ofByteArray())

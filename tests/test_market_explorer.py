@@ -11,7 +11,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-market-explorer")
 
 @pytest.fixture()
 def client():
-    from fastapi.testclient import TestClient
+    from tests.service_client import ServiceTestClient as TestClient
     from db.base import session_scope
     from db.models import CaseRegion, PurchaseCase, LegalRegion, Transaction, User
     from tests.conftest import truncate_tables

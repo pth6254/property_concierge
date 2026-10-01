@@ -25,7 +25,7 @@ Kotlin Spring 내부 :8080 / 기본 API 호스트 :8002
    ├── core-service/ 회원·매물·케이스·거래 상태·분석 이력·작업 저장·자금/세금 계산
    │ 내부 REST (서비스 인증)
 FastAPI 내부 :8000 (공개 포트 없음, uvicorn --workers 4)
-   ├── api/          라우터 · 인증 · Redis Stream 작업 큐/별도 실행기
+   ├── api/          내부 AI·데이터 계약 · AI 작업 실행기
    ├── backend/      LangGraph 파이프라인 + 도메인 로직
    ├── db/           SQLAlchemy 모델 + Alembic + Redis 클라이언트
    └── schemas/      Pydantic 스키마 (단위: 원 · ㎡)
@@ -57,6 +57,14 @@ Compose는 API·실행기 모두 Spring 저장 계약으로 고정한다. 한쪽
 Caddy가 웹 3002의 `/api/*`를 Spring에 직접 전달한다. Spring은 Caddy 172.30.92.2,
 Python은 Spring 172.31.244.2만 IP 헤더를 신뢰한다. Next나 사설망 전체를 신뢰 목록에 추가하지 않는다.
 계약·실행·검증 경계는 [백엔드 전환 안내](docs/backend-migration.md)를 확인한다.
+일반 공개 API·OAuth·재설정·메일·탈퇴·주소·운영·작업 접수는 Spring이다.
+대체된 Python 일반 API·인증·주소·레이트 리밋 파일 16개를 삭제했다.
+Python은 `/internal/v1/ai/*`·`/internal/v1/data/*`와 순수 분석 계약만 제공하며 항상 서비스 키를 검증한다.
+`X-AI-User-Id`는 Spring이 세션 검증 후 설정한다. 브라우저 쿠키·JWT를 Python에서 처리하지 않는다.
+`scripts/audit_python_routes.py`는 중복 경로가 생기면 실패한다. 기존 HTTP 회귀 테스트는
+`tests/service_client.py`를 통해 이전된 경로를 실제 격리 Spring에 보낸다. Python 핸들러를 테스트용으로 복구하지 않는다.
+챗봇 자금 분석은 `funding_execution_client.py` → `/internal/v1/simulation`으로 계산·소유자 확인·저장을 함께 실행한다.
+자금 입력 계약은 `schemas/funding_request.py`다. 제거된 `api.routes.simulation.SimulationRequest`를 다시 추가하지 않는다.
 Spring 검증도 `real_estate_test`·Redis 15만 사용한다. Python 테스트와 Spring 검증을 동시에 실행하면
 같은 테스트 DB를 비우는 작업이 충돌하므로 두 실행기는 순서대로 실행한다.
 
@@ -123,7 +131,7 @@ id를 훑어 타인 데이터를 전량 읽을 수 있다(실제로 있었던 �
 
 ### 2-5. 리버스 프록시 뒤에 배포하면 FORWARDED_ALLOW_IPS 를 반드시 지정한다
 
-레이트 리밋(`slowapi`)과 로그인 잠금이 **클라이언트 IP 기준**인데, 프록시를 거치면
+현재 레이트 리밋(`RedisLimits`)과 로그인 잠금이 **클라이언트 IP 기준**인데, 프록시를 거치면
 FastAPI 에는 모든 요청이 프록시 IP 하나로 들어온다. 실제 IP 는 `X-Forwarded-For` 에 있다.
 
 uvicorn 은 `proxy_headers=True` 가 기본이지만 `forwarded_allow_ips` 기본값이
@@ -151,16 +159,16 @@ uvicorn 은 `proxy_headers=True` 가 기본이지만 `forwarded_allow_ips` 기�
 ### 2-7. 비밀번호가 바뀌면 기존 JWT 를 전부 무효화한다
 
 JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없다. 그래서 "비밀번호를 바꿨는데
-탈취당한 세션이 만료(14일)까지 살아 있는" 상태가 된다 — 재설정 기능의 목적 자체가 무너진다.
+탈취당한 세션이 만료(7일)까지 살아 있는" 상태가 된다 — 재설정 기능의 목적 자체가 무너진다.
 
 세션 테이블을 만드는 대신 **버전 클레임**으로 해결했다:
 
 - `users.password_changed_at` (ISO8601 문자열) 을 비밀번호 변경 시 갱신
-- 토큰 발급 시 그 값을 `pwd_at` 클레임으로 심는다 (`api/auth_utils.py` 의 `create_jwt`)
-- 요청마다 `is_session_valid(payload, user)` 로 대조 → 불일치면 401
-  (`api/deps.py` 의 `get_current_user` · `get_optional_user` **양쪽 모두**)
+- 토큰 발급 시 그 값을 `pwd_at` 클레임으로 심는다 (`SessionService.issue`)
+- 요청마다 `SessionService.validate`로 대조 → 불일치면 401
+  (`SessionService.required`·`optional` **양쪽 모두**)
 
-`get_optional_user` 를 빼먹으면 비로그인도 되는 경로에서 옛 토큰이 계속 통한다. 둘 다 고칠 것.
+`optional` 검증을 빼먹으면 비로그인도 되는 경로에서 옛 토큰이 계속 통한다. 둘 다 고칠 것.
 `password_changed_at` 이 `None` 인 계정(재설정 이력 없음)은 무조건 유효 — 기존 사용자가
 마이그레이션 직후 전원 로그아웃되지 않게 한 의도적 처리다.
 
@@ -177,18 +185,20 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 | 서로 다른 사이트 (예: `app.vercel.app` ↔ `api.fly.dev`) | `none` — HTTPS 필수 |
 
 - `none` 이면 `APP_ENV` 와 무관하게 `secure` 가 자동으로 켜진다. Secure 없는 `SameSite=None`
-  은 브라우저가 무시하기 때문 (`api/routes/auth.py` 의 `_COOKIE_SECURE`).
+  은 브라우저가 무시하기 때문 (`SessionService.secure`).
 - 오타는 **기동 시점에 RuntimeError** 로 죽인다. 런타임에 잘못된 값이 조용히 나가면
   증상만 보고는 절대 못 찾는다.
 - **로그아웃 시 삭제 쿠키도 같은 속성으로 내려야 한다.** 속성이 다르면 브라우저가 다른
-  쿠키로 보고 지우지 않는다 (`_clear_cookie`).
+  쿠키로 보고 지우지 않는다 (`AuthController.logout`·`AccountLifecycleController` 삭제 쿠키).
 
-회귀 테스트: `tests/test_cookie_config.py` (환경변수 → 실제 `Set-Cookie` 헤더 매핑까지 고정).
+회귀 테스트: Kotlin `CookieContractTest`(환경 조합·잘못된 설정·삭제 헤더)와
+`tests/test_cookie_config.py`(실제 Spring 발급·삭제 HTTP 헤더). OAuth state 쿠키는 외부 콜백을 위해 Lax를 사용한다.
 
 ### 2-9. 오래 걸리는 작업은 별도 실행기에서 처리한다
 
-API의 AVM·수집·채팅 경로는 `api/jobs.py`의 `create_task()`로 JSON 입력을 Redis Stream에
-기록한다. `api/job_worker.py`가 별도 컨테이너에서 실행한다. API 내부 스레드 실행으로
+공개 AVM·수집·채팅 접수는 Spring `AiWorkController` → `AiJobStore`가 JSON 입력을 Redis Stream에
+기록한다. AI 도구의 하위 작업은 `api/jobs.py`의 내부 Spring 계약을 호출한다.
+`api/job_worker.py`가 별도 컨테이너에서 실행한다. API 내부 스레드 실행으로
 되돌리면 서버 재시작 때 진행 중 작업이 사라진다. 운영 Redis의 AOF 설정과
 `job-worker` 서비스도 함께 유지할 것. AVM 이력·수집 기록은 `job_id`로 중복 저장을 막는다.
 
@@ -399,7 +409,7 @@ node scripts/verify_decision_assessment_browser.cjs
 - 시세추정은 **AVM 기반 참고용 분석**이며 「감정평가 및 감정평가사에 관한 법률」에 따른
   감정평가가 아니다. UI·문서에서 이 고지를 빼지 말 것.
 - **비밀번호 재설정 메일은 아직 실제로 발송되지 않는다.** `RESEND_API_KEY` 가 비어 있으면
-  `api/email_service.py` 가 **서버 로그에 재설정 링크를 출력**한다(의도적 폴백 — 로컬·CI가
+  Spring `PasswordResetMail`이 **서버 로그에 재설정 링크를 출력**한다(의도적 폴백 — 로컬·CI가
   외부 메일 서비스에 의존하지 않게 함). 실발송하려면 Resend 계정 + 도메인 인증(SPF/DKIM)이
   필요하고 아직 하지 않았다. "메일이 나간다"고 설명하면 사실과 다르다.
 - **재설정 요청 응답은 계정 존재 여부와 무관하게 항상 동일하다**(`_RESET_GENERIC_RESPONSE`).

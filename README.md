@@ -79,12 +79,15 @@
 
 ## 아키텍처 개요
 
-백엔드는 **Kotlin + Spring Boot의 저장·권한·거래 상태·고정 수식 계산**과 **Python + FastAPI의 모델 추정·AI 분석**으로 단계적으로 분리한다.
+백엔드는 **Kotlin + Spring Boot의 저장·권한·거래 상태·고정 수식 계산**과 **Python + FastAPI의 모델 추정·AI 분석**으로 분리한다.
 `core-service/`에 기존 JWT와 호환되는 인증, 사용자 매물·케이스·후보·거래 준비 저장, 분석 이력과 Redis 작업 계약을 추가했다.
 필수 값과 미확인 값을 Kotlin 타입으로 구분하고 외부 JSON의 null·금액·필드를 별도로 검사한다.
 기본 실행은 웹 **3002** → Caddy → Next.js / Kotlin Spring이며 공개 API **8002**도 Spring이다.
-Python은 내부 전용이고 API·별도 실행기의 업무 저장은 Spring 계약으로 연결한다. 일부 HTTP 경로는 Python 라우터를 중계한다.
-저장 책임 전환 설정·검증 결과·남은 HTTP 경로는 [백엔드 전환 안내](docs/backend-migration.md)를 따른다.
+OAuth·비밀번호 재설정·메일·탈퇴·주소 검색·이력·운영 API·작업 접수까지 Spring이 제공한다.
+Python은 서비스 인증이 필요한 `/internal/v1/ai/*`·`/internal/v1/data/*`와 순수 분석 계약만 제공한다.
+대체된 Python 일반 API·인증·주소·레이트 리밋 파일 16개와 중복 구현을 삭제했다.
+챗봇 자금 분석도 Spring의 실행·소유자 확인·결과 저장을 사용한다. 중복 재도입은 `scripts/audit_python_routes.py`로 검사한다.
+서비스 책임·설정·검증 결과는 [백엔드 전환 안내](docs/backend-migration.md)를 따른다.
 대출·취득비용·세금·LTV/DSR·현금흐름·수익 시나리오는 Kotlin의 같은 계산기를 화면·챗봇·비교에서 호출한다.
 모델이 제시한 상승률은 입력 가정이며 복리·수익률 계산 자체는 Kotlin이 수행한다. 자세한 경계는 [계산 책임](docs/calculation-architecture.md)을 따른다.
 
@@ -260,25 +263,19 @@ property_concierge/
 │   ├── job_worker.py               별도 작업 실행기·생존 신호·복구
 │   ├── case_db.py                  사용자별 케이스·후보·분석 연결·원본 변경 재검토
 │   ├── case_execution_db.py        선택 후보의 거래 준비 작업·일정·확인 결과
-│   ├── auth_db.py                  사용자 인증 (db/ 공용 세션)
-│   ├── auth_utils.py               JWT 발급·검증 (비밀번호 변경 시각을 클레임에 심어 세션 무효화)
-│   ├── email_service.py            비밀번호 재설정 메일 발송 (Resend, 키 없으면 로그 출력 폴백)
-│   ├── deps.py                     인증 의존성 (get_current_user / get_optional_user — 둘 다 세션 유효성 검사)
+│   ├── ai_context.py               Spring이 인증한 내부 AI 행위자 (JWT·비밀번호 처리 없음)
+│   ├── internal_contracts.py       스냅샷 분석·CSV 정규화·AI 입력 계약
+│   ├── data_routes.py              실거래 통계·금리·수집 범위 분석
+│   ├── analysis_routes.py          케이스 추천·자금 시나리오 분석
 │   ├── history_db.py               시세추정 이력 (db/ 공용 세션, 리포트 영속화)
 │   ├── activity_db.py              권리점검·상담 활동 (db/ 공용 세션, 홈 통합 피드 데이터 소스)
 │   └── routes/
-│       ├── cases.py                케이스·후보·다섯 축 요약·비교·선택·실행 계획
-│       ├── listings.py             사용자 매물 등록·원본 관측·후보 저장
-│       ├── appraisal.py            POST /api/appraisal (동기) · /api/appraisal/jobs (비동기)
-│       ├── auth.py                 회원가입 / 로그인 / Google OAuth / me / logout
-│       ├── recommendation.py       POST /api/recommendation
-│       ├── simulation.py           POST /api/simulation
-│       ├── comparison.py           POST /api/comparison
-│       ├── history.py              GET/DELETE /api/history, GET /api/history/{id}
-│       ├── activity.py             GET /api/activity (시세추정+권리점검+상담 통합 피드)
-│       ├── rights.py               POST /api/rights/analyze (등기부·건축물대장 PDF 권리 점검)
-│       ├── chat.py                 POST /api/chat (법률·세금 AI 안내 챗봇)
-│       └── address.py              GET /api/address/search
+│       ├── appraisal.py            내부 AVM 분석 (작업 접수·권한은 Spring)
+│       ├── recommendation.py       내부 추천·랭킹
+│       ├── comparison.py           내부 비교 분석
+│       ├── rights.py               내부 PDF 권리 분석
+│       ├── chat.py                 내부 법령 RAG·답변 생성
+│       └── concierge.py            내부 대화·분석 도구 실행
 │
 ├── frontend/                       Next.js 16 (App Router, TypeScript, Tailwind v4)
 │   ├── src/app/
@@ -342,7 +339,7 @@ property_concierge/
 │       ├── build_law_corpus.py     국가법령정보센터 법령·판례 수집 → chat_corpus 확장
 │       ├── listing_tool.py         샘플 CSV 매물 조회
 │       ├── scoring_tool.py         매물 종합 점수 산출
-│       └── simulation_tool.py      시뮬레이션 계산
+│       └── simulation_tool.py      Spring 계산 계약 클라이언트
 │
 ├── schemas/                        Pydantic 스키마 (단위: 원·㎡)
 ├── data/
@@ -396,7 +393,7 @@ property_concierge/
 | `POST` | `/api/chat` | 법률·세금 AI 정보 안내 챗봇 |
 
 > 위 경로는 Spring API와 호환된다. 내부 FastAPI의 Swagger는 내부 서비스 인증이 필요한 개발 환경에서 확인한다.
-> Spring 저장 책임과 중계 경로의 구분은 [백엔드 전환 안내](docs/backend-migration.md)를 참고한다.
+> Spring과 AI·데이터 서비스의 책임은 [백엔드 전환 안내](docs/backend-migration.md)를 참고한다.
 
 ---
 
@@ -564,7 +561,7 @@ LLM 프로바이더 (`backend/model_factory.py`). 아래는 `.env.example`의 �
 
 ---
 
-## 공개 API (Python)
+## 공개 API (Kotlin Spring Boot)
 
 ### 시세추정
 

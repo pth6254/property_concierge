@@ -54,8 +54,14 @@ def validate_csv(user_id, source_name, csv_text, regions):
                 item = ListingInput.model_validate({key: value for key, value in raw.items() if value.strip()})
                 address_details = None
                 if item.address_token:
-                    from backend.services.listing_address_service import verified_address
-                    verified = verified_address(item.address_token, user_id)
+                    from api.core_bridge import request_core
+                    from schemas.listing_address import ListingAddress
+                    proof = request_core("/internal/v1/addresses/verify", {"token": item.address_token, "user_id": user_id})
+                    if proof.status_code == 422:
+                        raise ValueError("주소 확인 정보가 유효하지 않거나 만료되었습니다. 주소를 다시 검색·선택해주세요.")
+                    if proof.status_code != 200:
+                        raise HTTPException(503, "주소 확인 서비스에 연결하지 못했습니다")
+                    verified = ListingAddress.model_validate(proof.json())
                     if item.address not in (verified.jibun_address, verified.road_address):
                         raise ValueError("선택한 주소와 입력 주소가 다릅니다. 주소를 다시 선택해주세요.")
                     expected_name = verified.building_name or verified.jibun_address[:150]

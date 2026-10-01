@@ -18,8 +18,12 @@ class AiJobController(private val jobs: AiJobStore, private val sessions: Sessio
     private val timers = Executors.newScheduledThreadPool(2)
     @PreDestroy fun stop() { timers.shutdownNow() }
     @GetMapping("/api/appraisal/jobs/{jobId:[0-9a-f]{16}}", "/api/chat/jobs/{jobId:[0-9a-f]{16}}", "/api/concierge/jobs/{jobId:[0-9a-f]{16}}", "/api/listings/collection/jobs/{jobId:[0-9a-f]{16}}")
-    fun status(request: HttpServletRequest, @PathVariable jobId: String) = jobs.get(jobId, sessions.optional(request)?.id)
-        ?: throw ApiFailure(404, "작업이 없거나 만료되었습니다")
+    fun status(request: HttpServletRequest, @PathVariable jobId: String): com.fasterxml.jackson.databind.JsonNode {
+        // 매물 수집은 로그인 전용이며, 공개 AI 작업의 익명 조회 정책과 구분한다.
+        val owner = if (request.requestURI.startsWith("/api/listings/collection/")) sessions.required(request).id
+            else sessions.optional(request)?.id
+        return jobs.get(jobId, owner) ?: throw ApiFailure(404, "작업이 없거나 만료되었습니다")
+    }
 
     // 실제 작업은 Redis·별도 Python 실행기에 유지된다. SSE 연결 종료는 작업 취소가 아니다.
     @GetMapping("/api/jobs/{jobId:[0-9a-f]{16}}/events", produces=[MediaType.TEXT_EVENT_STREAM_VALUE])

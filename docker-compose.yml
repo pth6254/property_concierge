@@ -108,6 +108,8 @@ services:
       context: .
       dockerfile: Dockerfile.core
     image: property_concierge_core:latest
+    volumes:
+      - ./backups:/app/backups:ro
     container_name: property_concierge_core
     restart: unless-stopped
     depends_on:

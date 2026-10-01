@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 load_dotenv(ROOT / ".env", override=False)
 
-from backend.services.listing_address_service import sign_address
+from tests.legacy_address_token import sign_address
 from schemas.listing_address import ListingAddress
 
 owner_id = int(sys.argv[1])

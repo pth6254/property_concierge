@@ -43,9 +43,18 @@ def test_private_service_mode_rejects_direct_business_request(client, monkeypatc
     import os
     key = os.environ["INTERNAL_SERVICE_SECRET"]
     monkeypatch.setenv("REQUIRE_INTERNAL_SERVICE_AUTH", "1")
-    assert client.get("/health").status_code == 200
-    assert client.get("/api/listings").status_code == 401
-    assert client.get("/api/listings", headers={"X-Internal-Service-Key": key}).status_code == 200
+    from fastapi.testclient import TestClient
+    from api.main import app
+    with TestClient(app) as private:
+        private.cookies.update(client.cookies)
+        assert private.get("/health").status_code == 200
+        assert private.get("/api/activity").status_code == 401
+        assert private.get("/api/activity", headers={"X-Internal-Service-Key": key}).status_code == 404
+        assert private.get("/internal/v1/data/market/regions", headers={"X-Internal-Service-Key": key}).status_code == 200
+        assert private.get("/api/listings", headers={"X-Internal-Service-Key": key}).status_code == 404
+        # 서비스 키만 있어도 브라우저 쿠키를 AI 행위자로 해석하지 않는다.
+        assert private.get("/internal/v1/ai/chat/conversations/00000000-0000-0000-0000-000000000001",
+                           headers={"X-Internal-Service-Key": key}).status_code == 401
 
 
 def test_stored_case_decoration_has_no_database_access(client, monkeypatch):

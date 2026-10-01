@@ -43,17 +43,3 @@ class ListingInput(BaseModel):
         elif self.deposit is None or self.monthly_rent is None or self.asking_price is not None:
             raise ValueError("월세는 deposit과 monthly_rent를 입력해야 합니다")
         return self
-
-
-class ListingImportRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
-    source_name: str = Field(min_length=1, max_length=100)
-    csv_text: str = Field(min_length=1, max_length=1_000_000)
-    commit: bool = False
-
-    @field_validator("source_name")
-    @classmethod
-    def source_text(cls, value):
-        if "\x00" in value:
-            raise ValueError("출처에 허용되지 않는 제어 문자가 있습니다")
-        return value

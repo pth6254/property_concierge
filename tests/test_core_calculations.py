@@ -52,5 +52,35 @@ def test_result_from_different_inputs_is_rejected(monkeypatch):
 
 
 def test_decimal_ratio_does_not_lose_a_won():
-    from api.routes.simulation import SimulationRequest
+    from schemas.funding_request import SimulationRequest
     assert SimulationRequest(purchase_price=100, loan_ratio=0.58).to_simulation_input().loan_amount == 58
+
+
+@pytest.mark.parametrize('status,expected', [(401, 503), (500, 503), (404, 404), (422, 422)])
+def test_funding_execution_preserves_business_failure_and_hides_service_auth(monkeypatch, status, expected):
+    from backend.services.funding_execution_client import execute_simulation
+    from schemas.funding_request import SimulationRequest
+    configure(monkeypatch)
+    response = requests.Response()
+    response.status_code = status
+    monkeypatch.setattr(requests, 'post', lambda *args, **kwargs: response)
+    with pytest.raises(HTTPException) as failure:
+        execute_simulation(SimulationRequest(purchase_price=600_000_000), None)
+    assert failure.value.status_code == expected
+
+
+@pytest.mark.parametrize('mismatch', [True, False])
+def test_funding_execution_rejects_mismatched_or_malformed_result(monkeypatch, mismatch):
+    import json
+    from backend.tools.simulation_tool import run_simulation
+    from backend.services.funding_execution_client import execute_simulation
+    from schemas.funding_request import SimulationRequest
+    value = run_simulation(SimulationInput(purchase_price=500_000_000)).model_dump(mode='json') if mismatch else {'unexpected': 1}
+    configure(monkeypatch)
+    response = requests.Response()
+    response.status_code = 200
+    response._content = json.dumps({'result': value}).encode()
+    monkeypatch.setattr(requests, 'post', lambda *args, **kwargs: response)
+    with pytest.raises(HTTPException) as failure:
+        execute_simulation(SimulationRequest(purchase_price=600_000_000), None)
+    assert failure.value.status_code == 503

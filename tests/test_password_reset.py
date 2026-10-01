@@ -24,7 +24,7 @@ NEW_PASS = "brand-new-pass-5678"
 @pytest.fixture()
 def client():
     """users/history 를 비우고 시작하는 TestClient."""
-    from fastapi.testclient import TestClient
+    from tests.service_client import ServiceTestClient as TestClient
 
     from db.models import HistoryRecord, User
     from tests.conftest import truncate_tables
@@ -94,7 +94,7 @@ class TestAccountEnumeration:
         """Google 계정은 비밀번호가 없다 — 응답은 동일하되 토큰은 만들지 않는다."""
         from db.redis_client import get_redis
 
-        from api import auth_db
+        from tests import core_accounts as auth_db
 
         auth_db.get_or_create_oauth_user(
             email="social@example.com", name="소셜", avatar_url="",
@@ -174,7 +174,7 @@ class TestSessionInvalidation:
 
         # confirm 응답이 쿠키를 지우므로, 탈취당한 세션 상황을 재현하기 위해
         # 이전 쿠키를 그대로 되살려 접근을 시도한다.
-        from api import auth_db, auth_utils
+        from tests import core_accounts as auth_db, legacy_auth as auth_utils
 
         user = auth_db.get_by_email(EMAIL)
         stale = auth_utils.create_jwt(user["id"], password_changed_at=None)
@@ -199,7 +199,7 @@ class TestSessionInvalidation:
         컬럼 도입 이전에 발급된 토큰 호환성 —
         비밀번호를 한 번도 바꾼 적 없는 계정은 pwd_at 없는 토큰도 통과해야 한다.
         """
-        from api import auth_db, auth_utils
+        from tests import core_accounts as auth_db, legacy_auth as auth_utils
 
         _register(client)
         user = auth_db.get_by_email(EMAIL)

@@ -1,4 +1,4 @@
-"""accounts 내부 계약 클라이언트. 저장·권한·트랜잭션은 Kotlin에서 처리한다."""
+"""격리 Spring에만 호출하는 계정 준비 도우미. 실행 코드에서 임포트하지 않는다."""
 from __future__ import annotations
 
 from typing import Optional

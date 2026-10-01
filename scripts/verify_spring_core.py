@@ -15,6 +15,8 @@ import requests
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 
 def main():
     database = make_url(os.environ["TEST_DATABASE_URL"])
@@ -43,12 +45,19 @@ def main():
         user = require(owner.post(root + "/api/auth/register", json=credentials), 201)
         require(other.post(root + "/api/auth/register", json={**credentials, "email": "other-" + credentials["email"]}), 201)
         assert require(owner.get(root + "/api/auth/me"))["id"] == user["id"]
-        assert require(owner.get(python + "/api/auth/me", headers=private_headers))["id"] == user["id"]
-        check("Kotlin 가입과 기존 Python JWT 검증 호환")
-        require(owner.get(python + "/api/auth/me"), 401)
+        require(owner.get(python + "/api/activity", headers=private_headers),404)
+        require(owner.get(python + "/internal/v1/data/market/regions", headers=private_headers))
+        check("Kotlin 가입·인증과 Python 일반 API 제거")
+        require(owner.get(python + "/api/activity"), 401)
         check("유효한 사용자 쿠키가 있어도 내부 인증 없는 Python 직접 요청 차단")
         # Python 발급 토큰도 Kotlin에서 검증하며 기존 bcrypt 계정을 재해시 없이 유지한다.
-        require(owner.post(python + "/api/auth/login", headers=private_headers, json={k: credentials[k] for k in ("email", "password")}))
+        from tests import legacy_auth as auth_utils
+        with engine.begin() as connection:
+            connection.execute(text("UPDATE users SET password_hash=:hash WHERE id=:id"),
+                {"hash": auth_utils.hash_password(credentials["password"]), "id": user["id"]})
+        require(owner.post(root + "/api/auth/login", json={k: credentials[k] for k in ("email", "password")}))
+        owner.cookies.clear()
+        owner.cookies.set("auth_token", auth_utils.create_jwt(user["id"]))
         assert require(owner.get(root + "/api/auth/me"))["id"] == user["id"]
         check("기존 Python 로그인 토큰·bcrypt와 Kotlin 세션의 양방향 호환")
         row = {"external_id": "core-check", "name": "검증 단지", "alias": '첫 임장, "출퇴근"', "property_type": "apartment",
@@ -65,9 +74,12 @@ def main():
         assert require(upload([row]))["unchanged"] == 1
         listing = require(owner.get(root + "/api/listings"))["items"][0]
         assert listing["alias"] == row["alias"] and listing["asking_price"] == 700000000
-        assert require(owner.get(python + "/api/listings", headers=private_headers))["items"][0] == listing
+        require(owner.get(python + "/api/listings", headers=private_headers), 404)
+        stored = require(requests.post(root + "/internal/v1/store/listings/get_listing", headers=private_headers,
+            json={"user_id": user["id"], "listing_id": listing["id"]}))
+        assert stored == listing
         assert require(owner.get(root + "/api/listings?fresh_only=true"))["total"] == 1
-        check("미리보기·Kotlin 저장·별칭·동일 업로드·Python 조회와 응답 대조")
+        check("미리보기·Kotlin 저장·별칭·동일 업로드·중복 Python 경로 제거")
         id = listing["id"]
         require(other.get(root + f"/api/listings/{id}"), 404)
         require(other.get(root + f"/api/listings/{id}/history"), 404)
@@ -233,14 +245,15 @@ def main():
         internal("accounts", "update_password", {"user_id": user["id"], "password_hash": "$2b$12$not-used-login-during-reset-check"})
         require(owner.get(root + "/api/auth/me"), 401)
         owner.cookies.set("auth_token", old_token)
-        require(owner.get(python + "/api/auth/me", headers=private_headers), 401)
+        require(owner.post(root + "/api/chat", json={"message":"만료 세션 검증"}), 401)
+        require(owner.get(python + "/api/activity", headers=private_headers), 404)
         # 제거용 유효 토큰은 새로운 버전으로 직접 발급한다. 공개 서비스 자격증명을 사용하지 않는다.
         import jwt
         with engine.connect() as connection:
             version = connection.execute(text("SELECT password_changed_at FROM users WHERE id=:id"), {"id": user["id"]}).scalar_one()
         replacement = jwt.encode({"sub": str(user["id"]), "pwd_at": version, "exp": int(time.time())+600}, os.environ["JWT_SECRET_KEY"], algorithm="HS256")
         owner.cookies.clear(); owner.cookies.set("auth_token", replacement)
-        check("Kotlin 비밀번호 변경 후 Kotlin·Python 양쪽 기존 JWT 무효화")
+        check("Kotlin 비밀번호 변경 후 일반·AI 공개 경로의 기존 JWT 무효화")
         report["status"] = "passed"
     except Exception as exc:
         report["status"], report["error"] = "failed", str(exc)

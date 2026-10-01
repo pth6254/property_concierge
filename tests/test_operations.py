@@ -4,9 +4,17 @@ from tests.test_market_explorer import client
 
 
 def operator(client, monkeypatch):
-    user = client.get('/api/auth/me').json()
-    monkeypatch.setenv('OPERATOR_USER_IDS', str(user['id']))
-    return user
+    from tests.legacy_auth import create_jwt
+    from db.base import session_scope
+    from db.models import User
+    operator_id = 2147483646
+    with session_scope() as session:
+        if session.get(User, operator_id) is None:
+            session.add(User(id=operator_id, email='isolated-operator@example.com', name='검증 운영자'))
+    client.cookies.clear()
+    client.cookies.set('auth_token', create_jwt(operator_id), domain='testserver.local', path='/')
+    monkeypatch.setenv('OPERATOR_USER_IDS', str(operator_id))
+    return client.get('/api/auth/me').json()
 
 
 def test_operations_requires_explicit_existing_account(client, monkeypatch):
@@ -95,13 +103,17 @@ def test_ingestion_missing_months_and_retry_guard(client,monkeypatch):
     data=client.get('/api/operations/ingestion?lawd_code=11680&months=1').json()
     assert data['counts']['missing'] == len(data['items']) > 0
     assert client.post('/api/operations/ingestion/retry',json={'lawd_code':'11680','endpoint':'https://internal','month':'202609'}).status_code==422
-    monkeypatch.setattr(jobs,'create_task',lambda *a:'test-job')
+    from backend.services import ingestion_operations
+    monkeypatch.setattr(ingestion_operations,'retry_one',lambda *a,**kw:{'status':'ok','test_fixture':True})
     row=data['items'][0]
     payload={'lawd_code':'11680','endpoint':row['endpoint'],'month':row['month']}
     from db.redis_client import get_redis
     import json
-    get_redis().delete(f'ops-request:ingestion_retry:{json.dumps(payload,sort_keys=True)}')
-    assert client.post('/api/operations/ingestion/retry',json=payload).json()['job_id']=='test-job'
+    get_redis().delete(f'ops-request:ingestion_retry:{json.dumps(payload,sort_keys=True,separators=(",",":"))}')
+    response=client.post('/api/operations/ingestion/retry',json=payload)
+    assert response.status_code==200,response.text
+    job_id=response.json()['job_id']
+    assert len(job_id)==16 and get_redis().exists('job:'+job_id)
     assert client.post('/api/operations/ingestion/retry',json=payload).status_code==409
 
 

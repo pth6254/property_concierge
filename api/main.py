@@ -21,16 +21,10 @@ for _p in [_PROJECT_ROOT, _BACKEND_DIR, _API_DIR]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-
-from api.routes import activity, appraisal, address, auth, cases, chat, comparison, concierge, history, listings, market, recommendation, rights, simulation
-from api.routes import operations, feedback
-from api import auth_db as _adb
-from api import history_db as _hdb
-from api import activity_db as _actdb
-from api.rate_limit import limiter
+from api.routes import appraisal, chat, comparison, concierge, recommendation, rights
+from api import data_routes, analysis_routes
 from backend.cache_db import init_cache_db as _init_cache
+from db.base import init_db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,24 +60,20 @@ if _SENTRY_DSN:
 async def lifespan(app: FastAPI):
     from api.core_bridge import require_core_configuration
     require_core_configuration()
-    _hdb.init()
-    _adb.init()
-    _actdb.init()
+    init_db()
     _init_cache()
-    logger.info("FastAPI 시작 — history DB, auth DB, activity DB, cache DB 초기화 완료")
+    logger.info("AI 서비스 시작 — 분석 스키마·캐시 초기화 완료")
     yield
     logger.info("FastAPI 종료")
 
 
 app = FastAPI(
-    title="부동산 감정평가 AI API",
-    description="LangGraph 기반 부동산 가치 분석·추천·시뮬레이션 API",
+    title="Property Concierge 내부 AI·데이터 서비스",
+    description="Spring이 인증한 입력의 모델 추정·RAG·랭킹·데이터 분석",
     version="1.0.0",
     lifespan=lifespan,
 )
 
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 from api.internal_contracts import router as internal_router
 app.include_router(internal_router)
@@ -91,7 +81,7 @@ app.include_router(internal_router)
 
 @app.middleware("http")
 async def internal_service_boundary(request, call_next):
-    if os.getenv("REQUIRE_INTERNAL_SERVICE_AUTH", "0") == "1" and request.url.path not in ("/health", "/ready"):
+    if request.url.path not in ("/health", "/ready"):
         import hmac
         from fastapi.responses import JSONResponse
         expected = os.getenv("INTERNAL_SERVICE_SECRET", "")
@@ -115,7 +105,7 @@ async def measure_request(request, call_next):
         route = request.scope.get("route")
         # 매물 ID·쿼리·주소가 포함된 실제 URL은 집계 키로 사용하지 않는다.
         template = getattr(route, "path", None)
-        if template and template.startswith("/api/") and not template.startswith("/api/operations"):
+        if template and template.startswith("/internal/v1/"):
             await asyncio.to_thread(record_duration, f"http:{request.method}:{template}", perf_counter()-started, status_code >= 500)
 
 # 허용 오리진 — 배포 도메인은 CORS_ORIGINS 환경변수(콤마 구분)로 지정한다.
@@ -134,25 +124,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _router in [
-    auth.router,
-    appraisal.router,
-    recommendation.router,
-    simulation.router,
-    comparison.router,
-    cases.router,
-    market.router,
-    listings.router,
-    concierge.router,
-    history.router,
-    activity.router,
-    address.router,
-    rights.router,
-    chat.router,
-    operations.router,
-    feedback.router,
-]:
-    app.include_router(_router, prefix="/api")
+for _router in (appraisal.router, recommendation.router, comparison.router,
+                concierge.router, rights.router, chat.router, data_routes.router, analysis_routes.router):
+    app.include_router(_router)
 
 
 @app.get("/health", tags=["system"])

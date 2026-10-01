@@ -7,6 +7,8 @@ Kotlin `core-service/`, 분석 HTTP와 실행기는 Python `api/`, Python 계약
 이전된 사용자·매물·케이스·분석 이력 저장 함수는 `api/core_bridge.py`를 통해 Spring을 호출한다.
 개발 전에 [루트 작업 지침](../AGENTS.md)을 읽고, 제품 범위는 [제품 전략](../docs/product-strategy.md),
 현재 전환 상태는 [백엔드 전환 안내](../docs/backend-migration.md)를 확인한다.
+Python 일반 API·인증·주소·레이트 리밋 파일 16개를 삭제했다. API는 내부 AI·데이터 분석만 제공한다.
+OAuth·재설정·주소·운영·작업 접수는 Spring이다. 내부 저장 클라이언트를 업무 SQL로 되돌리지 않는다.
 
 ## 현재 제품의 중심 흐름
 
@@ -35,6 +37,7 @@ Kotlin `core-service/`, 분석 HTTP와 실행기는 Python `api/`, Python 계약
 | [naver_listing_collector.py](services/naver_listing_collector.py) | 개별 링크의 Playwright 수집. 실패·접근 제한·미노출을 거래 완료와 구분 |
 | [appraisal_graph.py](graphs/appraisal_graph.py) | 자연어 분석·위치 해석·유형별 AVM·참고용 리포트 파이프라인 |
 | [simulation_service.py](services/simulation_service.py) · [core_calculations.py](services/core_calculations.py) | 입력 정규화·Kotlin 계산 호출·리포트 표현 |
+| [funding_execution_client.py](services/funding_execution_client.py) | 챗봇 후보 자금 분석을 Spring의 계산·소유자 확인·결과 저장 경로로 실행 |
 | [rights_analysis_service.py](services/rights_analysis_service.py) | 사용자 문서의 판독 결과와 규칙 기반 위험 신호 점검 |
 | [law_retrieval.py](services/law_retrieval.py) · [concierge_graph.py](graphs/concierge_graph.py) | 법령 근거 검색과 대화 맥락·조건부 도구 실행 |
 | [model_factory.py](model_factory.py) | 역할별 LLM·임베딩 제공자 생성. OpenRouter 등 지원 제공자 선택 |

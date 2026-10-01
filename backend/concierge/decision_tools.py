@@ -34,7 +34,8 @@ def _case(user_id, context):
 
 
 def simulate_investment(criteria, user_id, candidate_context=None, *, funding=None):
-    from api.routes.simulation import SimulationRequest, execute_simulation
+    from schemas.funding_request import SimulationRequest
+    from backend.services.funding_execution_client import execute_simulation
     from backend.services.candidate_funding import funding_issues, profile_funding_inputs
     tool = "simulate_investment"
     case = _case(user_id, candidate_context)

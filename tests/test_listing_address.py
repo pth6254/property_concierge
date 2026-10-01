@@ -6,7 +6,9 @@ import time
 import pytest
 import requests
 
-from backend.services import listing_address_service as addresses
+from api.core_bridge import request_core
+from tests import legacy_address_token as addresses
+from schemas.listing_address import ListingAddress
 from tests.test_listing_import import regions, row
 from tests.test_market_explorer import client
 
@@ -19,9 +21,12 @@ def document(name="주소 검증 단지", **changes):
 
 @pytest.fixture
 def lookup(regions, monkeypatch):
-    monkeypatch.setattr(addresses, "_kakao", lambda query, kind="address": [document()])
-    monkeypatch.setattr(addresses, "_register_names", lambda address: [])
+    configure(documents=[document()])
     return regions
+
+def configure(**data):
+    response=requests.post('http://127.0.0.1:8016/configure',json=data,timeout=5)
+    assert response.status_code==200
 
 
 def chosen(client):
@@ -76,10 +81,11 @@ def test_modified_address_proof_and_invalid_alias_never_save(lookup, change):
 def test_address_proof_owner_expiry_and_not_auth_cookie(lookup, monkeypatch):
     choice = chosen(lookup)
     owner_id = lookup.get("/api/auth/me").json()["id"]
-    with pytest.raises(ValueError): addresses.verified_address(choice["token"], owner_id + 1)
+    assert request_core('/internal/v1/addresses/verify',{'token':choice['token'],'user_id':owner_id+1}).status_code==422
     clock = time.time()
-    monkeypatch.setattr(addresses.time, "time", lambda: clock + addresses.TOKEN_SECONDS + 1)
-    with pytest.raises(ValueError): addresses.verified_address(choice["token"], owner_id)
+    monkeypatch.setattr(addresses.time, "time", lambda: clock - addresses.TOKEN_SECONDS - 1)
+    expired=addresses.sign_address(ListingAddress.model_validate({key:value for key,value in choice.items() if key!='token'}),owner_id)
+    assert request_core('/internal/v1/addresses/verify',{'token':expired,'user_id':owner_id}).status_code==422
     monkeypatch.undo()
     lookup.cookies.clear()
     assert lookup.get("/api/listings/address/search?query=역삼동").status_code == 401
@@ -92,8 +98,7 @@ def test_address_proof_owner_expiry_and_not_auth_cookie(lookup, monkeypatch):
 
 @pytest.mark.parametrize("names,status,name", [([], "unknown", ""), (["대장 건물명"], "found", "대장 건물명"), (["A동", "B동"], "ambiguous", "")])
 def test_missing_or_multiple_building_names_are_not_guessed(lookup, monkeypatch, names, status, name):
-    monkeypatch.setattr(addresses, "_kakao", lambda query, kind="address": [document("")])
-    monkeypatch.setattr(addresses, "_register_names", lambda address: names)
+    configure(documents=[document('')],names=names)
     choice = chosen(lookup)
     assert choice["building_name"] == name and choice["name_status"] == status
     assert upload_address(lookup, choice).json()["committed"]
@@ -103,18 +108,15 @@ def test_missing_or_multiple_building_names_are_not_guessed(lookup, monkeypatch,
 
 
 def test_keyword_place_name_is_not_used_as_building_name(lookup, monkeypatch):
-    def provider(query, kind="address"):
-        if kind == "keyword": return [{"place_name": "건물 안 카페", "address_name": "서울 강남구 역삼동 123"}]
-        return [] if query == "건물 안 카페" else [document()]
-    monkeypatch.setattr(addresses, "_kakao", provider)
+    configure(documents=[document()],empty_query='건물 안 카페',places=[{'place_name':'건물 안 카페','address_name':'서울 강남구 역삼동 123'}])
     choice = lookup.get("/api/listings/address/search?query=건물 안 카페").json()["items"][0]
     assert choice["building_name"] == "주소 검증 단지"
 
 
 def test_provider_failure_and_non_address_results(lookup, monkeypatch):
-    monkeypatch.setattr(addresses, "_kakao", lambda *args: (_ for _ in ()).throw(requests.Timeout("secret-key-must-not-leak")))
+    configure(failure=True)
     response = lookup.get("/api/listings/address/search?query=역삼동")
     assert response.status_code == 502 and "secret-key" not in response.text
-    monkeypatch.setattr(addresses, "_kakao", lambda *args: [document(address={"b_code": "1168010100"})])
+    configure(documents=[document(address={'b_code':'1168010100'})])
     assert lookup.get("/api/listings/address/search?query=역삼동").json()["items"] == []
     assert lookup.get("/api/listings/address/search?query=%20%20").status_code == 422

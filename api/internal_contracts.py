@@ -17,6 +17,26 @@ def require_service(x_internal_service_key: str | None = Header(default=None)):
         raise HTTPException(401, "내부 서비스 인증이 필요합니다")
 
 
+class AiInput(BaseModel):
+    task_type: str
+    request: dict
+
+
+@router.post("/ai/validate", dependencies=[Depends(require_service)])
+def validate_ai_input(body: AiInput):
+    from api.routes.appraisal import AppraisalRequest
+    from api.routes.chat import ChatRequest
+    from schemas.concierge import ConciergeMessageRequest
+    from pydantic import ValidationError
+    model = {"appraisal": AppraisalRequest, "chat": ChatRequest, "concierge": ConciergeMessageRequest}.get(body.task_type)
+    if model is None:
+        raise HTTPException(422, "지원하지 않는 분석입니다")
+    try:
+        return model.model_validate(body.request).model_dump(mode="json")
+    except ValidationError:
+        raise HTTPException(422, "분석 입력 값과 형식을 확인해주세요") from None
+
+
 class RegionFact(BaseModel):
     model_config = ConfigDict(extra="forbid")
     code: str = Field(pattern=r"^\d{10}$")

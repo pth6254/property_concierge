@@ -108,7 +108,8 @@ def test_listing_page_fetches_observations_in_batches(regions, monkeypatch):
     response = regions.get("/api/listings")
     assert response.status_code == 200 and response.json()["total"] == 5
     # SQL 조회 수는 Kotlin ListingContractTest에서 검증한다. Python은 건별 요청을 보내지 않는다.
-    assert len(calls) == 1
+    assert calls == []
+    assert regions._transport.native_requests[-1] == ("GET", "/api/listings")
 
 
 def test_collection_job_and_owner_isolation(regions, monkeypatch):
@@ -139,15 +140,14 @@ def test_shared_wait_rejects_job_before_enqueue(regions, monkeypatch):
     from backend.services import listing_collection_gate as gate
     from db.redis_client import get_redis
     from api import jobs
-    monkeypatch.setattr(gate, "KEY", "test:listing-collection:api-gate")
-    def unexpected(*args, **kwargs):
-        raise AssertionError("대기 중인 작업을 큐에 넣으면 안 됨")
-    monkeypatch.setattr(jobs, "create_task", unexpected)
+    # Kotlin도 같은 격리 Redis 15의 실제 키를 읽는다. Python 상수만 바꾸면 서비스 계약 검증이 아니다.
+    before = get_redis().xlen(jobs.STREAM)
     try:
         gate.postpone(900)
         response = regions.post("/api/listings/collection/jobs", json={"source_url":"https://fin.land.naver.com/articles/123"})
         assert response.status_code == 429
         assert int(response.headers["Retry-After"]) > 0
         assert "자동 재시도하지 않습니다" in response.json()["detail"]
+        assert get_redis().xlen(jobs.STREAM) == before
     finally:
         get_redis().delete(gate.KEY)

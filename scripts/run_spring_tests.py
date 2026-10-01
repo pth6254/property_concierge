@@ -34,14 +34,15 @@ def main():
         "TEST_REDIS_URL": "redis://localhost:6379/15", "APP_ENV": "development", "DISABLE_RATE_LIMIT": "1",
         "JWT_SECRET_KEY": "spring-isolated-test-secret-not-used-in-production",
         "INTERNAL_SERVICE_SECRET": secrets.token_urlsafe(48), "LANGCHAIN_TRACING_V2": "false", "CORE_STORAGE_URL": "",
-        "REQUIRE_INTERNAL_SERVICE_AUTH": "0"}
+        "REQUIRE_INTERNAL_SERVICE_AUTH": "0", "OPERATOR_USER_IDS": "2147483646"}
     env = os.environ | settings
+    subprocess.run([sys.executable, "scripts/audit_python_routes.py"], cwd=ROOT, check=True)
     subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], cwd=ROOT, env=env, check=True)
     subprocess.run([sys.executable, "scripts/seed_browser_regions.py", "--transactions"], cwd=ROOT,
                    env=env | {"BROWSER_TEST_DB": "1"}, check=True)
     from redis import Redis
     Redis.from_url(settings["REDIS_URL"]).flushdb()
-    containers = ["property_concierge_spring_test_core", "property_concierge_spring_test_api", "property_concierge_spring_test_worker"]
+    containers = ["property_concierge_spring_test_core", "property_concierge_spring_test_api", "property_concierge_spring_test_worker", "property_concierge_spring_test_provider"]
     for name in containers:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True)
     handle, filename = tempfile.mkstemp(prefix="property-core-test-", suffix=".env")
@@ -50,13 +51,23 @@ def main():
             "TEST_DATABASE_URL": database.set(host="pgvector", port=5432).render_as_string(hide_password=False),
             "REDIS_URL": "redis://redis:6379/15", "TEST_REDIS_URL": "redis://redis:6379/15",
             "PYTHON_AI_URL": "http://property-core-test-ai:8000", "CORE_STORAGE_URL": "http://property-core-test-core:8080",
-            "REQUIRE_INTERNAL_SERVICE_AUTH": "1"}
+            "REQUIRE_INTERNAL_SERVICE_AUTH": "1", "KAKAO_REST_API_KEY":"isolated-provider-key",
+            "KAKAO_API_ROOT":"http://property-provider-test:8000/local/", "MOLIT_API_KEY":"isolated-provider-key",
+            "BUILDING_REGISTER_URL":"http://property-provider-test:8000/buildings", "RESEND_API_KEY":"",
+            "GOOGLE_CLIENT_ID":"isolated-google-client", "GOOGLE_CLIENT_SECRET":"isolated-google-secret",
+            "GOOGLE_AUTH_URL":"http://property-provider-test:8000/oauth/authorize",
+            "GOOGLE_TOKEN_URL":"http://property-provider-test:8000/oauth/token", "GOOGLE_USERINFO_URL":"http://property-provider-test:8000/oauth/userinfo"}
+        if '--pytest' in sys.argv:
+            # 실제 Spring이 같은 테스트 프로세스의 모의 AI에 HTTP로 호출한다. 업무 저장은 계속 실제 Spring이다.
+            bridge_host = subprocess.check_output(['hostname', '-I'], text=True).split()[0]
+            container_settings['PYTHON_AI_URL'] = f'http://{bridge_host}:8015'
         with os.fdopen(handle, "w", encoding="utf-8") as output:
             output.write("\n".join(f"{key}={value}" for key, value in container_settings.items()))
         for name, image, port, command in [
             (containers[1], "property_concierge_backend:latest", "127.0.0.1:8012:8000", ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]),
             (containers[0], "property_concierge_core:latest", "127.0.0.1:8013:8080", []),
-            (containers[2], "property_concierge_backend:latest", None, ["python", "-m", "api.job_worker"])]:
+            (containers[2], "property_concierge_backend:latest", None, ["python", "-m", "api.job_worker"]),
+            (containers[3], "property_concierge_backend:latest", "127.0.0.1:8016:8000", ["uvicorn", "tests.provider_fixture:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"])]:
             if "--pytest" in sys.argv and name == containers[2]:
                 continue
             args = ["docker", "run", "-d", "--name", name, "--network", os.getenv("SPRING_TEST_NETWORK", "property_concierge_default"), "--env-file", filename]
@@ -65,12 +76,14 @@ def main():
             if name != containers[0]:
                 if name == containers[1]:
                     args.extend(["--network-alias", "property-core-test-ai"])
+                if name == containers[3]:
+                    args.extend(["--network-alias", "property-provider-test", "-v",f"{ROOT / 'tests'}:/app/tests:ro"])
                 for directory in ("api", "backend", "schemas"):
                     args.extend(["-v", f"{ROOT / directory}:/app/{directory}:ro"])
             else:
                 args.extend(["--network-alias", "property-core-test-core"])
             subprocess.run(args + [image] + command, capture_output=True, check=True)
-        for port in (8012, 8013):
+        for port in (8012, 8013, 8016):
             deadline = time.monotonic() + 60
             while time.monotonic() < deadline:
                 try:

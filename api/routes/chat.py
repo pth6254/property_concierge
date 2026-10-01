@@ -14,13 +14,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from api import activity_db
-from api.deps import get_optional_user, get_current_user
-from api.rate_limit import limiter
+from api.ai_context import get_optional_user, get_current_user
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["chat"])
+from api.internal_contracts import require_service
 
-DAILY_CHAT_LIMIT = 50   # 사용자별 일일 질문 상한
+router = APIRouter(prefix="/internal/v1/ai", dependencies=[Depends(require_service)], tags=["chat"])
+
 
 
 class ChatMessage(BaseModel):
@@ -41,12 +41,6 @@ def _truncate_question(q: str, limit: int = 20) -> str:
 
 async def _answer(req: ChatRequest, user: Optional[dict]):
     from backend.services.chat_service import answer_question
-
-    if user and activity_db.count_today("chat", user["id"]) >= DAILY_CHAT_LIMIT:
-        raise HTTPException(
-            status_code=429,
-            detail=f"오늘 상담 횟수({DAILY_CHAT_LIMIT}회)를 모두 사용했습니다. 내일 다시 이용해주세요.",
-        )
 
     if user:
         from backend.services.chat_conversations import answer_in_conversation
@@ -89,24 +83,5 @@ async def get_conversation(conversation_id: str, user: dict = Depends(get_curren
 
 
 @router.post("/chat")
-@limiter.limit("10/minute")
 async def chat_endpoint(request: Request, req: ChatRequest, user: Optional[dict] = Depends(get_optional_user)):
     return await _answer(req, user)
-
-
-@router.post("/chat/jobs")
-@limiter.limit("10/minute")
-async def create_chat_job(request: Request, req: ChatRequest, user: Optional[dict] = Depends(get_optional_user)):
-    from api import jobs
-    return {"job_id": jobs.create_task("chat", {"request": req.model_dump(mode="json")},
-                                       owner_id=user["id"] if user else None)}
-
-
-@router.get("/chat/jobs/{job_id}")
-@router.get("/concierge/jobs/{job_id}")
-def get_chat_job(job_id: str, user: Optional[dict] = Depends(get_optional_user)):
-    from api import jobs
-    job = jobs.get(job_id, requester_id=user["id"] if user else None)
-    if job is None:
-        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
-    return job

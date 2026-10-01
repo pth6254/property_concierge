@@ -51,10 +51,19 @@ def test_missing_funding_criteria_and_legacy_results_remain_unverified():
 
 
 def test_candidate_disappearing_during_calculation_does_not_report_saved(client, monkeypatch):
-    from api import case_db
-    _register(client, "funding-save@example.com")
+    import pytest
+    import requests
+    from fastapi import HTTPException
+    from backend.services.funding_execution_client import execute_simulation
+    from schemas.funding_request import SimulationRequest
+    user_id = _register(client, "funding-save@example.com")
     case_id = client.post("/api/cases", json={"title": "저장 검증"}).json()["id"]
     candidate = client.post(f"/api/cases/{case_id}/properties", json={"name": "후보"}).json()
-    monkeypatch.setattr(case_db, "link_candidate_analysis", lambda *args, **kwargs: False)
-    response = client.post("/api/simulation", json={"case_id": case_id, "candidate_id": candidate["id"], "purchase_price": 600_000_000})
-    assert response.status_code == 404
+    # 저장 중 삭제는 Spring 컨트롤러 테스트에서 재현한다. 클라이언트도 실패를 성공으로 바꾸지 않는다.
+    response = requests.Response()
+    response.status_code = 404
+    monkeypatch.setattr('backend.services.funding_execution_client.request_core', lambda *args: response)
+    with pytest.raises(HTTPException) as failure:
+        execute_simulation(SimulationRequest(case_id=case_id, candidate_id=candidate['id'], purchase_price=600_000_000), {'id': user_id})
+    assert failure.value.status_code == 404
+    assert client.get(f'/api/cases/{case_id}').json()['properties'][0]['analyses'] == []

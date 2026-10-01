@@ -15,11 +15,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from api import activity_db, case_db
-from api.deps import get_optional_user
-from api.rate_limit import limiter
+from api.ai_context import get_optional_user
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["rights"])
+from api.internal_contracts import require_service
+
+router = APIRouter(prefix="/internal/v1/ai", dependencies=[Depends(require_service)], tags=["rights"])
 
 MAX_PDF_BYTES = 10 * 1024 * 1024   # 10MB
 
@@ -59,7 +60,6 @@ def _mask_address(address: str) -> str:
 
 
 @router.post("/rights/analyze")
-@limiter.limit("5/minute")
 async def analyze_rights_endpoint(
     request: Request,
     req: RightsAnalyzeRequest,

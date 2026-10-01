@@ -1,7 +1,7 @@
 """한 케이스의 후보를 동일 금융 조건으로 재계산한다. 저장된 분석은 변경하지 않는다."""
 from __future__ import annotations
 
-from api.routes.simulation import SimulationRequest
+from schemas.funding_request import SimulationRequest
 from backend.services.candidate_funding import funding_summary, funding_issues, profile_funding_inputs
 from backend.router import run_simulation
 

@@ -5,10 +5,12 @@ import asyncio
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from api.deps import get_current_user
+from api.ai_context import get_current_user
 from schemas.concierge import ConciergeMessageRequest, ConciergeMessageResponse
 
-router = APIRouter(tags=["concierge"])
+from api.internal_contracts import require_service
+
+router = APIRouter(prefix="/internal/v1/ai", dependencies=[Depends(require_service)], tags=["concierge"])
 
 
 @router.get("/concierge/conversations/{conversation_id}")
@@ -40,9 +42,3 @@ async def send_message(
         raise HTTPException(status_code=404, detail="검토 후보가 없습니다") from None
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="대화 ID가 올바르지 않습니다") from exc
-
-
-@router.post("/concierge/jobs")
-async def create_concierge_job(request: ConciergeMessageRequest, user: dict = Depends(get_current_user)):
-    from api import jobs
-    return {"job_id": jobs.create_task("concierge", {"request": request.model_dump(mode="json")}, owner_id=user["id"])}

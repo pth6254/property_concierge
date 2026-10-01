@@ -10,7 +10,7 @@ os.environ.setdefault("JWT_SECRET_KEY", "test-secret-for-purchase-cases")
 
 @pytest.fixture()
 def client():
-    from fastapi.testclient import TestClient
+    from tests.service_client import ServiceTestClient as TestClient
     from db.models import (CandidateAnalysis, CandidateChecklistItem, CaseExecutionPlan,
                            CaseExecutionTask, CaseProperty, CaseRegion, HistoryRecord,
                            PurchaseCase, User)

@@ -91,7 +91,8 @@ def test_feedback_owner_operator_status_and_anonymous_boundaries(client,monkeypa
     assert result.status_code==201
     feedback_id=result.json()["id"]
     assert client.get("/api/operations/feedback").status_code==403
-    monkeypatch.setenv("OPERATOR_USER_IDS",str(own))
+    from tests.test_operations import operator
+    operator(client,monkeypatch)
     assert client.get("/api/operations/feedback").json()["items"][0]["id"]==feedback_id
     assert client.patch(f"/api/operations/feedback/{feedback_id}",json={"status":"resolved"}).json()["status"]=="resolved"
     assert client.post("/api/feedback",json={"feature":"other","category":"error","message":"   "}).status_code==422
@@ -102,18 +103,22 @@ def test_feedback_owner_operator_status_and_anonymous_boundaries(client,monkeypa
     assert client.get("/api/operations/feedback").status_code==403
 
 
-def test_metrics_deduplicate_jobs_and_users_without_storing_raw_url(client):
-    from api.service_metrics import record_duration,record_step,summary
+def test_metrics_deduplicate_jobs_and_users_without_storing_raw_url(client,monkeypatch):
+    from api.service_metrics import record_duration
     from db.redis_client import get_redis
     redis=get_redis()
     for key in redis.scan_iter("metrics:*"):redis.delete(key)
     record_duration("job:test",.2,False,job_id="unique")
     record_duration("job:test",10,True,job_id="unique")
     record_duration("job:test",3,True,job_id="different")
-    record_step("conditions_saved",12345);record_step("conditions_saved",12345)
-    result=summary(1)
-    row=result["features"][0]
+    own=client.get('/api/auth/me').json()['id']
+    for _ in range(2):
+        assert client.post('/api/cases',json={'title':'고유 사용자 집계 검증'}).status_code==201
+    from tests.test_operations import operator
+    operator(client,monkeypatch)
+    result=client.get('/api/operations/metrics?days=1').json()
+    row=next(row for row in result['features'] if row['feature']=='job:test')
     assert row["requests"]==2 and row["failures"]==1 and row["p95_upper_seconds"]==3
-    assert result["steps"]["conditions_saved"]==1
+    assert result["steps"]["case_created"]==1
     members=[member for key in redis.scan_iter("metrics:step:*") for member in redis.smembers(key)]
-    assert "12345" not in members
+    assert str(own) not in members

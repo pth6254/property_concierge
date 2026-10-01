@@ -12,17 +12,23 @@
 
 ## 현재 반영한 범위
 
-백엔드는 사용자 결정에 따라 Kotlin + Spring Boot의 저장·권한·거래 상태와 Python의 AI 분석으로 분리하는 중이다.
+백엔드는 사용자 결정에 따라 Kotlin + Spring Boot의 저장·권한·거래 상태와 Python의 AI 분석으로 분리했다.
 고정 수식의 자금·세금 계산은 Kotlin으로 이전했다. Python 시뮬레이션·챗봇·비교도 같은 내부 계산 계약을 호출한다.
 이전된 회원·매물·케이스·거래 준비·분석 이력·작업 저장의 중복 Python SQL과 금융·세금 수식은 제거했다.
 Python 모듈은 내부 계약 클라이언트로 남고, 케이스 스냅샷 표현은 별도 순수 모듈에 둔다.
+Python의 일반 API·인증·주소·레이트 리밋 파일 16개와 미사용 CRUD 입력 스키마를 삭제했다.
+챗봇 자금 실행·저장은 Spring의 공개 계산과 같은 코드 경로를 사용한다. 중복 경로 감사는
+`scripts/audit_python_routes.py`, 실제 HTTP 회귀 연결은 `tests/service_client.py`가 담당한다.
 Python 회귀 테스트는 실행기가 띄운 격리 Spring에 연결하며 실제 DB·Redis 확인 후 진행한다.
 모델 기반 AVM·자연어 해석·문서 분석과 기존 통계 보정·추천 점수·의사결정 규칙은 Python에 남아 있다.
 새 계산 엔진·반올림·미검증 정책 범위는 [계산 책임](calculation-architecture.md)을 따른다.
 `core-service/`의 인증·매물·케이스·거래 준비·분석 이력·Redis 작업 계약과 Python 내부 분석 계약을 추가했다.
 현재 웹 3002는 Caddy → Next.js/Spring, API 8002는 Spring이다. Python은 내부 전용이며 API·실행기 저장은 Spring 계약으로 연결한다.
-재설정·OAuth·주소·직접 입력·일부 AI HTTP 경로는 Spring이 기존 Python 라우터를 중계한다. 모든 컨트롤러가 Kotlin으로 옮겨졌다고 설명하지 않는다.
-null 처리 정책·실행 방법·검증 상태·후속 이전 경로는 [백엔드 전환 안내](backend-migration.md)를 따른다.
+최신 이전 검증은 Python 1,095개·Kotlin 25개·브라우저 56개·오프라인 평가 34건 통과다.
+Docker 반영 후 서비스 연결과 실제 카카오 주소 조회도 확인했다. Google 실계정·Resend 실발송은 별도 검증이 필요하다.
+재설정·OAuth·메일·탈퇴·주소·직접 등록·관심 지역·운영 API·AI 접수와 상태 조회는 Spring이 제공한다.
+Python은 내부 AI·데이터 분석만 제공하며 Spring이 확인한 사용자 ID를 받는다. 이전 JWT·주소 증명은 테스트 자료에서 호환성을 검증한다.
+null 처리 정책·실행 방법·검증 상태·내부 계약은 [백엔드 전환 안내](backend-migration.md)를 따른다.
 
 기존 매물 보관함·케이스·분석·체크리스트·거래 준비 모델 위에 **다섯 판단 축의 공통 평가 계약과 매수 검토 요약 화면**을 추가했다. 자금 입력의 의미도 화면·대화·시나리오에서 통일했다. 새로운 전국 Property DB나 개인화 모델을 만드는 작업은 아직 아니다.
 

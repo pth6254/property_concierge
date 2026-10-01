@@ -26,7 +26,7 @@ def client():
     monkeypatch해 테스트마다 완전히 별개의 DB 파일을 썼다. 지금은 모든
     워커가 같은 Postgres 인스턴스를 보므로, 관련 테이블만 비워 격리한다.
     """
-    from fastapi.testclient import TestClient
+    from tests.service_client import ServiceTestClient as TestClient
 
     from db.models import HistoryRecord, User
     from tests.conftest import truncate_tables

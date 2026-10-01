@@ -1,5 +1,5 @@
 """매수 조건의 재계산과 대화 기본값이 후보 분석을 오염시키지 않는지 검증한다."""
-from schemas.purchase_case import BuyerProfile, PurchaseCaseCreate
+from schemas.purchase_case import BuyerProfile
 from backend.services.case_funding_scenarios import compare_funding_scenarios
 from backend.services.case_comparison_service import compare_case_candidates
 from backend.concierge.decision_tools import simulate_investment
@@ -21,7 +21,7 @@ def _case():
 
 
 def test_profile_schema_resolves_and_validates_cash():
-    assert PurchaseCaseCreate(title="새 케이스").buyer_profile.priority == "cash"
+    assert BuyerProfile().priority == "cash"
     assert BuyerProfile(cash_available=10, emergency_reserve=0).cash_available == 10
 
 
@@ -61,7 +61,7 @@ def test_chat_funding_uses_saved_profile(monkeypatch):
         return {"candidate_funding": {"required_cash": 360_000_000,
                                       "cash_shortfall": 10_000_000, "monthly_payment": 1_700_000}}
 
-    monkeypatch.setattr("api.routes.simulation.execute_simulation", fake_execute)
+    monkeypatch.setattr("backend.services.funding_execution_client.execute_simulation", fake_execute)
     result = simulate_investment({}, 7, {"case_id": 12, "candidate_id": 31})
     assert result.status == "completed"
     assert captured["request"].cash_available == 350_000_000
