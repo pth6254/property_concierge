@@ -2,7 +2,7 @@
 
 포트폴리오 HTML의 기준 위치는 이 폴더다. 앱 배포와 독립적으로 원본과 산출물을 관리한다.
 원본에서 생성한 `index.html`을 브라우저에서 열면 된다. 아직 파일이 없다면 아래 생성 명령을 먼저 실행한다.
-이미지·글꼴이 포함되어 이 파일 하나만 전달해도 동작한다. 기존 보관 사본은 `property_concierge.html`이다.
+이미지·글꼴이 포함되어 이 파일 하나만 전달해도 동작한다. 중복된 이전 보관 사본은 삭제했다.
 바탕화면의 기존 HTML은 이전 사본이며 자동으로 갱신하지 않는다.
 
 현재 발표 원본·스크린샷·수치는 **2026-09-08 검증 스냅샷**이다. 2026-10-01의 제품 방향과
@@ -28,7 +28,6 @@ AI 컨시어지와 법률·세금 상담은 보조 기능으로 구분하고, �
 | 경로 | 용도 |
 |---|---|
 | `index.html` | 생성 후 열람·공유하는 단일 HTML. 원본 수정 후 다시 생성 |
-| `property_concierge.html` | 기존 보관 사본. 최신 상태 설명은 인수인계 문서를 참조 |
 | `src/index.template.html` | 5개 슬라이드의 내용·마크업 |
 | `src/styles.css` | 디자인·반응형·인쇄 레이아웃 |
 | `src/presentation.js` | 화면 탭·확대·발표 이동·검증 근거 팝업 |
@@ -74,7 +73,7 @@ Docker 빌드에서는 기존 `.dockerignore`의 `docs/` 규칙에 따라 제외
 Windows Node·Chrome·Playwright가 필요하다. Playwright를 별도 설치한 경우 모듈 경로를 지정한다.
 
 ```powershell
-$env:PLAYWRIGHT_MODULE_PATH=Join-Path $env:TEMP 'property-decision-browser/node_modules/playwright'
+$env:PLAYWRIGHT_MODULE_PATH=Join-Path (Get-Location) 'web/node_modules/playwright'
 node docs/portfolio/verify.cjs
 ```
 
