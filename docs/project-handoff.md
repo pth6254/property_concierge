@@ -25,6 +25,10 @@ Python의 일반 API·인증·주소·레이트 리밋 파일 16개와 미사용
 챗봇 자금 실행·저장은 Spring의 공개 계산과 같은 코드 경로를 사용한다. 중복 경로 감사는
 `scripts/audit_python_routes.py`, 실제 HTTP 회귀 연결은 `tests/service_client.py`가 담당한다.
 Python 회귀 테스트는 실행기가 띄운 격리 Spring에 연결하며 실제 DB·Redis 확인 후 진행한다.
+Spring 도메인 자체의 단위·저장·권한·롤백 검사는 Kotlin 테스트가 담당한다.
+`sh scripts/run_platform_tests.sh`는 단위 검사 후 Testcontainers 전용 PostgreSQL·Redis에서 `*IT`를 실행한다.
+스키마는 기존 Alembic 이미지로 적용하고 외부 분석·메일 발송만 대역으로 둔다. Python 회귀는 AI/데이터와
+실제 Spring 연결·호환성 검증을 위해 유지한다. 위치·명령·대역 범위는 [실행과 검증](architecture.md#backend-실행과-검증)을 따른다.
 모델 기반 AVM·자연어 해석·문서 분석과 기존 통계 보정·추천 점수·의사결정 규칙은 Python에 남아 있다.
 새 계산 엔진·반올림·미검증 정책 범위는 [계산 책임](architecture.md#calculations)을 따른다.
 `services/platform/`의 인증·매물·케이스·거래 준비·분석 이력·Redis 작업 계약과 Python 내부 분석 계약을 추가했다.
@@ -112,6 +116,18 @@ Docker 반영 후 실제 카카오·건축HUB로 동아불암아파트 103동 11
 화면 적용·저장·새로고침·390px 표시 4개 항목을 확인했다. 원문 인증키의 `+` 보존 오류도 수정했다.
 `building-register-live-result.json`은 공급자 대역 검사와 구분하며, 실주소·호실 1건의 연결 확인이다.
 임시 계정·매물은 삭제했다. 전국 정확도·다가구 개별 호·현재 광고·소유권 검증은 아니다.
+
+같은 날 검증 책임을 분리한 뒤 Kotlin 단위 **35개**, 전용 Testcontainers 도메인 통합 **19개(건너뜀 없음)**,
+전체 Python 회귀 **1,125개 통과·1개 건너뜀**을 확인했다. 회원·재설정·탈퇴·소유자 격리·매물 시점/롤백·
+케이스 선택/재검토·거래 준비·자금 저장은 실제 Spring 저장소로 검증한다. 분석 응답·메일만 대역으로 둔다.
+신규 검사에서 후보 가격과 다른 계산 가격의 저장을 발견해 공개/내부 실행과 저장 단계에 422 검증을 추가했다.
+Python 테스트 클라이언트의 미사용 경로 재해석을 제거했으며 `/api/*`의 격리 Spring 연결은 유지했다.
+타입·린트·빌드와 내부 계약 명세 검사도 통과했다. JUnit XML·로그는 `evaluation-results/platform/`,
+Python 전체 결과는 `evaluation-results/platform-python-junit.xml`이다. CI에 검사·아티팩트를 추가했지만
+원격 GitHub Actions 완료나 실제 AI 정확도를 검증한 결과로 설명하지 않는다.
+서비스 연결 **18개**·실제 계산 연결 **6개/54조건**·프록시 **2개**와 후보 자금 브라우저 **13개 항목**도
+다시 통과했다. 이번 브라우저 결과는 `evaluation-results/funding-browser-ci-result.json`의 격리 실행 기록이다.
+Spring 이미지를 재빌드해 격리 검증에 사용했으며 실행 중인 로컬 서비스의 컨테이너는 교체하지 않았다.
 
 계산 책임 전환 당시 전체 Python 테스트는 **1,092개 통과·1개 건너뜀**이었다. Kotlin 단위 18개,
 Spring/Python 통합 18개, 계산 연결 6개, 프록시 2개, 격리 브라우저 42개 항목을 확인했다. 실제 웹 3002의

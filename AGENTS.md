@@ -74,8 +74,13 @@ Python은 `/internal/v1/ai/*`·`/internal/v1/data/*`와 순수 분석 계약만 
 `tests/service_client.py`를 통해 이전된 경로를 실제 격리 Spring에 보낸다. Python 핸들러를 테스트용으로 복구하지 않는다.
 챗봇 자금 분석은 `funding_execution_client.py` → `/internal/v1/simulation`으로 계산·소유자 확인·저장을 함께 실행한다.
 자금 입력 계약은 `services/intelligence/schemas/funding_request.py`다. 제거된 `api.routes.simulation.SimulationRequest`를 다시 추가하지 않는다.
-Spring 검증도 `real_estate_test`·Redis 15만 사용한다. Python 테스트와 Spring 검증을 동시에 실행하면
+Spring 검증도 `real_estate_test`·Redis 15만 사용한다. Python 회귀와 `run_spring_tests.py`를 동시에 실행하면
 같은 테스트 DB를 비우는 작업이 충돌하므로 두 실행기는 순서대로 실행한다.
+Kotlin 도메인 통합 `*IT`는 `scripts/run_platform_tests.sh`가 Testcontainers 전용 저장소에서 실행한다.
+실제 연결이 생성한 호스트·포트·DB·사용자와 일치하는지 확인한 뒤 초기화한다. 외부 DB 설정·서비스 `.env`를
+전달하거나 Docker 실패를 건너뜀으로 바꾸지 않는다. 스키마는 기존 Alembic 이미지로 적용하며 중복 DDL을 만들지 않는다.
+Spring 도메인의 새 단위·저장·권한·롤백 검사는 Kotlin에 추가하고 Python은 AI/데이터·서비스 계약 회귀를 유지한다.
+Kotlin에서 대역을 쓰는 분석 경계의 실제 연결은 기존 Python·브라우저 검사로 함께 확인한다.
 
 **계산 책임:** `services/platform/.../calculations/`의 `FinanceCalculator`·`TaxRules`가 자금·세금 수치의 실행 원본이다.
 Python 시뮬레이션·챗봇 세금 도구는 `core_calculations.py`로 같은 계산기를 호출한다.
@@ -353,6 +358,8 @@ Windows에서 띄운 서버를 WSL curl로 때리면 연결되지 않는다.
 
 ```bash
 # ── 백엔드 ──────────────────────────────────────────────
+sh scripts/compose.sh local build api                   # 테스트 스키마용 Alembic 이미지
+sh scripts/run_platform_tests.sh                       # Kotlin 단위 + 전용 저장소 통합
 sh scripts/compose.sh dev up -d pgvector redis          # DB·캐시 먼저
 
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
@@ -377,7 +384,8 @@ sh scripts/compose.sh local up -d --build   # 운영 (override 배제)
 **CI**(`.github/workflows/ci.yml`)는 세 job을 병렬 실행한다:
 - `test` — PostgreSQL·Redis 서비스 컨테이너 + `alembic -c services/intelligence/alembic.ini upgrade head` + `pytest` + 오프라인 평가.
 - `frontend` — `tsc --noEmit` + `npm run lint` + `npm run build`
-- `spring` — 별도 API·작업 실행기를 띄우고 저장·권한·계산·프록시와 브라우저 흐름 8종을 검증한다.
+- `spring` — 먼저 Kotlin의 단위·전용 Testcontainers 저장/권한/롤백 검사를 실행한다. 이어서 별도 API·작업 실행기를
+  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 8종을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
   주소 등록·선택 별칭·매물 변경 재검토를 포함하며 결과 JSON과 화면 이미지를 아티팩트로 보관한다.
 
 **변경 후에는 양쪽을 모두 돌려볼 것.** 백엔드만 고쳤다고 프론트가 안전한 게 아니다

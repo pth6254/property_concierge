@@ -35,7 +35,14 @@ class SimulationController(private val calculator: FinanceCalculator, private va
         val owner = if (linked) json.valueToTree<JsonNode>(mapOf("user_id" to requireNotNull(userId),
             "case_id" to body.caseId, "property_id" to body.candidateId)) else null
         if (owner != null && store.dispatch("validate_candidate", owner) != true) throw ApiFailure(404, "검토 후보를 찾을 수 없습니다")
-        val expectedInputs = owner?.let { store.dispatch("candidate_inputs", it) }
+        val expectedInputs = owner?.let {
+            val saved = store.dispatch("candidate_inputs", it) ?: throw ApiFailure(404, "검토 후보를 찾을 수 없습니다")
+            json.valueToTree<JsonNode>(saved).also { candidate ->
+                val price = candidate.path("asking_price")
+                if (!price.isIntegralNumber || !price.canConvertToLong() || price.asLong() != body.purchasePrice)
+                    throw ApiFailure(422, "후보의 현재 가격과 계산 가격이 다릅니다. 후보 가격을 확인한 뒤 다시 실행해주세요")
+            }
+        }
         val input = body.input()
         val result = try { calculator.calculate(input) } catch (_: ArithmeticException) {
             throw ApiFailure(422, "예상 금액이 계산 범위를 초과합니다. 금액·기간·상승률을 조정해주세요")

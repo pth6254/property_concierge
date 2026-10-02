@@ -188,13 +188,30 @@ DB 연결을 반환한 뒤 Python 분석을 호출한다. 동시에 가격·예�
 ```bash
 sh scripts/compose.sh dev up -d --build
 ./venv-wsl/bin/python scripts/check_compose_contract.py
+sh scripts/run_platform_tests.sh
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 ./venv-wsl/bin/python scripts/run_spring_tests.py --browser
 ```
 
-Spring 검증은 PostgreSQL `real_estate_test`·Redis 15와 임시 API·Spring·실행기만 사용한다.
+Kotlin 도메인 검사는 `services/platform/src/test/kotlin/`에 둔다. Surefire는 기존 `*Test` 단위를,
+`platform-integration` Maven 프로필의 Failsafe는 `*IT` 통합 검사를 실행한다.
+`sh scripts/run_platform_tests.sh`는 Docker 빌드에서 단위를 실행하고 Testcontainers가 만든 PostgreSQL
+`real_estate_test`·Redis 15에 실제 Spring 애플리케이션을 연결한다. 생성한 호스트·포트·DB·사용자와
+실제 연결을 대조한 뒤 자료를 초기화하며, 외부 DB 환경변수나 서비스 `.env`를 전달하지 않는다.
+Docker 준비 실패를 건너뜀으로 처리하지 않는다. 테스트 저장소는 JVM 종료 시 제거한다.
+
+테스트 스키마도 `property_concierge_backend:latest` 이미지의 Alembic을 사용한다. 마이그레이션 변경 후에는
+`sh scripts/compose.sh local build api`로 이미지를 갱신한다. Hibernate DDL·테스트 전용 복제 스키마를 두지 않는다.
+Python 분석·CSV 검증 응답과 메일 발송은 대역이며, 회원·세션 무효화·소유자 404·매물 시점 관리·배치 롤백·
+케이스 선택·동/호 변경 재검토·거래 준비·고정 계산/자금 저장은 실제 구현을 검증한다.
+분석 호출이 DB 트랜잭션 밖에서 수행되는지도 확인한다. 보고서 생성 중 후보 가격이 바뀌면 결과 연결을 거부한다.
+산출물은 `evaluation-results/platform/`의 JUnit XML·실행 로그이며 CI `spring` job에도 연결했다.
+
+Python의 기존 HTTP 회귀는 `tests/service_client.py`가 `/api/*`를 실제 격리 Spring으로 전송한다.
+일반 백엔드 검증을 위해 Python 핸들러를 복원하지 않는다. 기존 호환성·분석 경계 회귀는 유지한다.
+`run_spring_tests.py`의 서비스 연결 검증은 PostgreSQL `real_estate_test`·Redis 15와 임시 API·Spring·실행기만 사용한다.
 브라우저 검증은 임시 Next.js와 검사 중 생성한 계정을 사용하며 종료 시 계정과 컨테이너를 제거한다.
-Python 테스트와 Spring 검증은 같은 격리 DB를 공유하므로 순서대로 실행한다.
+Python 테스트와 이 서비스 연결 검증은 같은 격리 DB를 공유하므로 순서대로 실행한다.
 실제 서비스 DB·Redis에서 pytest를 실행하지 않는다.
 
 API 통합 검증 산출물은 `evaluation-results/spring-core-result.json`이다.
@@ -209,6 +226,14 @@ Python은 고정 Spring 주소만 신뢰한다. 사설망 전체나 `*`를 허�
 `spring-gateway-result.json`은 직접 접속과 Caddy 경유 각각의 위조 헤더 11회 요청에서
 열한 번째가 429이며 동일 클라이언트 제한이 유지되는지 확인한다. 운영 감시기는 Spring의 생존도 확인한다.
 HTTPS 배포 파일은 Spring 직접 포트를 없애고 80/443만 공개한다. 실제 서버·도메인 배포는 별도 작업이다.
+
+#### 2026-10-02 도메인 검증 책임 정리
+
+Kotlin 단위 **35개**, 실제 Spring·전용 저장소 통합 **19개**를 통과했다. Testcontainers 검사는 건너뜀 없이
+실행했다. Python 전체 회귀 **1,125개 통과·1개 건너뜀**, 프론트 타입·린트·빌드와 내부 명세 확인도 통과했다.
+신규 검사에서 후보 가격과 다른 가격의 자금 결과 저장을 재현해, 계산 전 대조와 저장 시 대조로 수정했다.
+계산·저장 검사의 실행 언어를 Kotlin으로 명확히 하면서 기존 Python 분석·서비스 계약 회귀는 유지한다.
+이는 로컬 검증 기록이며 원격 CI 완료·실시간 LLM/AVM 정확도·메일 실발송의 검증은 아니다.
 
 <a id="backend-2026-10-01-검증-기록"></a>
 

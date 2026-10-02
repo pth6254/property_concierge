@@ -317,6 +317,10 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
             throw ApiFailure(422, "분석 중 후보 정보가 바뀌었습니다. 최신 정보로 다시 실행해주세요")
         }
         val summary = if (appraisal) requireNotNull(appraisalSummary) else args.path("summary")
+        // 공개 계산을 거치지 않는 내부 저장도 현재 후보 가격과 다른 결과를 연결하면 안 된다.
+        // 가격 없는 과거 기록은 기존 호환성을 유지하고 의사결정 평가에서 미확인으로 구분한다.
+        if (type == "simulation" && item.hasNonNull("asking_price") && summary.amount("purchase_price") != item.amount("asking_price"))
+            throw ApiFailure(422, "후보의 현재 가격과 자금 분석 가격이 다릅니다. 최신 가격으로 다시 실행해주세요")
         val days = mapOf("appraisal" to 30L, "simulation" to 14L, "rights" to 7L).getValue(type)
         jdbc.update("""INSERT INTO candidate_analyses(case_id,property_id,analysis_type,reference_id,status,summary,analyzed_at,expires_at,created,updated)
             VALUES (?,?,?,?,'completed',?::json,?,?,?,?) ON CONFLICT(property_id,analysis_type) DO UPDATE SET reference_id=excluded.reference_id,

@@ -157,7 +157,9 @@ jobs:
           python scripts/check_compose_contract.py
           docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml -f infrastructure/compose/compose.override.yml up -d pgvector redis
           docker compose --project-directory . -p property_concierge -f infrastructure/compose/compose.yml build api core
-      - name: Verify native storage, jobs and browser decision flow
+      - name: Verify Kotlin domain persistence with dedicated Testcontainers
+        run: sh scripts/run_platform_tests.sh
+      - name: Verify service contracts, jobs and browser decision flow
         run: python scripts/run_spring_tests.py --browser
       - name: Save Spring flow evidence
         if: always()
@@ -165,6 +167,7 @@ jobs:
         with:
           name: spring-flow-evidence
           path: |
+            evaluation-results/platform/
             evaluation-results/spring-core-result.json
             evaluation-results/spring-gateway-result.json
             evaluation-results/core-calculations-result.json

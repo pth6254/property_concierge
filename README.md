@@ -169,10 +169,23 @@ Resend 메일·Google OAuth의 실도메인 설정은 [운영 문서](docs/opera
 
 ## 개발·검증
 
-Python 회귀와 Spring 통합 실행기는 **같은 격리 DB를 사용하므로 순서대로** 실행한다.
+| 검사 | 위치·실행기 | 검증 책임 |
+|---|---|---|
+| Kotlin 단위 | `services/platform/src/test/kotlin/` · Maven Surefire | 세션·쿠키·입력 계약·고정 계산·주소 자료 변환 |
+| Kotlin 도메인 통합 | 같은 경로의 `*IT.kt` · `scripts/run_platform_tests.sh` | 실제 Spring·PostgreSQL·Redis의 회원·매물·권한·케이스·거래 준비·자금 저장·롤백 |
+| Python 분석·서비스 계약 회귀 | `tests/` · `scripts/run_isolated_tests.py` | AI·데이터 분석과 실제 격리 Spring을 통한 내부/공개 HTTP 연결 |
+| 서비스·브라우저 흐름 | `scripts/run_spring_tests.py` · Playwright | AI 실행기·작업 큐·프록시·화면·복원 연결 |
+
+Kotlin 도메인 통합 검사는 Testcontainers가 전용 저장소를 생성하고 종료 시 제거한다. 외부 분석 응답과
+메일 발송만 대역으로 두며 Spring의 권한·계산·저장은 실제로 실행한다. 스키마는 기존 Alembic으로 적용한다.
+Python 회귀와 `run_spring_tests.py`는 **같은 격리 DB를 사용하므로 순서대로** 실행한다.
 `real_estate_test`·Redis **15** 보호를 우회하지 않는다. 서비스 DB에는 pytest를 연결하지 않는다.
 
 ```bash
+# Kotlin: 마이그레이션 이미지 준비 후 단위·전용 저장소 통합 검사
+sh scripts/compose.sh local build api
+sh scripts/run_platform_tests.sh
+
 # 로컬 격리 테스트에 필요한 DB·Redis 호스트 포트 활성화
 sh scripts/compose.sh dev up -d pgvector redis
 ./venv-wsl/bin/python -m pip install -r services/intelligence/requirements.txt
@@ -198,7 +211,13 @@ Docker 반영 후 새 브라우저 흐름 **7개 항목**과 웹/API 준비 상�
 전체 검증 범위는 [인수인계](docs/project-handoff.md#검증-상태와-경계)를 따른다.
 이후 건축물대장 조회를 추가해 관련 Python 회귀 **43개**, Kotlin 단위 **35개**, 새 브라우저 **7개 항목**을 통과했다.
 총 브라우저 흐름은 **8종·70개 항목**이다. Docker 반영 후 실제 주소·호실 1건의 조회·면적 적용·저장·복원·390px 표시도 확인했다.
-전체 Python 검사를 이 변경 후 다시 실행한 결과나 전국 데이터 정확도 검증으로 설명하지 않는다.
+당시 영역별 결과와 전국 데이터 정확도 검증을 구분한다.
+같은 날 검증 책임을 정리한 뒤 Kotlin 단위 **35개**와 신규 도메인 통합 **19개**를 통과했고,
+전체 Python 회귀도 **1,125개 통과·1개 건너뜀**으로 다시 확인했다. 통합 검사에서 발견한 후보/계산 가격
+불일치 저장을 수정했다. 프론트 타입·린트·빌드와 내부 계약 확인도 통과했다.
+Kotlin 결과는 `evaluation-results/platform/`, Python 결과는 `platform-python-junit.xml`에 남긴다.
+서비스 연결·계산·프록시와 후보 자금 브라우저 **13개 항목**도 재검증했다. 이번 변경은 소스와 검증용 Spring
+이미지에 반영했으며 실행 중인 서비스 컨테이너 교체는 포함하지 않았다.
 이 수치는 실제 매수 성과·전국 AVM 정확도·전체 LLM 대화 성공률이 아니다. 원격 CI 완료와 로컬 성공도 구분한다.
 평가 실행·정답셋·보고서는 [평가 도구](services/intelligence/evaluation/README.md)를 따른다.
 

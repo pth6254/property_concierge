@@ -2,12 +2,10 @@
 from __future__ import annotations
 
 import os
-import re
 import httpx
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from fastapi.testclient import TestClient
-from scripts.audit_python_routes import native_routes
 
 on_job_submitted = None
 _server = None
@@ -37,8 +35,6 @@ class ServiceTransport(httpx.BaseTransport):
     def __init__(self, python_transport):
         self.python = python_transport
         self.native = httpx.HTTPTransport()
-        self.routes = [(route["method"], re.compile("^" + re.escape(route["normalized"]).replace(r"\{\}", "[^/]+") + "$"))
-                       for route in native_routes()]
         self.root = os.environ["TEST_CORE_URL"].rstrip("/")
         self.native_requests = []
 
