@@ -23,6 +23,7 @@ def _samples(n, per_sqm_base=5000, spread=50, matched=True, dong="반포동"):
         "apt_name_matched": name if matched else "",
         "per_sqm": per_sqm_base + (i - n // 2) * spread,
         "dong": dong,
+        "target_dong": "반포동", "target_sigungu_code": "11650", "query_sigungu_code": "11650",
     } for i in range(n)]
 
 
@@ -119,3 +120,9 @@ def test_dominant_match_level():
     assert cf.dominant_match_level(_samples(3, matched=False)) == "same_dong"
     assert cf.dominant_match_level(_samples(3, matched=False, dong="")) == "same_gu"
     assert cf.dominant_match_level([]) == ""
+
+
+def test_unverified_dong_does_not_raise_confidence():
+    rows = [{"dong": "반포동", "per_sqm": 5000} for _ in range(5)]
+    assert cf.dominant_match_level(rows) == "fallback"
+    assert cf.compute_confidence(count=5, samples=rows)["score"] < cf.compute_confidence(count=5, match_level="same_dong")["score"]

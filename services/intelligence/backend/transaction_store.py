@@ -148,7 +148,9 @@ def get_month(endpoint: str, category: str, lawd_cd: str, deal_ym: str,
                     Transaction.deal_ym == deal_ym,
                 )
             )
-            return [{f: getattr(r, f) for f in SAMPLE_FIELDS} for r in rows]
+            from transaction_evidence import attach_transaction_evidence
+            return attach_transaction_evidence([{f: getattr(r, f) for f in SAMPLE_FIELDS} for r in rows],
+                                               endpoint, lawd_cd, deal_ym, log.fetched_at)
     except Exception as e:
         print(f"[tx_store] 조회 오류: {e}")
         return None

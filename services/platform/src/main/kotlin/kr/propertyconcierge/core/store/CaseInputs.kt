@@ -44,17 +44,22 @@ data class CaseUpdateInput(@field:Size(min=1,max=150) val title: String? = null,
     @field:Size(max=20) val targetRegions: List<String>? = null, @field:Size(max=5000) val notes: String? = null,
     @field:Valid val buyerProfile: BuyerProfileInput? = null)
 
+data class PropertyIdentityInput(@field:Size(max=30) val buildingDong: String = "",
+    @field:Size(max=30) val unitNumber: String = "", @field:Size(max=30) val floor: String = "",
+    @field:Pattern(regexp="exclusive|supply|unknown") val areaBasis: String = "unknown")
+
 data class PropertyCreateInput(@field:Size(min=1,max=150) val name: String,
     @field:Size(max=500) val address: String = "", @field:Size(max=30) val category: String = "",
     @field:Min(0) val askingPrice: Long? = null, @field:DecimalMin(value="0",inclusive=false) val areaSqm: Double? = null,
     @field:Pattern(regexp="[0-9]{10}") val legalRegionCode: String? = null,
     @field:Pattern(regexp="manual|recommendation|appraisal") val source: String = "manual",
     @field:Pattern(regexp="reviewing|shortlisted|rejected|selected") val status: String = "reviewing",
-    @field:Size(max=5000) val notes: String = "", @field:Min(1) val historyId: Long? = null)
+    @field:Size(max=5000) val notes: String = "", @field:Min(1) val historyId: Long? = null,
+    @field:Valid val identity: PropertyIdentityInput = PropertyIdentityInput())
 
 data class PropertyUpdateInput(@field:Min(0) val askingPrice: Long? = null,
     @field:Pattern(regexp="reviewing|shortlisted|rejected|selected") val status: String? = null,
-    @field:Size(max=5000) val notes: String? = null)
+    @field:Size(max=5000) val notes: String? = null, @field:Valid val identity: PropertyIdentityInput? = null)
 
 data class ChecklistInput(@field:Pattern(regexp="todo|done|warning|blocked") val status: String,
     @field:Size(max=5000) val evidence: String? = null)

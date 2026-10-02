@@ -21,6 +21,8 @@ def start_candidate_appraisal(user_id: int, case_id: int, candidate_id: int) -> 
     if candidate is None:
         raise LookupError("candidate_not_found")
     missing = [key for key in ("address", "area_sqm") if not candidate.get(key)]
+    if (candidate.get("identity") or {}).get("area_basis") == "supply":
+        missing.append("exclusive_area_sqm")
     category, detail = PROPERTY_TYPES.get(candidate.get("category"), ("", ""))
     if not detail:
         missing.append("property_type")
@@ -28,14 +30,13 @@ def start_candidate_appraisal(user_id: int, case_id: int, candidate_id: int) -> 
         return {"missing_fields": missing, "case_id": case_id, "candidate_id": candidate_id,
                 "input_url": f"/appraisal?caseId={case_id}&candidateId={candidate_id}"}
     query = f"{candidate['address']} {candidate['name']} {detail} {candidate['area_sqm']}㎡ 매매"
+    expected = case_db.candidate_inputs(case_id, candidate_id, user_id)
+    if not expected or any(expected.get(key) != candidate.get(key) for key in ("address", "area_sqm", "category", "asking_price")):
+        raise ValueError("후보 정보가 변경되었습니다. 다시 확인해주세요.")
 
     return {"job_id": jobs.create_task("candidate_appraisal", {
                 "query": query, "building_name": candidate["name"], "address": candidate["address"],
                 "category": category, "detail": detail, "area_sqm": candidate["area_sqm"],
                 "case_id": case_id, "candidate_id": candidate_id,
-                "expected_candidate_inputs": {
-                    "address": candidate["address"], "area_sqm": candidate["area_sqm"],
-                    "category": candidate["category"], "asking_price": candidate["asking_price"],
-                    "source_revision_id": (candidate.get("source_status") or {}).get("saved", {}).get("revision_id"),
-                }}, owner_id=user_id),
+                "expected_candidate_inputs": expected}, owner_id=user_id),
             "case_id": case_id, "candidate_id": candidate_id, "candidate_name": candidate["name"]}

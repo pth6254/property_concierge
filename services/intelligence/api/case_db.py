@@ -65,7 +65,8 @@ def link_appraisal(case_id: int, property_id: int, history_id: int, user_id: int
 
 @core_store("cases")
 def link_candidate_analysis(case_id: int, property_id: int, user_id: int, analysis_type: str,
-                            summary: dict, checklist_status: str = "done", evidence: str = "") -> bool:
+                            summary: dict, checklist_status: str = "done", evidence: str = "",
+                            expected_inputs: dict | None = None) -> bool:
     ...
 
 @core_store("cases")

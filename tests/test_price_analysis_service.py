@@ -155,18 +155,45 @@ class TestToComparables:
         assert comps[0].match_level == "same_complex"
 
     def test_match_level_same_dong(self):
-        price_data = {"samples": [self._sample(apt_name="다른단지", dong="아현동")]}
+        sample = {**self._sample(apt_name="다른단지", dong="아현동"), "query_sigungu_code": "11440"}
+        price_data = {"samples": [sample], "target_dong": "아현동", "target_sigungu_code": "11440"}
         comps      = _to_comparables(price_data, "래미안")
         assert comps[0].match_level == "same_dong"
 
     def test_match_level_same_gu(self):
-        price_data = {"samples": [self._sample(apt_name="다른단지", dong="")]}
+        sample = {**self._sample(apt_name="다른단지", dong="신촌동"), "query_sigungu_code": "11440"}
+        price_data = {"samples": [sample], "target_dong": "아현동", "target_sigungu_code": "11440"}
         comps      = _to_comparables(price_data, "래미안")
         assert comps[0].match_level == "same_gu"
+
+    def test_dong_name_alone_does_not_prove_matching(self):
+        comp = _to_comparables({"samples": [self._sample(apt_name="다른단지")]}, "")[0]
+        assert comp.match_level == "fallback"
+
+    def test_same_name_in_other_district_is_not_same_complex(self):
+        sample = {**self._sample(), "bjdong_code": "1111000000"}
+        comp = _to_comparables({"samples": [sample], "target_sigungu_code": "11440"}, "래미안")[0]
+        assert comp.match_level == "nearby"
 
     def test_empty_samples(self):
         comps = _to_comparables({"samples": []}, "")
         assert comps == []
+
+
+def test_district_fallback_never_claims_first_complex(monkeypatch):
+    import price_engine as engine
+    from confidence import dominant_match_level
+    monkeypatch.setattr(engine, "MOLIT_API_KEY", "isolated-test-key")
+    sample = {"apt_name": "다른단지", "dong": "신촌동", "price": 50000,
+              "area_sqm": 84.0, "per_sqm": 595, "floor": "5", "deal_year": "2025", "deal_month": "3"}
+    monkeypatch.setattr(engine, "_fetch_by_ymds", lambda *args: [dict(sample)])
+    monkeypatch.setattr(engine, "_apply_time_adjustment", lambda rows, *args: (rows, 0))
+    value = engine.fetch_real_transaction_prices("주거용", "마포구", "아파트", apt_name="없는단지",
+                                                region_3depth="아현동", lawd_code="11440")
+    assert value["apt_name_matched"] == ""
+    comp = _to_comparables(value, value["apt_name_matched"])[0]
+    assert comp.match_level == dominant_match_level(value["samples"]) == "same_gu"
+    assert comp.region_factor == 0.95
 
 
 # ─────────────────────────────────────────

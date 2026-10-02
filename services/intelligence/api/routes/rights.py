@@ -24,7 +24,7 @@ router = APIRouter(prefix="/internal/v1/ai", dependencies=[Depends(require_servi
 
 MAX_PDF_BYTES = 10 * 1024 * 1024   # 10MB
 
-PRIVACY_NOTICE = "업로드된 문서는 분석 후 즉시 파기되며 서버에 저장되지 않습니다."
+PRIVACY_NOTICE = "원문 PDF는 분석 후 파기하며 저장하지 않습니다. 후보에 연결하면 판독 상태·문서 지문·페이지·위험 키워드와 금액의 최소 발췌를 분석 기록에 보존합니다."
 
 
 class RightsAnalyzeRequest(BaseModel):
@@ -65,11 +65,12 @@ async def analyze_rights_endpoint(
     req: RightsAnalyzeRequest,
     user: Optional[dict] = Depends(get_optional_user),
 ):
-    from backend.services.rights_analysis_service import analyze_rights
+    from backend.services.rights_analysis_service import analyze_rights, match_document_subject
 
     if req.case_id is not None or req.candidate_id is not None:
         if req.case_id is None or req.candidate_id is None or not user or not case_db.validate_candidate(req.case_id, req.candidate_id, user["id"]):
             raise HTTPException(status_code=404, detail="검토 후보가 없습니다")
+    expected_inputs = case_db.candidate_inputs(req.case_id, req.candidate_id, user["id"]) if req.case_id is not None and user else None
 
     registry = _decode(req.registry_pdf_b64, "등기부등본")
     building = _decode(req.building_pdf_b64, "건축물대장")
@@ -81,6 +82,14 @@ async def analyze_rights_endpoint(
     result = await asyncio.to_thread(
         analyze_rights, registry, building, req.my_deposit, req.market_price,
     )
+    if expected_inputs and isinstance(result, dict):
+        result["subject_match"] = match_document_subject(result.get("registry"), expected_inputs)
+        if result["subject_match"]["status"] in {"mismatch", "unknown"}:
+            result["limitations"].append(result["subject_match"]["reason"])
+            if result.get("analysis_status") == "completed":
+                result["analysis_status"] = "partial"
+            if result.get("risk_grade") == "safe":
+                result.update(risk_grade="unknown", risk_score=None, risk_label="문서와 후보의 동일 물건 확인 필요", analysis_status="partial")
 
     # 홈 '최근 활동' 피드용 기록 (실패해도 분석 결과 반환에는 영향 없음)
     # 개인정보 최소화: 상세 주소는 마스킹해서 저장
@@ -109,10 +118,15 @@ async def analyze_rights_endpoint(
                 req.case_id, req.candidate_id, user["id"], "rights",
                 {"risk_grade": grade, "risk_label": result.get("risk_label"),
                  "risk_score": result.get("risk_score"), "reasons": result.get("reasons") or [],
+                 "analysis_status": result.get("analysis_status"), "document_status": result.get("document_status"),
+                 "limitations": result.get("limitations") or [],
+                 "evidence": result.get("evidence") or [], "document_metadata": result.get("document_metadata") or {},
+                 "subject_match": result.get("subject_match"),
                  "registry_supplied": registry is not None, "building_supplied": building is not None,
                  "registry_parsed": bool(result.get("registry") and not result["registry"].get("error")),
                  "building_parsed": bool(result.get("building") and not result["building"].get("error"))},
-                checklist_status="done" if grade == "safe" else "warning",
-                evidence=f"업로드 문서 기반 권리분석 완료 · {result.get('risk_label') or grade}",
+                checklist_status="done" if grade == "safe" else "todo" if grade == "unknown" else "warning",
+                evidence=f"업로드 문서 점검 · {result.get('risk_label') or grade}",
+                expected_inputs=expected_inputs,
             )
     return result

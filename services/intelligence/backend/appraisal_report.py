@@ -466,6 +466,16 @@ def generate_price_analysis_report(result: "AppraisalResult") -> str:
         lines.append("")
 
     # ── 공법상 제한사항 ───────────────────────────────────────────────────
+    if result.comparables:
+        lines += ["### 비교사례 선정·조회 근거", ""]
+        for index, comp in enumerate(result.comparables, 1):
+            delta = f"{comp.area_difference_m2}㎡" if comp.area_difference_m2 is not None else "미확인"
+            lines.append(f"- 사례 {index}: {comp.selection_reason or '선정 근거 미확인'} · 대상 면적 차이 {delta} · 조회 {comp.observed_at or '미확인'}")
+            lines.append(f"  - 조회 범위: {comp.source_sigungu_code or '지역코드 미확인'} / {comp.source_deal_month or '월 미확인'} / {comp.source_endpoint or 'API 미확인'}")
+            if comp.transaction_ref:
+                lines.append(f"  - 서비스 거래 지문: `{comp.transaction_ref}` (국토부 거래 고유번호가 아님)")
+        lines += ["", "[국토교통부 실거래 공개시스템](https://rt.molit.go.kr/)에서 원자료를 별도로 확인하세요.", ""]
+
     if result.legal_restrictions:
         lines += ["## 공법상 제한사항"]
         for item in result.legal_restrictions:

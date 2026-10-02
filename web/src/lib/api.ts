@@ -267,6 +267,7 @@ export const api = {
   addCaseProperty: (caseId: number, data: {
     name: string; address?: string; category?: string; asking_price?: number;
     area_sqm?: number; notes?: string; history_id?: number;
+    identity?: Pick<import("./listings").PropertyIdentity, "building_dong" | "unit_number" | "floor" | "area_basis">;
     source?: "manual" | "recommendation" | "appraisal";
   }) => req<CaseProperty>(`/cases/${caseId}/properties`, { method: "POST", body: JSON.stringify(data) }),
 
@@ -276,6 +277,7 @@ export const api = {
   updateCaseProperty: (caseId: number, propertyId: number, data: {
     asking_price?: number | null;
     status?: "reviewing" | "shortlisted" | "rejected" | "selected"; notes?: string;
+    identity?: Pick<import("./listings").PropertyIdentity, "building_dong" | "unit_number" | "floor" | "area_basis">;
   }) => req(`/cases/${caseId}/properties/${propertyId}`, { method: "PATCH", body: JSON.stringify(data) }),
 
   applyListingUpdate: (caseId: number, propertyId: number, expectedRevisionId: number, expectedConfirmedAt: string) =>
@@ -311,10 +313,16 @@ export const api = {
     req<{
       error: string;
       disclaimer: string;
-      risk_score: number;
-      risk_grade: "safe" | "caution" | "danger";
+      risk_score: number | null;
+      risk_grade: "safe" | "caution" | "danger" | "unknown";
       risk_label: string;
       reasons: string[];
+      analysis_status: "completed" | "partial" | "failed";
+      document_status: { registry: "parsed" | "failed" | "not_supplied"; building: "parsed" | "failed" | "not_supplied" };
+      limitations: string[];
+      evidence: { document_type: string; document_sha256: string; page: number; item: string; excerpt: string; issued_at: string | null }[];
+      document_metadata: Record<string, { document_sha256: string; issued_at: string | null; page_count: number; unreadable_pages: number[] }>;
+      subject_match?: { status: "unknown" | "mismatch" | "unit_match" | "building_match"; reason: string };
       registry?: {
         error: string; address: string; owner: string; has_summary: boolean;
         critical: { keyword: string; description: string }[];

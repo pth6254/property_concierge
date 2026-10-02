@@ -1,4 +1,6 @@
 "use client";
+import PropertyIdentityDetails from "@/components/PropertyIdentityDetails";
+import PropertyIdentityFields, { identityFromForm } from "@/components/PropertyIdentityFields";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -77,7 +79,7 @@ export default function CaseDetailPage() {
     return () => { cancelled = true; };
   }, [caseId]);
 
-  const addProperty = async (event: React.FormEvent) => {
+  const addProperty = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setError("");
     try {
       await api.addCaseProperty(caseId, {
@@ -85,6 +87,7 @@ export default function CaseDetailPage() {
         asking_price: price ? Number(price) * 10_000 : undefined,
         area_sqm: area ? Number(area) : undefined,
         category,
+        identity: identityFromForm(event.currentTarget),
         history_id: historyId ? Number(historyId) : undefined,
         source: historyId ? "appraisal" : "manual",
       });
@@ -122,6 +125,7 @@ export default function CaseDetailPage() {
     <section className="rounded-2xl border bg-white shadow-sm">
       <div className="flex items-center justify-between border-b p-5"><div><h2 className="font-bold">후보 매물</h2><p className="mt-1 text-xs text-slate-500">분석 결과와 남은 검토 항목을 후보별로 관리합니다.</p></div><button onClick={() => setFormOpen((value) => !value)} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />후보 추가</button></div>
       {formOpen && <form onSubmit={addProperty} className="grid gap-3 border-b bg-slate-50 p-5 md:grid-cols-2">
+        <div className="md:col-span-2"><PropertyIdentityFields /></div>
         <input required value={name} onChange={(event) => setName(event.target.value)} placeholder="후보명 또는 건물명" className="rounded-lg border px-3 py-2 text-sm" /><input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="주소" className="rounded-lg border px-3 py-2 text-sm" />
         <input type="number" min="0" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="매도 희망가(만원)" className="rounded-lg border px-3 py-2 text-sm" /><input type="number" min="0" step="0.01" value={area} onChange={(event) => setArea(event.target.value)} placeholder="면적(㎡)" className="rounded-lg border px-3 py-2 text-sm" />
         <select aria-label="후보 물건 종류" value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">물건 종류 선택</option>{["아파트", "오피스텔", "연립다세대", "단독다가구", "상가", "사무실", "공장", "창고", "토지"].map((value) => <option key={value}>{value}</option>)}</select>
@@ -138,16 +142,30 @@ function CandidateCard({ property, caseId, profile, reload }: { property: CasePr
   const [sourceError, setSourceError] = useState("");
   const analyses = new Map(property.analyses.map((analysis) => [analysis.analysis_type, analysis]));
   const source = property.source_status;
-  const sourceLabels: Record<string, string> = { name: "매물명", asking_price: "희망가", address: "주소", area_sqm: "면적", status: "거래 상태", legal_region_code: "법정동", property_type: "유형" };
+  const sourceLabels: Record<string, string> = { name: "매물명", asking_price: "희망가", address: "주소", area_sqm: "면적", status: "거래 상태", legal_region_code: "법정동", property_type: "유형", identity: "동·호·층·면적 기준" };
   const statusLabels: Record<string, string> = { active: "거래 가능", withdrawn: "철회", completed: "거래 완료", unknown: "미확인" };
-  const sourceValue = (field: string, value: unknown) => field === "asking_price"
-    ? won(typeof value === "number" ? value : null)
-    : field === "status" ? (statusLabels[String(value)] ?? "미확인")
-    : String(value ?? "미입력");
+  const sourceValue = (field: string, value: unknown) => {
+    if (field === "asking_price") return won(typeof value === "number" ? value : null);
+    if (field === "status") return statusLabels[String(value)] ?? "미확인";
+    if (field === "identity") {
+      const details = value && typeof value === "object" ? value as Record<string, unknown> : {};
+      const text = (key: string) => typeof details[key] === "string" && details[key] ? details[key] : "미입력";
+      const basis = details.area_basis === "exclusive" ? "전용" : details.area_basis === "supply" ? "공급" : "미확인";
+      return `동 ${text("building_dong")} · 호 ${text("unit_number")} · 층 ${text("floor")} · 면적 ${basis}`;
+    }
+    return String(value ?? "미입력");
+  };
   return <article className={`rounded-xl border p-5 ${property.status === "rejected" ? "bg-slate-50 opacity-70" : "bg-white"}`}>
     <div className="flex flex-col justify-between gap-3 md:flex-row"><div><div className="flex items-center gap-2"><h3 className="font-bold">{property.name}</h3><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">검토 {property.review_progress}%</span></div><p className="mt-1 text-sm text-slate-500">{property.address || "주소 미입력"}{property.area_sqm ? ` · ${property.area_sqm}㎡` : ""} · 희망가 {won(property.asking_price)}</p></div><div className="flex gap-2"><select disabled={property.status === "selected"} value={property.status} onChange={async (event) => { await api.updateCaseProperty(caseId, property.id, { status: event.target.value as CaseProperty["status"] }); await reload(); }} className="rounded-lg border px-2 py-1 text-xs">{PROPERTY_STATUS.map((status) => <option disabled={status.value === "selected"} key={status.value} value={status.value}>{status.label}</option>)}</select><button disabled={property.status === "selected"} title={property.status === "selected" ? "최종 선택을 변경한 뒤 삭제할 수 있습니다" : "후보 삭제"} onClick={async () => { await api.deleteCaseProperty(caseId, property.id); await reload(); }} aria-label="후보 삭제" className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div></div>
     {property.alias && <p className="mt-2 break-words text-sm text-primary">별칭: {property.alias}</p>}
     {property.address_details && <p className="mt-1 break-words text-xs text-slate-500">도로명: {property.address_details.road_address || "제공 정보 없음"} · 지번: {property.address_details.jibun_address}</p>}
+    <PropertyIdentityDetails identity={property.identity} />
+    {!property.source_listing_id && <details className="mt-3 text-sm"><summary className="cursor-pointer text-primary">동·호·층 정보 수정</summary><form key={property.updated} className="mt-3 space-y-3" onSubmit={async event => {
+      event.preventDefault(); const identity = identityFromForm(event.currentTarget); setSourceError(""); setSourceBusy(true);
+      try { await api.updateCaseProperty(caseId, property.id, { identity }); await reload(); }
+      catch (error) { setSourceError(error instanceof Error ? error.message : "물건 정보를 저장하지 못했습니다."); }
+      finally { setSourceBusy(false); }
+    }}><PropertyIdentityFields identity={property.identity} /><p className="text-xs text-amber-700">물건 정보가 달라지면 분석과 최종 선택을 다시 검토합니다.</p><button disabled={sourceBusy} className="rounded-lg border px-3 py-2">물건 정보 저장</button></form></details>}
     {source && source.status !== "current" && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
       <strong>원본 매물 재확인 필요</strong>
       <p className="mt-1">{source.status === "missing" ? "원본 매물을 더 이상 조회할 수 없습니다." : source.needs_confirmation ? "원본 매물의 거래 가능 상태 또는 확인 시각을 다시 확인해주세요." : "저장 당시와 원본 내용이 달라졌습니다."}</p>

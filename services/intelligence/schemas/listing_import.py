@@ -10,18 +10,28 @@ class ListingInput(BaseModel):
     name: str = Field(min_length=1, max_length=150)
     alias: str = Field(default="", max_length=100)
     address_token: str | None = Field(default=None, max_length=20000, exclude=True)
+    building_token: str | None = Field(default=None, max_length=150000, exclude=True)
     property_type: Literal["apartment", "officetel", "row_house", "detached", "non_residential", "industrial", "land"]
     transaction_type: Literal["purchase", "lease", "rent"]
     address: str = Field(min_length=1, max_length=500)
     legal_region_code: str | None = Field(default=None, pattern=r"^\d{10}$")
     area_sqm: float = Field(gt=0, le=100000000)
     floor: str = Field(default="", max_length=30)
+    building_dong: str = Field(default="", max_length=30)
+    unit_number: str = Field(default="", max_length=30)
+    area_basis: Literal["exclusive", "supply", "unknown"] = "unknown"
     asking_price: int | None = Field(default=None, gt=0, le=10**15)
     deposit: int | None = Field(default=None, ge=0, le=10**15)
     monthly_rent: int | None = Field(default=None, gt=0, le=10**12)
     source_url: HttpUrl | None = None
     confirmed_at: datetime
     status: Literal["active", "withdrawn", "completed", "unknown"] = "unknown"
+
+    def identity_details(self):
+        # 주소 확인 서명은 건물·필지만 확인한다. 호수 입력을 외부 확인된 개별 물건으로 승격하지 않는다.
+        return {"building_dong": self.building_dong, "unit_number": self.unit_number, "floor": self.floor,
+                "area_basis": self.area_basis, "unit_source": "user_input" if self.unit_number else "unknown",
+                "verification_level": "unit_user_input" if self.unit_number else "building_or_parcel"}
 
     @field_validator("confirmed_at")
     @classmethod

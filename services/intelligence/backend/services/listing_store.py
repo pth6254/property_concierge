@@ -70,6 +70,21 @@ def validate_csv(user_id, source_name, csv_text, regions):
                     item.legal_region_code = verified.legal_region_code
                     item.address = verified.jibun_address
                     address_details = verified.model_dump()
+                if item.building_token:
+                    if not item.address_token or address_details is None:
+                        raise ValueError("건축물대장 확인 정보에는 선택한 주소 확인 정보가 필요합니다")
+                    from api.core_bridge import request_core
+                    evidence = request_core("/internal/v1/buildings/verify", {
+                        "token": item.building_token, "user_id": user_id, "address_token": item.address_token,
+                        "building_dong": item.building_dong, "unit_number": item.unit_number,
+                        "area_sqm": item.area_sqm, "area_basis": item.area_basis, "floor": item.floor,
+                    })
+                    if evidence.status_code == 422:
+                        raise ValueError("건축물대장 확인 정보가 만료되었거나 주소·동·호가 바뀌었습니다. 다시 조회해주세요.")
+                    if evidence.status_code != 200:
+                        raise HTTPException(503, "건축물대장 확인 서비스에 연결하지 못했습니다")
+                    # 사용자 면적은 덮어쓰지 않는다. 공식 조회값과의 일치 여부만 저장한다.
+                    address_details["building_register"] = evidence.json()
                 if item.external_id in seen:
                     raise ValueError("CSV 안에서 external_id가 중복됩니다")
                 seen.add(item.external_id)
@@ -111,7 +126,7 @@ def validate_csv(user_id, source_name, csv_text, regions):
     if not rows and not errors:
         raise HTTPException(422, "CSV에 매물 행이 없습니다")
     output = {"valid": not errors, "errors": errors, "warnings": warnings,
-              "total": len(rows) + len(errors), "preview": [item.model_dump(mode="json") |
+              "total": len(rows) + len(errors), "preview": [item.model_dump(mode="json") | {"identity": item.identity_details()} |
                 ({"address_details": details} if details else {}) for _, item, details in rows[:20]],
               "created": 0, "updated": 0, "unchanged": 0, "skipped_older": 0, "committed": False}
     return output, rows

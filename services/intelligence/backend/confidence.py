@@ -97,13 +97,8 @@ def dominant_match_level(samples: list[dict] | None) -> str:
         return ""
     votes: dict[str, int] = {}
     for s in samples:
-        matched = s.get("apt_name_matched") or ""
-        if matched and s.get("apt_name") == matched:
-            lv = "same_complex"
-        elif s.get("dong"):
-            lv = "same_dong"
-        else:
-            lv = "same_gu"
+        from comparable_matching import comparable_match_level
+        lv = comparable_match_level(s)
         votes[lv] = votes.get(lv, 0) + 1
     return max(votes, key=lambda k: votes[k])
 

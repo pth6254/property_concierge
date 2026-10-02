@@ -512,6 +512,9 @@ def _fetch_one_month(args: tuple) -> list:
 
     # 3) write-through 적재 (0건도 유효한 결과로 기록)
     transaction_store.put_month(endpoint, category, lawd_code, deal_ymd, parsed)
+    from transaction_evidence import attach_transaction_evidence
+    import time
+    attach_transaction_evidence(parsed, endpoint, lawd_code, deal_ymd, time.time())
     return parsed
 
 
@@ -567,6 +570,7 @@ def fetch_real_transaction_prices(
     used_region = region_2depth
     dong_filter = region_3depth.replace("동", "").replace("읍", "").replace("면", "").strip()
     apt_clean   = apt_name.strip() if apt_name else ""
+    matched_complex = False
 
     _SUFFIXES = ["아파트", "빌라", "오피스텔", "주상복합", "타운", "빌딩", "타워"]
     def _strip_suffix(name: str) -> str:
@@ -588,6 +592,10 @@ def fetch_real_transaction_prices(
                 print(f"[molit] '{apt_clean_stripped}' {months}개월 없음 → 기간 확장")
                 continue
 
+            # 같은 이름의 다른 동 단지를 섞지 않는다. 구 전체 폴백 자료는 별도로 조회한다.
+            if region_3depth:
+                from comparable_matching import normalized_name
+                raw_parsed = [d for d in raw_parsed if normalized_name(d.get("dong")) == normalized_name(region_3depth)]
             actual_names = list(set(d["apt_name"] for d in raw_parsed))
             candidates   = [n for n in actual_names
                             if apt_no_space[:4] in n.replace(" ", "")]
@@ -598,6 +606,7 @@ def fetch_real_transaction_prices(
                      if _strip_suffix(d["apt_name"]) == apt_clean_stripped]
             if exact:
                 all_parsed  = exact
+                matched_complex = True
                 used_months = months
                 print(f"[molit] ✅ 단지 정확 매칭: '{apt_clean_stripped}' {len(exact)}건 / {months}개월")
                 break
@@ -607,6 +616,7 @@ def fetch_real_transaction_prices(
             if no_space:
                 top_name    = Counter(d["apt_name"] for d in no_space).most_common(1)[0][0]
                 all_parsed  = no_space
+                matched_complex = True
                 used_months = months
                 print(f"[molit] ✅ 단지 공백제거 매칭: '{apt_clean_stripped}' → '{top_name}' {len(no_space)}건 / {months}개월")
                 break
@@ -615,10 +625,11 @@ def fetch_real_transaction_prices(
                        if (apt_no_space in _strip_suffix(d["apt_name"]).replace(" ", "")
                            or _strip_suffix(d["apt_name"]).replace(" ", "") in apt_no_space)
                        and len(_strip_suffix(d["apt_name"]).replace(" ", "")) >= 3]
-            if partial:
+            if partial and len({d["apt_name"] for d in partial}) == 1:
                 top_name    = Counter(d["apt_name"] for d in partial).most_common(1)[0][0]
                 matched     = [d for d in partial if d["apt_name"] == top_name]
                 all_parsed  = matched
+                matched_complex = True
                 used_months = months
                 print(f"[molit] ✅ 단지 부분 매칭: '{apt_clean_stripped}' → '{top_name}' {len(matched)}건 / {months}개월")
                 break
@@ -638,7 +649,8 @@ def fetch_real_transaction_prices(
             print(f"[molit] 동 조회: '{dong_filter}동' / {months}개월")
             raw_parsed = _fetch_by_ymds(url, safe_key, lawd_code, deal_ymds, category)
             if raw_parsed:
-                dong_filtered = [d for d in raw_parsed if dong_filter in d.get("dong", "")]
+                from comparable_matching import normalized_name
+                dong_filtered = [d for d in raw_parsed if normalized_name(region_3depth) == normalized_name(d.get("dong"))]
                 if dong_filtered:
                     all_parsed  = dong_filtered
                     used_months = months
@@ -712,7 +724,7 @@ def fetch_real_transaction_prices(
             print(f"[molit] 정밀 필터 적용: {precision_label.strip()} → {len(filtered)}건")
             all_parsed = filtered
 
-    apt_name_matched = all_parsed[0].get("apt_name", "") if apt_clean else ""
+    apt_name_matched = all_parsed[0].get("apt_name", "") if matched_complex else ""
 
     # ── 시점수정 적용 (부동산원 지수 우선, 근사율 폴백) ──────────────────
     all_parsed, time_adj_rate = _apply_time_adjustment(all_parsed, category, as_of, region_2depth)
@@ -729,6 +741,11 @@ def fetch_real_transaction_prices(
 
     for s in samples:
         s["apt_name_matched"] = apt_name_matched
+        s["target_dong"] = region_3depth
+        s["target_sigungu_code"] = lawd_code
+        s["query_sigungu_code"] = lawd_code
+        s["target_area_sqm"] = area_sqm_exact
+        s["selection_filter"] = precision_label.strip()
 
     adj_months_avg = round(sum(s.get("time_adj_months", 0) for s in samples) / len(samples)) if samples else 0
     if adj_months_avg > 0:
@@ -744,6 +761,8 @@ def fetch_real_transaction_prices(
         "per_sqm_avg":      per_sqm,
         "samples":          samples,
         "apt_name_matched": apt_name_matched,
+        "target_dong": region_3depth,
+        "target_sigungu_code": lawd_code,
         "used_months":      used_months,
         "used_region":      used_region,
         "error":            "",

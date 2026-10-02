@@ -18,6 +18,9 @@ class ListingAddress(BaseModel):
     source: Literal["kakao_address"] = "kakao_address"
     checked_at: str
     identity_level: Literal["building", "parcel"]
+    parcel_main_no: str = Field(default="", pattern=r"^(|[0-9]{1,4})$")
+    parcel_sub_no: str = Field(default="", pattern=r"^(|[0-9]{1,4})$")
+    parcel_mountain: bool = False
 
 
 class ListingAddressChoice(ListingAddress):

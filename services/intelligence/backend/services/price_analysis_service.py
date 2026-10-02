@@ -32,6 +32,7 @@ from price_engine import (
     calc_estimated_value,
     fetch_real_transaction_prices,
 )
+from comparable_matching import comparable_match_level
 
 
 # ─────────────────────────────────────────
@@ -77,18 +78,20 @@ def _to_comparables(
 
     result = []
     for s in samples:
-        # match_level 결정
-        if apt_name_matched and s.get("apt_name") == apt_name_matched:
-            match_level = "same_complex"
-        elif s.get("dong"):
-            match_level = "same_dong"
-        else:
-            match_level = "same_gu"
+        match_level = comparable_match_level(
+            s, matched_complex=apt_name_matched, target_dong=price_data.get("target_dong", ""),
+            target_sigungu_code=price_data.get("target_sigungu_code", ""),
+        )
 
         # 거래일 조합 (YYYY-MM)
         deal_date = None
         if s.get("deal_year") and s.get("deal_month"):
             deal_date = f"{s['deal_year']}-{int(s['deal_month']):02d}"
+            if s.get("deal_day"):
+                try:
+                    deal_date = _dt(int(s["deal_year"]), int(s["deal_month"]), int(s["deal_day"])).strftime("%Y-%m-%d")
+                except ValueError:
+                    pass
 
         # 요인 보정치
         region_factor    = _REGION_FACTOR.get(match_level, 1.0)
@@ -115,6 +118,13 @@ def _to_comparables(
             price_per_m2     = round(raw_per_m2 * 10_000) if raw_per_m2 else None,
             source           = "국토부 실거래가",
             match_level      = match_level,
+            transaction_ref = s.get("transaction_ref"), observed_at=s.get("observed_at"),
+            reference_url=s.get("source_url"), source_endpoint=s.get("source_endpoint"),
+            source_sigungu_code=s.get("source_sigungu_code"), source_deal_month=s.get("source_deal_month"),
+            selection_reason={"same_complex": "조회에 성공한 동일 단지", "same_dong": "대상과 동일한 법정동",
+                              "same_gu": "동일 시·군·구의 대체 사례", "nearby": "대상 지역과 다른 거래",
+                              "fallback": "대상과 지역 일치 여부 미확인"}[match_level] + (" · " + s["selection_filter"] if s.get("selection_filter") else ""),
+            area_difference_m2=round(abs(s["area_sqm"] - s["target_area_sqm"]), 2) if s.get("area_sqm") and s.get("target_area_sqm") else None,
             time_adj_months  = s.get("time_adj_months", 0),
             time_adj_factor  = s.get("time_adj_factor", 1.0),
             circumstance_adj = circumstance_adj,

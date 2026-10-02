@@ -1,4 +1,5 @@
 "use client";
+import PropertyIdentityDetails from "@/components/PropertyIdentityDetails";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -108,6 +109,7 @@ export default function CaseComparisonPage() {
       <section className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
         <table className="w-full min-w-[900px] text-sm"><thead className="bg-slate-50"><tr><th className="w-40 px-4 py-3 text-left">비교 항목</th>{comparison.rows.map((row) => <th key={row.property_id} className="px-4 py-3 text-left"><span>{row.name}</span>{comparison.selected_property_id === row.property_id && <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700">최종 선택</span>}<p className="mt-1 font-normal text-slate-400">{row.address || "주소 미입력"}</p></th>)}</tr></thead>
           <tbody className="divide-y">{[
+            ["동·호·면적 기준", (row: CaseCandidateComparisonRow) => <PropertyIdentityDetails identity={row.identity} />],
             ["희망가", (row: CaseCandidateComparisonRow) => won(row.asking_price)],
             ["AI 추정가", (row: CaseCandidateComparisonRow) => won(row.estimated_value)],
             ["AVM 신뢰도", (row: CaseCandidateComparisonRow) => row.appraisal_confidence == null ? "근거 미확인" : `${Math.round(row.appraisal_confidence * 100)}% · 비교 ${row.appraisal_comparable_count ?? 0}건 · ${row.appraisal_match_level ?? "매칭 미확인"}`],

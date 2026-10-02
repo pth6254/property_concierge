@@ -1,4 +1,5 @@
 "use client";
+import PropertyIdentityDetails from "@/components/PropertyIdentityDetails";
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -82,6 +83,7 @@ function DecisionSummary({ caseId }: { caseId: number }) {
           <div><h2 className="text-2xl font-bold">{candidate.name}</h2>
             {candidate.alias && <p className="mt-1 break-words text-sm text-primary">별칭: {candidate.alias}</p>}
             {candidate.address_details && <p className="mt-1 break-words text-sm text-slate-600">도로명: {candidate.address_details.road_address || "제공 정보 없음"} · 지번: {candidate.address_details.jibun_address}</p>}
+            <PropertyIdentityDetails identity={candidate.identity} />
             <p className="mt-1 break-words text-slate-600">{candidate.address || "주소 미입력"}</p>
             <p className="mt-2 text-sm font-semibold text-primary">{candidate.status === "rejected" ? "제외 후보" : selected ? assessment.review_ready ? "사용자 선택 · 등록 검토 항목 확인" : "선호 후보 · 확인 필요" : assessment.review_ready ? "등록 검토 항목 확인 · 사용자 선택 대기" : "후보 검토 중"}</p>
           </div>

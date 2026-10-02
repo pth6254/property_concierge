@@ -9,12 +9,13 @@ AxisKey = Literal["fit", "price", "funding", "risk", "execution"]
 
 
 class DecisionEvidence(BaseModel):
+    provenance: dict | None = None
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
     key: str
     label: str
     value: str | int | float | bool | None
     unit: str = ""
-    source: Literal["user_input", "calculation", "document", "workflow"]
+    source: Literal["user_input", "calculation", "document", "workflow", "official_data"]
     as_of: str | None = None
     usable: bool = True
     reference_url: str | None = None
@@ -56,6 +57,7 @@ class DecisionAction(BaseModel):
 
 class CandidateDecisionAssessment(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    identity: dict | None = None
     property_id: int
     name: str
     status: Literal["reviewing", "shortlisted", "selected", "rejected"]

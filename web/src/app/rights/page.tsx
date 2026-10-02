@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { removeSessionValue, useSessionValue } from "@/lib/sessionStore";
 
@@ -31,18 +31,24 @@ const GRADE_STYLE: Record<string, string> = {
   danger:  "bg-red-50 border-red-300 text-red-800",
   caution: "bg-amber-50 border-amber-300 text-amber-800",
   safe:    "bg-emerald-50 border-emerald-300 text-emerald-800",
+  unknown: "bg-slate-50 border-slate-300 text-slate-800",
 };
 
 type CandidateSeed = { case_id?: number; candidate_id?: number; market_price?: number; address?: string };
 
 export default function RightsPage() {
   const rawSeed = useSessionValue("rightsCandidate");
+  const cleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (cleanupTimer.current !== null) clearTimeout(cleanupTimer.current);
+    // 시드가 확인되어 폼을 다시 마운트하거나 StrictMode가 effect를 재실행해도 후보 연결을 유지한다.
+    return () => { cleanupTimer.current = setTimeout(() => removeSessionValue("rightsCandidate"), 0); };
+  }, []);
   return <RightsForm key={rawSeed ?? "no-seed"} rawSeed={rawSeed ?? null} />;
 }
 
 function RightsForm({ rawSeed }: { rawSeed: string | null }) {
   const seed = useMemo<CandidateSeed>(() => rawSeed ? JSON.parse(rawSeed) as CandidateSeed : {}, [rawSeed]);
-  useEffect(() => () => removeSessionValue("rightsCandidate"), []);
   const [registryFile, setRegistryFile] = useState<File | null>(null);
   const [buildingFile, setBuildingFile] = useState<File | null>(null);
   const [depositStr, setDepositStr] = useState("");
@@ -85,8 +91,8 @@ function RightsForm({ rawSeed }: { rawSeed: string | null }) {
         참고용 자동 점검이며 법률사무(권리분석)가 아닙니다. 계약 전 반드시 공인중개사·법무사 확인을 거치세요.
       </p>
       <p className="text-xs text-ink-muted bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg mb-5">
-        업로드한 PDF는 메모리에서만 분석되고 즉시 파기되며, 서버에 저장되지 않습니다.
-        분석 기록에는 상세 주소 대신 마스킹된 주소만 남습니다.
+        원문 PDF는 메모리에서만 분석하고 저장하지 않습니다. 후보에 연결한 분석에는 판독 상태·문서 지문·페이지와 위험 키워드·금액의 최소 발췌를 보존합니다.
+        최근 활동 피드에는 상세 주소 대신 마스킹된 주소만 남습니다.
       </p>
 
       {/* 입력 */}
@@ -133,10 +139,19 @@ function RightsForm({ rawSeed }: { rawSeed: string | null }) {
           <div className={`rounded-xl border p-5 ${GRADE_STYLE[result.risk_grade]}`}>
             <div className="flex items-center justify-between">
               <div className="font-bold text-lg">
-                {result.risk_grade === "danger" ? "🔴" : result.risk_grade === "caution" ? "🟡" : "🟢"} {result.risk_label}
+                {result.risk_grade === "danger" ? "🔴" : result.risk_grade === "caution" ? "🟡" : result.risk_grade === "safe" ? "🟢" : "⚪"} {result.risk_label}
               </div>
-              <div className="text-sm">위험 점수 {result.risk_score} / 100</div>
+              <div className="text-sm">{result.risk_score == null ? "위험 점수 산정 불가" : `위험 점수 ${result.risk_score} / 100`}</div>
             </div>
+            <div className="mt-3 space-y-1 text-sm">
+              {(["registry", "building"] as const).map(kind => (
+                <p key={kind}>{kind === "registry" ? "등기부등본" : "건축물대장"}: {{ parsed: "판독됨", failed: "판독 실패", not_supplied: "미제공" }[result.document_status[kind]]}
+                  {result[kind]?.error && <span className="block text-red-700">{result[kind]?.error}</span>}
+                </p>
+              ))}
+            </div>
+            <ul className="mt-3 space-y-1 text-xs">{result.limitations.map(item => <li key={item}>{item}</li>)}</ul>
+            {result.subject_match && <p className="mt-3 text-sm">문서·후보 대조: {result.subject_match.reason}</p>}
             {result.reasons.length > 0 && (
               <ul className="mt-3 space-y-1.5 text-sm">
                 {result.reasons.map((r, i) => <li key={i}>{r}</li>)}
@@ -212,6 +227,12 @@ function RightsForm({ rawSeed }: { rawSeed: string | null }) {
           )}
 
           <p className="text-xs text-slate-400">{result.disclaimer}</p>
+          <details className="rounded-xl border bg-white p-4"><summary className="cursor-pointer font-semibold">문서별 최소 근거 · {result.evidence.length}개</summary>
+            <div className="mt-3 space-y-3 text-sm">{Object.entries(result.document_metadata).map(([kind, meta]) => <p key={kind}>{kind === "registry" ? "등기부" : "건축물대장"}: {meta.page_count}쪽 · 발급일 {meta.issued_at ?? "미확인"} · 현재 권리관계 별도 확인</p>)}
+              {result.evidence.map((item, index) => <div key={`${item.document_sha256}-${index}`} className="border-t pt-2"><p className="font-medium">{item.document_type === "registry" ? "등기부" : "건축물대장"} {item.page}쪽 · {item.item}</p><p>최소 발췌: {item.excerpt}</p><p className="break-all text-xs text-slate-500">문서 지문: {item.document_sha256}</p></div>)}
+              {!result.evidence.length && <p>표시할 위험 신호·금액 근거가 없습니다. 판독 상태와 미확인 사항을 함께 확인하세요.</p>}
+            </div>
+          </details>
         </div>
       )}
     </div>

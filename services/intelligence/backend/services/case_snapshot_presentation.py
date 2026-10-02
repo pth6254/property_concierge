@@ -26,8 +26,12 @@ def _appraisal_evidence(result: dict) -> dict:
     confidence = compute_confidence(count=count, samples=analysis.get("comparables") or None,
                                     used_months=analysis.get("used_months") or 0,
                                     source=analysis.get("source") or "")
+    from services.price_analysis_service import _to_comparables
+    samples = analysis.get("comparables") or []
+    matched = samples[0].get("apt_name_matched", "") if samples else ""
     return {"confidence": confidence["score"], "confidence_basis": confidence["basis"],
-            "match_level": confidence["match_level"], "comparable_count": count}
+            "match_level": confidence["match_level"], "comparable_count": count,
+            "comparables": [item.model_dump(mode="json", exclude_none=True) for item in _to_comparables({"samples": samples}, matched)]}
 
 def _case_dict(case: PurchaseCase, property_count: int = 0) -> dict:
     return {
@@ -56,6 +60,7 @@ def _property_dict(item: CaseProperty, history: HistoryRecord | None = None, ana
         "id": item.id, "case_id": item.case_id, "name": item.name, "address": item.address,
         "alias": (item.source_snapshot or {}).get("alias", ""),
         "address_details": (item.source_snapshot or {}).get("address_details"),
+        "identity": (item.source_snapshot or {}).get("identity"),
         "category": item.category, "asking_price": item.asking_price, "area_sqm": item.area_sqm,
         "legal_region_code": item.legal_region_code, "source": item.source, "status": item.status,
         "notes": item.notes, "history_id": item.history_id, "appraisal": appraisal,

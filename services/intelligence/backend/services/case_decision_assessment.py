@@ -24,9 +24,9 @@ def _number(value, *, minimum=0):
     return value
 
 
-def _evidence(key, label, value, source, *, as_of=None, unit="", usable=True, reference_url=None):
+def _evidence(key, label, value, source, *, as_of=None, unit="", usable=True, reference_url=None, provenance=None):
     return DecisionEvidence(key=key, label=label, value=value, source=source,
-                            as_of=as_of, unit=unit, usable=usable, reference_url=reference_url)
+                            as_of=as_of, unit=unit, usable=usable, reference_url=reference_url, provenance=provenance)
 
 
 def _analysis(candidate, kind, now):
@@ -154,6 +154,11 @@ def _price(candidate, analysis):
         _evidence("comparable_count", "실거래 비교사례", count, "calculation", as_of=analysis.get("analyzed_at"), unit="건", usable=usable, reference_url=reference),
         _evidence("match_level", "사례 매칭 수준", summary.get("match_level"), "calculation", as_of=analysis.get("analyzed_at"), usable=usable, reference_url=reference),
     ]
+    for index, comp in enumerate((summary.get("comparables") or [])[:10]):
+        label = f"실거래 사례 {index + 1} · {comp.get('complex_name') or '이름 미확인'}"
+        value = f"{comp.get('deal_date') or '거래일 미확인'} · {comp.get('area_m2') or '면적 미확인'}㎡ · 원거래 {comp.get('original_price') or comp.get('deal_price') or '가격 미확인'}원"
+        evidence.append(_evidence(f"comparable_{index}", label, value, "official_data", as_of=comp.get("observed_at"),
+                                  usable=usable, reference_url=reference, provenance=comp))
     if gap is not None:
         evidence.append(_evidence("price_gap", "희망가 − AVM 추정가", gap, "calculation", as_of=analysis.get("analyzed_at"), unit="원"))
     return DecisionAxis(key="price", label="가격성", status=state,
@@ -224,6 +229,8 @@ def _risk(candidate, analysis):
     if grade in {"danger", "caution"}:
         # 만료된 과거 결과의 위험 신호도 해결됐다는 근거가 생기기 전까지 남긴다.
         state = "warning"
+    elif summary.get("analysis_status") == "failed":
+        state = "error"
     elif state == "confirmed" and (grade != "safe" or missing):
         state = "unknown"
     evidence = [_evidence("risk_label", "업로드 문서 점검 결과", summary.get("risk_label"), "document", as_of=analysis.get("analyzed_at"), usable=_analysis_status(analysis) == "confirmed")]
@@ -231,6 +238,10 @@ def _risk(candidate, analysis):
         evidence.append(_evidence(key, label, summary.get(key), "document", as_of=analysis.get("analyzed_at")))
     for index, reason in enumerate(summary.get("reasons") or []):
         evidence.append(_evidence(f"risk_reason_{index}", "문서에서 확인한 신호", reason, "document", as_of=analysis.get("analyzed_at"), usable=_analysis_status(analysis) == "confirmed"))
+    for index, item in enumerate((summary.get("evidence") or [])[:200]):
+        evidence.append(_evidence(f"document_{index}", f"{'등기부' if item.get('document_type') == 'registry' else '건축물대장'} {item.get('page')}쪽 · {item.get('item')}",
+                                  item.get("excerpt"), "document", as_of=item.get("issued_at"),
+                                  usable=_analysis_status(analysis) == "confirmed" and (summary.get("subject_match") or {}).get("status") not in {"mismatch", "unknown"}, provenance=item))
     source = candidate.get("source_status") or {}
     current = source.get("current") or {}
     evidence.append(_evidence("listing_confirmation", "매물 원본 확인 상태", source.get("status", "미확인"), "user_input", as_of=current.get("confirmed_at"), usable=source.get("status") == "current"))
@@ -246,7 +257,7 @@ def _risk(candidate, analysis):
         headline="문서 위험 신호 확인 필요" if grade in {"danger", "caution"} else "업로드 문서 내 위험 신호 미검출" if state == "confirmed" else "문서·매물 확인 필요",
         explanation="업로드한 문서에서 탐지한 신호와 확인하지 못한 정보를 구분합니다. 문서가 없거나 판독하지 못한 경우 안전으로 표시하지 않습니다.",
         evidence=evidence, missing=missing,
-        limitations=["문서 발급일과 실제 현재 권리관계의 일치, 소유자·현장 하자·공실·규제 전체는 검증하지 않았습니다."],
+        limitations=["문서 발급일과 실제 현재 권리관계의 일치, 소유자·현장 하자·공실·규제 전체는 검증하지 않았습니다.", *(summary.get("limitations") or [])],
         review_target="rights", review_label="권리 문서 확인·분석")
 
 
@@ -300,5 +311,5 @@ def assess_case_decision(case: dict, *, now: datetime | None = None) -> CaseDeci
                 required_cash=_number(summary.get("required_cash")) if usable_funding else None,
                 monthly_payment=_number(summary.get("monthly_payment")) if usable_funding else None,
                 cash_shortfall=_number(summary.get("cash_shortfall")) if usable_funding else None),
-            axes=[*axes, execution], next_actions=actions))
+            identity=candidate.get("identity"), axes=[*axes, execution], next_actions=actions))
     return CaseDecisionAssessment(case_id=case["id"], evaluated_at=current.isoformat(sep=" ", timespec="seconds"), candidates=candidates)

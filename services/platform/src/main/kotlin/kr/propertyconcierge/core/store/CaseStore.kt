@@ -53,6 +53,16 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
         if (left.isArray && right.isArray) return left.size() == right.size() && (0 until left.size()).all { same(left[it], right[it]) }
         return left == right
     }
+    private fun identity(value: JsonNode): JsonNode {
+        val input = value.path("identity").takeIf(JsonNode::isObject) ?: value
+        val unit = input.text("unit_number").trim()
+        val fields = listOf("building_dong", "unit_number", "floor").associateWith { input.text(it).trim() }
+        val basis = input.text("area_basis", "unknown")
+        if (fields.values.any { it.length > 30 || it.any(Char::isISOControl) } || basis !in setOf("exclusive", "supply", "unknown"))
+            throw ApiFailure(422, "동·호·층·면적 기준의 입력을 확인해주세요")
+        return json.valueToTree(fields + mapOf("area_basis" to basis, "unit_source" to if (unit.isBlank()) "unknown" else "user_input",
+            "verification_level" to if (unit.isBlank()) "building_or_parcel" else "unit_user_input"))
+    }
     private fun rows(sql: String, vararg args: Any?) = jdbc.queryForList(sql, *args).map(::objectRow)
     private fun sourceStatus(owner: Long, property: JsonNode): JsonNode? {
         val id = property.get("source_listing_id")?.takeUnless(JsonNode::isNull)?.asLong() ?: return null
@@ -62,8 +72,10 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
             return json.valueToTree(mapOf("status" to "missing", "listing_id" to id, "changes" to emptyMap<String, Any>(),
                 "needs_confirmation" to true, "saved" to saved, "current" to null))
         }
-        val fields = listOf("name", "asking_price", "address", "area_sqm", "status", "legal_region_code", "property_type")
-        val changes = fields.filter { !same(saved.path(it), current.path(it)) }.associateWith { mapOf("saved" to saved.get(it), "current" to current.get(it)) }
+        val fields = listOf("name", "asking_price", "address", "area_sqm", "status", "legal_region_code", "property_type", "identity")
+        (current as ObjectNode).set<JsonNode>("identity", identity(current))
+        val savedIdentity = identity(saved)
+        val changes = fields.filter { !same(if (it == "identity") savedIdentity else saved.path(it), current.path(it)) }.associateWith { mapOf("saved" to saved.get(it), "current" to current.get(it)) }
         val needs = current.path("needs_confirmation").asBoolean() || current.path("status").asText() != "active"
         val facts = json.createObjectNode(); fields.forEach { facts.set<JsonNode>(it, current.get(it)) }
         facts.set<JsonNode>("revision_id", json.valueToTree(jdbc.queryForObject("SELECT max(id) FROM listing_revisions WHERE listing_id=?", Long::class.java, id)))
@@ -93,6 +105,7 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
         for (field in listOf("name", "alias", "address_details", "asking_price", "address", "area_sqm", "status", "legal_region_code", "property_type", "confirmed_at"))
             set<JsonNode>(field, source.get(field))
         put("listing_id", id); set<JsonNode>("revision_id", json.valueToTree(jdbc.queryForObject("SELECT max(id) FROM listing_revisions WHERE listing_id=?", Long::class.java, id)))
+        set<JsonNode>("identity", identity(source))
     }
     private fun checkedSource(owner: Long, id: Long): ObjectNode {
         if (one("SELECT id FROM imported_listings WHERE user_id=? AND id=? FOR UPDATE", owner, id) == null)
@@ -167,6 +180,7 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
                     if (historyId != null && one("SELECT id FROM history WHERE id=? AND user_id=?", historyId, owner) == null)
                         throw ApiFailure(404, "시세추정 이력을 찾을 수 없습니다")
                     val snapshot = if (source != null) snapshotFields(source, requireNotNull(sourceId)) else json.createObjectNode()
+                    if (source == null) snapshot.set<JsonNode>("identity", identity(data))
                     val id = requireNotNull(jdbc.queryForObject("""INSERT INTO case_properties(case_id,name,address,category,asking_price,area_sqm,
                         legal_region_code,source,status,notes,history_id,source_listing_id,source_snapshot,created,updated)
                         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?::json,?,?) RETURNING id""", Long::class.java, caseId,
@@ -197,7 +211,32 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
                     val selected = case?.path("selected_property_id")?.asLong() == propertyId
                     if ((data.text("status") == "selected" && !selected) || (selected && data.has("status") && data.text("status") != "selected"))
                         throw ApiFailure(422, "최종 선택은 후보 검토 화면에서 선택 근거와 함께 변경해주세요")
-                    patch("case_properties", item.path("id").asLong(), data, setOf("asking_price", "status", "notes"), mapOf("updated" to version()))
+                    if (data.has("identity")) {
+                        if (item.hasNonNull("source_listing_id")) throw ApiFailure(422, "등록 매물의 동·호 정보는 원본을 갱신한 뒤 재검토해주세요")
+                        val before = item.path("source_snapshot").takeIf(JsonNode::isObject)?.deepCopy<ObjectNode>() ?: json.createObjectNode()
+                        val after = identity(data)
+                        if (!same(identity(before), after)) {
+                            if (data.text("status") == "selected") throw ApiFailure(422, "물건 정보를 바꾼 뒤 다시 검토·선택해주세요")
+                            val afterSnapshot = before.deepCopy().apply { set<JsonNode>("identity", after) }
+                            val previousAnalyses = rows("SELECT analysis_type AS type,status,summary,analyzed_at,reference_id FROM candidate_analyses WHERE property_id=?", propertyId)
+                            val previousTasks = if (selected) rows("SELECT id,title,status,checked_by,outcome,evidence_note FROM case_execution_tasks WHERE case_id=?", caseId) else emptyList()
+                            val decision = if (selected) json.writeValueAsString(mapOf("property_id" to propertyId, "reason" to case?.get("decision_reason"), "decided_at" to case?.get("decided_at"))) else null
+                            jdbc.update("""INSERT INTO candidate_source_reviews(case_id,property_id,user_id,previous_snapshot,applied_snapshot,previous_decision,
+                                invalidated_analyses,previous_analyses,previous_execution,created) VALUES (?,?,?,?::json,?::json,?::json,?::json,?::json,?::json,?)""",
+                                caseId, propertyId, owner, before.toString(), afterSnapshot.toString(), decision,
+                                json.writeValueAsString(listOf("appraisal", "rights", "simulation")), json.writeValueAsString(previousAnalyses), json.writeValueAsString(previousTasks), now())
+                            jdbc.update("UPDATE case_properties SET source_snapshot=?::json WHERE id=?", afterSnapshot.toString(), propertyId)
+                            jdbc.update("UPDATE candidate_analyses SET status='stale',updated=? WHERE property_id=?", now(), propertyId)
+                            jdbc.update("UPDATE candidate_checklist_items SET status='todo',completed_at=null WHERE property_id=? AND category IN ('price','funding','rights')", propertyId)
+                            if (selected) {
+                                execution.reset(caseId)
+                                jdbc.update("UPDATE purchase_cases SET selected_property_id=null,decided_at=null,decision_reason='',status='reviewing' WHERE id=?", caseId)
+                                jdbc.update("UPDATE case_properties SET status='shortlisted' WHERE id=?", propertyId)
+                            }
+                        }
+                    }
+                    val fields = data.deepCopy<ObjectNode>().apply { remove("identity") }
+                    patch("case_properties", item.path("id").asLong(), fields, setOf("asking_price", "status", "notes"), mapOf("updated" to version()))
                     touch(caseId); mapOf("property_id" to propertyId)
                 }
                 "delete_property" -> {
@@ -263,7 +302,8 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
         return result
     }
     private fun inputs(property: JsonNode) = mapOf("address" to property.get("address"), "area_sqm" to property.get("area_sqm"),
-        "category" to property.get("category"), "asking_price" to property.get("asking_price"), "source_revision_id" to property.path("source_snapshot").get("revision_id"))
+        "category" to property.get("category"), "asking_price" to property.get("asking_price"), "source_revision_id" to property.path("source_snapshot").get("revision_id"),
+        "identity" to identity(property.path("source_snapshot")))
     private fun linkAnalysis(operation: String, args: JsonNode, caseId: Long, owner: Long, appraisalSummary: JsonNode?): Boolean {
         val propertyId = args.id("property_id"); val item = candidate(caseId, propertyId) ?: return false
         val appraisal = operation == "link_appraisal"
@@ -295,7 +335,8 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
         val source = checkedSource(owner, sourceId); val after = snapshotFields(source, sourceId); val before = item.path("source_snapshot")
         if (after.path("revision_id").asLong() != args.path("expected_revision_id").asLong() || source.text("confirmed_at") != args.text("expected_confirmed_at"))
             throw ApiFailure(422, "원본 매물이 다시 바뀌었습니다. 새 내용을 확인해주세요")
-        val changed = listOf("name", "asking_price", "address", "area_sqm", "legal_region_code", "property_type", "status").filter { !same(before.path(it), after.path(it)) }
+        val changed = listOf("name", "asking_price", "address", "area_sqm", "legal_region_code", "property_type", "status", "identity").filter {
+            !same(if (it == "identity") identity(before) else before.path(it), after.path(it)) }
         if (changed.isEmpty() && before.path("confirmed_at") == after.path("confirmed_at"))
             return mapOf("changed" to false, "invalidated_analyses" to emptyList<String>(), "decision_reopened" to false)
         val invalidate = if (changed.any { it != "name" }) listOf("appraisal", "rights", "simulation") else emptyList()

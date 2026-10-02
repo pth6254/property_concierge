@@ -25,6 +25,14 @@ class ComparableTransaction(BaseModel):
     deal_date: Optional[str]      = None   # 거래일 (YYYY-MM 또는 YYYY-MM-DD)
     price_per_m2: Optional[int]   = None   # 원거래 기준 m²당 금액 (원)
     source: Optional[str]         = None   # 데이터 출처
+    transaction_ref: Optional[str] = None
+    observed_at: Optional[str] = None
+    reference_url: Optional[str] = None
+    selection_reason: Optional[str] = None
+    area_difference_m2: Optional[float] = None
+    source_endpoint: Optional[str] = None
+    source_sigungu_code: Optional[str] = None
+    source_deal_month: Optional[str] = None
 
     # 시점수정
     time_adj_months: int   = 0     # 거래일 ~ 기준시점 월수

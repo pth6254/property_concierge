@@ -32,6 +32,8 @@ class AiWorkController(private val jobs: AiJobStore, private val sessions: Sessi
             if (cases.dispatch("validate_candidate", args) != true) throw ApiFailure(404, "검토 후보가 없습니다")
             if (!valid.path("save_history").asBoolean(true)) throw ApiFailure(422, "후보 연결 분석은 이력 저장이 필요합니다")
             expected = cases.dispatch("candidate_inputs", args)
+            if (json.valueToTree<JsonNode>(expected).path("identity").path("area_basis").asText() == "supply")
+                throw ApiFailure(422, "공급면적을 전용면적으로 사용할 수 없습니다. 후보의 면적과 기준을 확인해주세요")
         }
         return enqueue(task, mapOf("request" to valid, "expected_candidate_inputs" to expected), owner)
     }

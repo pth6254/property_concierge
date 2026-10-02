@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import io
 import re
+import hashlib
+from datetime import datetime
 
 # ─────────────────────────────────────────
 #  위험 등기 키워드 (갑구·을구)
@@ -64,7 +66,61 @@ _MONEY = r"금\s*([\d,]+)\s*원"
 def extract_pdf_text(pdf_bytes: bytes) -> str:
     from pypdf import PdfReader
     reader = PdfReader(io.BytesIO(pdf_bytes))
-    return "\n".join(page.extract_text() or "" for page in reader.pages)
+    # 페이지 경계는 최소 근거의 페이지 번호를 복원하기 위해 유지한다.
+    return "\f".join(page.extract_text() or "" for page in reader.pages)
+
+
+def document_evidence(text: str, kind: str, raw: bytes) -> dict:
+    digest = hashlib.sha256(raw).hexdigest()
+    issued = None
+    stamp = re.search(r"발급(?:일시|일자|일)\s*[:：]?\s*(\d{4})[년.\-/ ]+\s*(\d{1,2})[월.\-/ ]+\s*(\d{1,2})", text)
+    if stamp:
+        try:
+            issued = datetime(*map(int, stamp.groups())).date().isoformat()
+        except ValueError:
+            pass
+    patterns = [(kw, re.escape(kw)) for kw in [*CRITICAL_KEYWORDS, *WARNING_KEYWORDS]] if kind == "registry" else [("위반건축물", "위반건축물")]
+    if kind == "registry":
+        patterns += [("채권최고액", r"채권최고액\s*" + _MONEY), ("전세금", r"전세금\s*" + _MONEY), ("임차보증금", r"임차보증금\s*" + _MONEY)]
+    summary = text.find("주요 등기사항 요약") if kind == "registry" else -1
+    evidence, offset = [], 0
+    for page, content in enumerate(text.split("\f"), 1):
+        for item, pattern in patterns:
+            for match in re.finditer(pattern, content):
+                if summary >= 0 and offset + match.start() < summary:
+                    continue
+                # 원문 전체·이름·주민번호 대신 판단에 쓴 키워드/금액만 보존한다.
+                evidence.append({"document_type": kind, "document_sha256": digest, "page": page,
+                                 "item": item, "excerpt": match.group(0)[:200], "issued_at": issued,
+                                 "currentness": "unverified"})
+        offset += len(content) + 1
+    return {"document_sha256": digest, "issued_at": issued, "page_count": len(text.split("\f")),
+            "unreadable_pages": [index for index, page in enumerate(text.split("\f"), 1) if not page.strip()],
+            "evidence": evidence}
+
+
+def match_document_subject(registry, expected):
+    address = (registry or {}).get("address") or ""
+    target = (expected or {}).get("address") or ""
+    normalize = lambda value: value.replace("서울특별시", "서울").strip()
+    if not address or not target:
+        return {"status": "unknown", "reason": "문서와 후보의 소재지를 대조할 수 없습니다."}
+    pattern = r"\s*".join(re.escape(word) for word in normalize(target).split()) + r"(?![0-9-])"
+    if not re.search(pattern, normalize(address)):
+        return {"status": "mismatch", "reason": "문서의 소재지가 후보 입력과 다릅니다. 도로명·지번 표기가 다른 경우 직접 확인해주세요."}
+    identity = (expected or {}).get("identity") or {}
+    complete = False
+    for key, suffix in (("building_dong", "동"), ("unit_number", "호")):
+        value = re.sub(r"^제|\s+|" + suffix + "$", "", identity.get(key) or "")
+        if value:
+            actual = re.search(r"(?:제)?([0-9A-Za-z-]+)\s*" + suffix, address)
+            if not actual:
+                return {"status": "unknown", "reason": "문서에서 입력한 동·호를 확인하지 못했습니다."}
+            if actual.group(1) != value:
+                return {"status": "mismatch", "reason": "문서의 동·호가 후보 입력과 다릅니다."}
+            complete = True
+    return {"status": "unit_match" if complete and identity.get("unit_number") else "building_match",
+            "reason": "입력과 업로드 문서의 표시를 대조했습니다. 문서 진위·개별 호·현재 권리관계의 외부 확인은 별도입니다."}
 
 
 # ─────────────────────────────────────────
@@ -84,6 +140,8 @@ def parse_registry(text: str) -> dict:
     # 주소 (헤더: [집합건물] 서울특별시 ... / [건물] ... / [토지] ...)
     m = re.search(r"\[(?:집합건물|건물|토지)\]\s*([^\n]+)", text)
     address = m.group(1).strip() if m else ""
+    if not address or not any(word in text for word in ("주요 등기사항", "갑구", "을구", "소유지분현황", "소유권")):
+        return {"error": "등기부의 소재지·권리 항목을 확인하지 못했습니다. 다른 문서이거나 판독이 불완전합니다."}
 
     # 요약 섹션 분리
     summary_idx = text.find("주요 등기사항 요약")
@@ -137,6 +195,8 @@ def parse_building_ledger(text: str) -> dict:
     """건축물대장 텍스트 → 위반건축물·용도·사용승인일."""
     if not text or len(text.strip()) < 50:
         return {"error": "텍스트를 추출할 수 없습니다 (스캔 이미지 PDF 분석 불가)."}
+    if "건축물대장" not in re.sub(r"\s+", "", text) or not any(word in text for word in ("주용도", "주 용 도", "대지위치", "사용승인일")):
+        return {"error": "건축물대장의 항목을 확인하지 못했습니다. 문서 종류와 판독 상태를 확인해주세요."}
 
     violation = "위반건축물" in text
 
@@ -234,22 +294,49 @@ def analyze_rights(
     )}
 
     registry = None
+    metadata, evidence = {}, []
     if registry_pdf:
         try:
-            registry = parse_registry(extract_pdf_text(registry_pdf))
+            text = extract_pdf_text(registry_pdf)
+            registry = parse_registry(text)
+            metadata["registry"] = document_evidence(text, "registry", registry_pdf)
+            if not registry.get("error"):
+                evidence.extend(metadata["registry"]["evidence"])
         except Exception as e:
             registry = {"error": f"등기부등본 파싱 실패: {e}"}
         result["registry"] = registry
 
     if building_pdf:
         try:
-            result["building"] = parse_building_ledger(extract_pdf_text(building_pdf))
+            text = extract_pdf_text(building_pdf)
+            result["building"] = parse_building_ledger(text)
+            metadata["building"] = document_evidence(text, "building", building_pdf)
+            if not result["building"].get("error"):
+                evidence.extend(metadata["building"]["evidence"])
         except Exception as e:
             result["building"] = {"error": f"건축물대장 파싱 실패: {e}"}
 
     if not registry_pdf and not building_pdf:
         result["error"] = "분석할 PDF가 없습니다."
         return result
+
+    documents = {"registry": registry_pdf, "building": building_pdf}
+    result["document_status"] = {
+        kind: "not_supplied" if not raw else "failed" if (result.get(kind) or {}).get("error") else "parsed"
+        for kind, raw in documents.items()
+    }
+    states = result["document_status"]
+    result["document_metadata"] = {kind: {key: value for key, value in meta.items() if key != "evidence"} for kind, meta in metadata.items()}
+    result["evidence"] = evidence[:200]
+    parsed = sum(state == "parsed" for state in states.values())
+    missing_pages = any(meta["unreadable_pages"] for meta in metadata.values())
+    result["analysis_status"] = "failed" if not parsed else "partial" if "failed" in states.values() or states["registry"] != "parsed" or missing_pages else "completed"
+    result["limitations"] = [
+        "문서 발급일·현재 권리관계·말소 여부를 별도로 확인해야 합니다.",
+        *(["텍스트를 추출하지 못한 페이지가 있어 전체 문서를 확인하지 못했습니다."] if missing_pages else []),
+        *[f"{'등기부등본' if kind == 'registry' else '건축물대장'}: {'미제공' if state == 'not_supplied' else '판독 실패'}"
+          for kind, state in states.items() if state != "parsed"],
+    ]
 
     # ── 종합 위험 등급 ──
     risk_score = 0
@@ -291,11 +378,16 @@ def analyze_rights(
 
     risk_score = min(risk_score, 100)
     if risk_score >= 60:  overall = ("danger",  "고위험 — 계약 비추천")
-    elif risk_score >= 30: overall = ("caution", "주의 — 전문가 확인 필수")
-    elif reasons:         overall = ("safe",    "특이 위험 신호 없음")
-    else:                 overall = ("safe",    "특이 위험 신호 없음")
+    elif risk_score > 0: overall = ("caution", "주의 — 전문가 확인 필수")
+    elif result["analysis_status"] == "failed":
+        overall = ("unknown", "문서 판독 실패 — 권리 미확인")
+    elif result["analysis_status"] == "partial":
+        overall = ("unknown", "문서 일부만 확인 — 추가 확인 필요")
+    else:
+        overall = ("safe", "판독한 문서 내 위험 신호 미검출")
 
-    result["risk_score"]  = risk_score
+    # 실패·부분 판독의 0점은 확인된 낮은 위험으로 오해되므로 점수를 제공하지 않는다.
+    result["risk_score"]  = risk_score if overall[0] != "unknown" else None
     result["risk_grade"]  = overall[0]
     result["risk_label"]  = overall[1]
     result["reasons"]     = reasons

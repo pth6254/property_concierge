@@ -4,6 +4,8 @@ import Link from "next/link";
 import ExternalListingLink from "@/components/ExternalListingLink";
 import { COLLECTION_LABELS } from "@/components/ListingCollector";
 import ListingLinkForm from "@/components/ListingLinkForm";
+import PropertyIdentityDetails from "@/components/PropertyIdentityDetails";
+import BuildingRegisterDetails from "@/components/BuildingRegisterDetails";
 import { api } from "@/lib/api";
 import { listingApi, type ImportedListing, type ListingImportResult } from "@/lib/listings";
 import type { PurchaseCase } from "@/lib/types";
@@ -123,6 +125,8 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
       {item.alias && <p className="break-words text-sm text-primary">별칭: {item.alias}</p>}
       {item.address_details ? <div className="space-y-1 text-sm"><p>도로명: {item.address_details.road_address || "제공 정보 없음"}</p><p>지번: {item.address_details.jibun_address}</p><p className="text-xs text-slate-500">{item.address_details.building_name ? `조회 이름 · ${item.address_details.name_source === "building_register" ? "건축물대장" : "카카오 주소 검색"}` : "건물명 미확인 · 주소로 등록"} · 조회일 {new Date(item.address_details.checked_at).toLocaleDateString("ko-KR")}</p></div> : <p className="text-sm">{item.address} · 주소 조회 미확인</p>}
       <p className="text-sm">{item.area_sqm}㎡ · {item.floor || "층 미입력"}</p>
+      <PropertyIdentityDetails identity={item.identity} />
+      {item.address_details?.building_register && <details className="mt-2"><summary className="cursor-pointer text-sm text-primary">저장한 건축물대장 정보</summary><div className="mt-2"><BuildingRegisterDetails evidence={item.address_details.building_register} /></div></details>}
       <p>{item.transaction_type==="purchase"?`희망가 ${money(item.asking_price)}`:`보증금 ${money(item.deposit)}${item.monthly_rent?` / 월세 ${money(item.monthly_rent)}`:""}`}</p>
       <p className="text-xs text-slate-600">{STATUS[item.status]} · {item.needs_confirmation?"재확인 필요":"최근 사용자 확인 자료"} · {!item.region_linked&&"법정동 미연결"}</p>
       <p className="text-xs">출처 {item.source_name} / {item.external_id} · 확인 {new Date(item.confirmed_at).toLocaleString("ko-KR")}</p>

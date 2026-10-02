@@ -75,7 +75,7 @@ class CaseController(private val sessions: SessionService, private val store: Ca
         stored("add_property", request, caseId, mapOf("data" to body))
     @PatchMapping("/api/cases/{caseId:[0-9]+}/properties/{propertyId:[0-9]+}")
     fun updateProperty(request: HttpServletRequest, @PathVariable caseId: Long, @PathVariable propertyId: Long, @RequestBody body: JsonNode): Any {
-        checked(body, PropertyUpdateInput::class.java, setOf("status", "notes"))
+        checked(body, PropertyUpdateInput::class.java, setOf("status", "notes", "identity"))
         return stored("update_property", request, caseId, mapOf("property_id" to propertyId, "data" to body))
     }
     @DeleteMapping("/api/cases/{caseId:[0-9]+}/properties/{propertyId:[0-9]+}") @ResponseStatus(HttpStatus.NO_CONTENT)

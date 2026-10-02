@@ -1,7 +1,9 @@
 // TypeScript types mirroring Pydantic schemas
-import type { ListingAddressDetails } from "./listings";
+import type { ListingAddressDetails, PropertyIdentity } from "./listings";
 
 export interface ComparableTransaction {
+  transaction_ref?: string; observed_at?: string; reference_url?: string; selection_reason?: string;
+  area_difference_m2?: number; original_price?: number; floor?: string;
   complex_name?: string;
   address?: string;
   area_m2?: number;
@@ -199,6 +201,7 @@ export interface CaseProperty {
   name: string;
   alias?: string;
   address_details?: ListingAddressDetails | null;
+  identity?: PropertyIdentity | null;
   address: string;
   category: string;
   asking_price: number | null;
@@ -340,6 +343,7 @@ export interface ComplexRecommendation extends Omit<ComplexAddress, "road_addres
 }
 
 export interface CaseCandidateComparisonRow {
+  identity?: PropertyIdentity | null;
   property_id: number;
   name: string;
   address: string;
@@ -378,8 +382,9 @@ export interface CaseCandidateComparison {
 export type DecisionAssessmentStatus = "confirmed" | "warning" | "unknown" | "stale" | "error" | "pending";
 
 export interface DecisionEvidence {
+  provenance?: Record<string, unknown> | null;
   key: string; label: string; value: string | number | boolean | null;
-  unit: string; source: "user_input" | "calculation" | "document" | "workflow";
+  unit: string; source: "user_input" | "calculation" | "document" | "workflow" | "official_data";
   as_of: string | null; usable: boolean; reference_url: string | null;
 }
 
@@ -392,6 +397,7 @@ export interface DecisionAxis {
 }
 
 export interface CandidateDecisionAssessment {
+  identity?: PropertyIdentity | null;
   property_id: number; name: string; status: CaseProperty["status"]; review_ready: boolean;
   metrics: { asking_price: number | null; required_cash: number | null; monthly_payment: number | null;
     cash_shortfall: number | null; price_gap: number | null; price_gap_ratio: number | null };

@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { listingApi, type ListingAddressChoice } from "@/lib/listings";
 
-export default function ListingAddressFields({ initialName = "", initialAddress = "", requireSelection }: {
-  initialName?: string; initialAddress?: string; requireSelection: boolean;
+export default function ListingAddressFields({ initialName = "", initialAddress = "", requireSelection, onSelectionChange }: {
+  initialName?: string; initialAddress?: string; requireSelection: boolean; onSelectionChange?: (value: ListingAddressChoice | null) => void;
 }) {
   const [query, setQuery] = useState(initialAddress || initialName);
   const [items, setItems] = useState<ListingAddressChoice[]>([]);
@@ -34,6 +34,7 @@ export default function ListingAddressFields({ initialName = "", initialAddress 
   const choose = (item: ListingAddressChoice) => {
     setSelected(item); setManual(false); setAddress(item.jibun_address);
     setName(item.building_name || item.jibun_address.slice(0, 150)); setItems([]); setMessage("");
+    onSelectionChange?.(item);
   };
   const input = "mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-2.5 outline-none focus:ring-2 focus:ring-primary/30 read-only:bg-slate-50";
   return <div className="space-y-3 rounded-lg border border-slate-200 p-3 sm:col-span-2">
@@ -41,7 +42,7 @@ export default function ListingAddressFields({ initialName = "", initialAddress 
       <label className="min-w-0 flex-1">주소·단지명 검색<input value={query} maxLength={200} className={input}
         placeholder="도로명주소, 지번주소 또는 아파트 단지명"
         onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void search(); } }}
-        onChange={event => { sequence.current++; setQuery(event.target.value); setItems([]); setSelected(null); setManual(!requireSelection); setBusy(false); setMessage(""); }} /></label>
+        onChange={event => { sequence.current++; setQuery(event.target.value); setItems([]); setSelected(null); setManual(!requireSelection); setBusy(false); setMessage(""); onSelectionChange?.(null); }} /></label>
       <button type="button" disabled={busy} onClick={() => void search()} className="rounded-lg bg-primary px-4 py-2.5 text-white disabled:opacity-40">{busy ? "주소 검색 중…" : "주소 검색"}</button>
     </div>
     {items.length > 0 && <ul aria-label="주소 검색 결과" className="max-h-80 space-y-2 overflow-auto">
@@ -64,7 +65,7 @@ export default function ListingAddressFields({ initialName = "", initialAddress 
     </div>}
     <input type="hidden" name="address_token" value={selected?.token || ""} />
     <input type="hidden" name="address_mode" value={selected ? "verified" : manual ? "manual" : "unselected"} />
-    <button type="button" className="text-xs text-primary underline" onClick={() => { sequence.current++; setBusy(false); setSelected(null); setItems([]); setManual(true); setMessage("직접 입력한 이름·주소는 조회 확인 정보로 표시하지 않습니다."); }}>주소·이름 직접 입력으로 전환</button>
+    <button type="button" className="text-xs text-primary underline" onClick={() => { sequence.current++; setBusy(false); setSelected(null); setItems([]); setManual(true); setMessage("직접 입력한 이름·주소는 조회 확인 정보로 표시하지 않습니다."); onSelectionChange?.(null); }}>주소·이름 직접 입력으로 전환</button>
     {!selected && !manual && <p className="text-xs text-slate-500">주소 검색 결과를 선택하면 확인된 이름과 주소가 자동으로 채워집니다.</p>}
   </div>;
 }

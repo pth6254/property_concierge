@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import requests
 from dotenv import load_dotenv
@@ -37,8 +38,11 @@ def main():
         if not connection.exec_driver_sql("SELECT 1 FROM pg_database WHERE datname='real_estate_test'").scalar():
             connection.exec_driver_sql("CREATE DATABASE real_estate_test")
     admin.dispose()
-    settings = {"DATABASE_URL": raw, "TEST_DATABASE_URL": raw, "REDIS_URL": "redis://localhost:6379/15",
-        "TEST_REDIS_URL": "redis://localhost:6379/15", "APP_ENV": "development", "DISABLE_RATE_LIMIT": "1",
+    test_redis = os.getenv("TEST_REDIS_URL", "redis://localhost:6379/15")
+    if urlsplit(test_redis).scheme not in {"redis", "rediss"} or urlsplit(test_redis).path != "/15":
+        raise SystemExit("Redis DB 15만 검증할 수 있습니다")
+    settings = {"DATABASE_URL": raw, "TEST_DATABASE_URL": raw, "REDIS_URL": test_redis,
+        "TEST_REDIS_URL": test_redis, "APP_ENV": "development", "DISABLE_RATE_LIMIT": "1",
         "JWT_SECRET_KEY": "spring-isolated-test-secret-not-used-in-production",
         "INTERNAL_SERVICE_SECRET": secrets.token_urlsafe(48), "LANGCHAIN_TRACING_V2": "false", "CORE_STORAGE_URL": "",
         "REQUIRE_INTERNAL_SERVICE_AUTH": "0", "OPERATOR_USER_IDS": "2147483646"}
@@ -61,6 +65,7 @@ def main():
             "REQUIRE_INTERNAL_SERVICE_AUTH": "1", "KAKAO_REST_API_KEY":"isolated-provider-key",
             "KAKAO_API_ROOT":"http://property-provider-test:8000/local/", "MOLIT_API_KEY":"isolated-provider-key",
             "BUILDING_REGISTER_URL":"http://property-provider-test:8000/buildings", "RESEND_API_KEY":"",
+            "BUILDING_REGISTER_API_ROOT":"http://property-provider-test:8000/register",
             "GOOGLE_CLIENT_ID":"isolated-google-client", "GOOGLE_CLIENT_SECRET":"isolated-google-secret",
             "GOOGLE_AUTH_URL":"http://property-provider-test:8000/oauth/authorize",
             "GOOGLE_TOKEN_URL":"http://property-provider-test:8000/oauth/token", "GOOGLE_USERINFO_URL":"http://property-provider-test:8000/oauth/userinfo"}
@@ -127,8 +132,15 @@ def main():
             # 주소 브라우저의 WSL 서명 도우미에도 같은 격리 JWT 키가 전달되어야 한다.
             names = "PLAYWRIGHT_MODULE_PATH/w:NEXT_TELEMETRY_DISABLED/w:E2E_BROWSER/w:JWT_SECRET_KEY"
             browser_env["WSLENV"] = ":".join(filter(None, (browser_env.get("WSLENV"), names)))
-        for script in ("verify_listing_import_browser.cjs", "verify_navigation_browser.cjs", "verify_service_quality_browser.cjs",
-                       "verify_candidate_funding_browser.cjs", "verify_decision_assessment_browser.cjs", "verify_listing_address_browser.cjs"):
+        browser_scripts = ("verify_listing_import_browser.cjs", "verify_navigation_browser.cjs", "verify_service_quality_browser.cjs",
+                       "verify_candidate_funding_browser.cjs", "verify_decision_assessment_browser.cjs", "verify_listing_address_browser.cjs",
+                       "verify_property_evidence_browser.cjs", "verify_building_register_browser.cjs")
+        if "--browser-script" in sys.argv:
+            selected = sys.argv[sys.argv.index("--browser-script") + 1:]
+            if not selected or selected[0] not in browser_scripts:
+                raise RuntimeError("등록된 브라우저 검증 스크립트만 선택할 수 있습니다")
+            browser_scripts = (selected[0],)
+        for script in browser_scripts:
             subprocess.run([node, node_path(ROOT / "scripts" / script), "http://127.0.0.1:8013"], cwd=ROOT, env=browser_env, check=True)
         return 0
     finally:

@@ -57,7 +57,7 @@ def validate_listing_import(body: ImportValidation):
     regions = [SimpleNamespace(**region.model_dump()) for region in body.regions]
     output, rows = validate_csv(body.user_id, body.source_name, body.csv_text, regions)
     return {"validation": output, "rows": [
-        {"row": index, "payload": item.model_dump(mode="json") | ({"address_details": details} if details else {}),
+        {"row": index, "payload": item.model_dump(mode="json") | {"identity": item.identity_details()} | ({"address_details": details} if details else {}),
          "confirmed_at": item.confirmed_at.timestamp(),
          "price": item.asking_price if item.transaction_type == "purchase" else item.deposit}
         for index, item, details in rows]}

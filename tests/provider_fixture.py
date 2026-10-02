@@ -31,6 +31,16 @@ def buildings():
     items=''.join('<item>'+''.join(f'<{key}>{escape(str(value))}</{key}>' for key,value in record.items())+'</item>' for record in records)
     return Response(f'<response><resultCode>00</resultCode><totalCount>{len(records)}</totalCount><items>{items}</items></response>',media_type='application/xml')
 
+@app.get('/register/{endpoint}')
+def register(endpoint: str, pageNo: int = 1, numOfRows: int = 100):
+    if state.get('register_failure'):
+        return JSONResponse({'message': 'secret-key-must-not-leak'}, status_code=500)
+    records = state.get('register_records', {}).get(endpoint, [])
+    selected = records[(pageNo - 1) * numOfRows:pageNo * numOfRows]
+    # 공급자 필터를 일부러 무시해 Spring의 필지·동·호 재검증을 확인한다.
+    items = ''.join('<item>' + ''.join(f'<{key}>{escape(str(value))}</{key}>' for key, value in record.items()) + '</item>' for record in selected)
+    return Response(f'<response><resultCode>00</resultCode><totalCount>{len(records)}</totalCount><items>{items}</items></response>', media_type='application/xml')
+
 @app.post('/oauth/token')
 async def token(request:Request):
     body=(await request.body()).decode()

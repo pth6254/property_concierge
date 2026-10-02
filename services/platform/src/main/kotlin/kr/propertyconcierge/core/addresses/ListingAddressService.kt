@@ -4,9 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import kr.propertyconcierge.core.ApiFailure
 import kr.propertyconcierge.core.integrations.ExternalJsonClient
+import kr.propertyconcierge.core.integrations.decodeDataGoKey
 import org.springframework.core.env.Environment
 import org.springframework.stereotype.Service
-import java.net.URLDecoder
 import java.nio.charset.StandardCharsets.UTF_8
 import java.security.MessageDigest
 import java.time.Instant
@@ -19,13 +19,15 @@ import javax.xml.parsers.DocumentBuilderFactory
 data class ListingAddressValue(val roadAddress: String = "", val jibunAddress: String, val legalRegionCode: String,
     val latitude: Double, val longitude: Double, val buildingName: String = "", val nameSource: String,
     val nameStatus: String, val nameCandidates: List<String> = emptyList(), val source: String = "kakao_address",
-    val checkedAt: String, val identityLevel: String) {
+    val checkedAt: String, val identityLevel: String, val parcelMainNo: String = "", val parcelSubNo: String = "", val parcelMountain: Boolean = false) {
     fun check() {
         require(jibunAddress.isNotBlank() && jibunAddress.length <= 500 && roadAddress.length <= 500)
         require(legalRegionCode.matches(Regex("[0-9]{10}")) && latitude.isFinite() && latitude in -90.0..90.0 && longitude.isFinite() && longitude in -180.0..180.0)
         require(buildingName.length <= 150 && nameCandidates.size <= 10 && nameCandidates.all { it.length <= 150 })
         require(nameSource in setOf("kakao_address", "building_register", "unknown") && nameStatus in setOf("found", "unknown", "ambiguous"))
         require(source == "kakao_address" && identityLevel in setOf("building", "parcel"))
+        require(parcelMainNo.isEmpty() || parcelMainNo.matches(Regex("[0-9]{1,4}")))
+        require(parcelSubNo.isEmpty() || parcelSubNo.matches(Regex("[0-9]{1,4}")))
     }
 }
 data class AddressProofInput(val token: String, val userId: Long)
@@ -67,7 +69,7 @@ class ListingAddressService(private val http: ExternalJsonClient, private val js
         val code = address.path("b_code").asText(); val bun = address.path("main_address_no").asText(); val ji = address.path("sub_address_no").asText("0").ifBlank { "0" }
         if (molitKey.isBlank() || !code.matches(Regex("[0-9]{10}")) || bun.isBlank() || address.path("mountain_yn").asText() == "Y") return emptyList()
         return runCatching {
-            val xml = http.text("GET", buildingUrl + "?" + http.form(mapOf("serviceKey" to URLDecoder.decode(molitKey, UTF_8),
+            val xml = http.text("GET", buildingUrl + "?" + http.form(mapOf("serviceKey" to decodeDataGoKey(molitKey),
                 "sigunguCd" to code.take(5), "bjdongCd" to code.takeLast(5), "bun" to bun.padStart(4,'0'), "ji" to ji.padStart(4,'0'),
                 "numOfRows" to "100", "pageNo" to "1", "_type" to "xml")))
             val factory = DocumentBuilderFactory.newInstance().apply {
@@ -97,7 +99,9 @@ class ListingAddressService(private val http: ExternalJsonClient, private val js
             ListingAddressValue(road.path("address_name").asText(""), address.path("address_name").asText(), address.path("b_code").asText(),
                 document.path("y").asText().toDouble(), document.path("x").asText().toDouble(), name, source,
                 if (name.isNotBlank()) "found" else if (candidates.isNotEmpty()) "ambiguous" else "unknown", candidates,
-                checkedAt=Instant.now().toString(), identityLevel=if (name.isNotBlank()) "building" else "parcel").also { it.check() }
+                checkedAt=Instant.now().toString(), identityLevel=if (name.isNotBlank()) "building" else "parcel",
+                parcelMainNo=address.path("main_address_no").asText(), parcelSubNo=address.path("sub_address_no").asText(),
+                parcelMountain=address.path("mountain_yn").asText() == "Y").also { it.check() }
         }.getOrNull()
     }
     fun search(query: String, owner: Long): Map<String, Any> {

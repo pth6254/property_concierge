@@ -229,7 +229,7 @@
       "method": "POST",
       "path": "/internal/v1/store/cases/link_candidate_analysis",
       "return_annotation": "bool",
-      "signature": "case_id: int, property_id: int, user_id: int, analysis_type: str, summary: dict, checklist_status: str='done', evidence: str=''",
+      "signature": "case_id: int, property_id: int, user_id: int, analysis_type: str, summary: dict, checklist_status: str='done', evidence: str='', expected_inputs: dict | None=None",
       "source": "services/intelligence/api/case_db.py"
     },
     {

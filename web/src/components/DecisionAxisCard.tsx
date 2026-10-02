@@ -13,7 +13,7 @@ const statuses: Record<DecisionAssessmentStatus, { label: string; style: string 
   error: { label: "분석 실패", style: "bg-red-50 text-red-800" },
   pending: { label: "분석 중", style: "bg-blue-50 text-blue-800" },
 };
-const sources = { user_input: "사용자 입력", calculation: "계산 결과", document: "문서 분석", workflow: "작업 기록" };
+const sources = { user_input: "사용자 입력", calculation: "계산 결과", document: "문서 분석", workflow: "작업 기록", official_data: "공식 실거래 자료" };
 const sourceStates: Record<string, string> = { current: "최근 사용자 확인", changed: "저장 후 변경", needs_confirmation: "재확인 필요", missing: "원본 미확인" };
 
 export function DecisionStatus({ status }: { status: DecisionAssessmentStatus }) {
@@ -53,6 +53,15 @@ export default function DecisionAxisCard({ axis, property, caseId, profile }: {
       <dl className="mt-3 max-h-80 space-y-3 overflow-auto print:max-h-none print:overflow-visible">{axis.evidence.map(item => <div key={item.key} className="break-words border-b border-slate-100 pb-2">
         <dt className="text-slate-500">{item.label}</dt><dd className="mt-1 font-medium">{evidenceValue(item)}</dd>
         <dd className="mt-1 text-xs text-slate-500">{sources[item.source]} · 기준 시각 {item.as_of || "미확인"}</dd>
+        {item.provenance && <dd className="mt-2 space-y-1 text-xs text-slate-600">
+          {typeof item.provenance.selection_reason === "string" && <p>선정 근거: {item.provenance.selection_reason}</p>}
+          {typeof item.provenance.area_difference_m2 === "number" && <p>대상 면적 차이: {item.provenance.area_difference_m2}㎡</p>}
+          {typeof item.provenance.floor === "string" && <p>거래 층: {item.provenance.floor}</p>}
+          {typeof item.provenance.transaction_ref === "string" && <p className="break-all">거래 지문: {item.provenance.transaction_ref}</p>}
+          {typeof item.provenance.source_sigungu_code === "string" && <p>조회 지역 코드 {item.provenance.source_sigungu_code} · 거래 월 {typeof item.provenance.source_deal_month === "string" ? item.provenance.source_deal_month : "미확인"}</p>}
+          {item.provenance.reference_url === "https://rt.molit.go.kr/" && <p><a href={item.provenance.reference_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">국토부 실거래 공개자료 확인</a> · 거래 지문은 서비스 식별값입니다.</p>}
+          {typeof item.provenance.document_sha256 === "string" && <p className="break-all">문서 지문: {item.provenance.document_sha256} · 발급일 {typeof item.provenance.issued_at === "string" ? item.provenance.issued_at : "미확인"}</p>}
+        </dd>}
         {!item.usable && <dd className="mt-1 text-xs text-amber-800">이전·미확인 값 — 현재 판단에 사용하지 않음</dd>}
         {item.reference_url && <dd><Link href={item.reference_url} className="mt-1 inline-block text-primary underline">저장된 분석 리포트 확인</Link></dd>}
       </div>)}</dl>

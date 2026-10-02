@@ -5,12 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import kr.propertyconcierge.core.ApiFailure
 import org.springframework.stereotype.Service
 import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.charset.StandardCharsets.UTF_8
 import java.time.Duration
+
+// 공공데이터 키는 원문 또는 URL 인코딩 형식이다. 원문 '+'를 폼의 공백으로 해석하면 인증이 깨진다.
+fun decodeDataGoKey(value: String): String = if ('%' in value) URLDecoder.decode(value.replace("+", "%2B"), UTF_8) else value
 
 @Service
 class ExternalJsonClient(private val json: ObjectMapper) {

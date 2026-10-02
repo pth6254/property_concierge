@@ -40,6 +40,9 @@ def _validate_candidate_link(req: AppraisalRequest, user: Optional[dict]) -> Non
         raise HTTPException(status_code=404, detail="검토 후보가 없습니다")
     if not req.save_history:
         raise HTTPException(status_code=422, detail="후보 연결 분석은 이력 저장이 필요합니다")
+    inputs = case_db.candidate_inputs(req.case_id, req.candidate_id, user["id"])
+    if ((inputs or {}).get("identity") or {}).get("area_basis") == "supply":
+        raise HTTPException(status_code=422, detail="후보의 전용면적과 면적 기준을 확인해주세요")
 
 
 

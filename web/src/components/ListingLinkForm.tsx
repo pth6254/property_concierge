@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { listingApi, type ListingObservation } from "@/lib/listings";
 import ListingCollector from "@/components/ListingCollector";
-import ListingAddressFields from "@/components/ListingAddressFields";
+import ListingPropertyFields from "@/components/ListingPropertyFields";
 import type { ListingEntryContext } from "@/lib/listingNavigation";
 
 export default function ListingLinkForm({ onSaved, onRegistered, initialValues = {} }: { onSaved: () => void; onRegistered?: () => void; initialValues?: ListingEntryContext }) {
@@ -37,9 +37,11 @@ export default function ListingLinkForm({ onSaved, onRegistered, initialValues =
         external_id: entryMode === "link" ? articleId : (manualId.current ??= `manual-${crypto.randomUUID()}`),
         name: value("name"), alias: value("alias"), property_type: value("property_type"), transaction_type: transaction,
         address: value("address"), area_sqm: value("area_sqm"), floor: value("floor"),
+        building_dong: value("building_dong"), unit_number: value("unit_number"), area_basis: value("area_basis"),
         confirmed_at: confirmed.toISOString(), status: value("status"),
       };
       if (value("address_token")) row.address_token = value("address_token");
+      if (value("building_token")) row.building_token = value("building_token");
       if (entryMode === "link") row.source_url = `https://fin.land.naver.com/articles/${articleId}`;
       else if (sourceUrl) row.source_url = sourceUrl;
       for (const key of transaction === "purchase" ? ["asking_price"] : transaction === "lease" ? ["deposit"] : ["deposit", "monthly_rent"]) {
@@ -71,11 +73,8 @@ export default function ListingLinkForm({ onSaved, onRegistered, initialValues =
       <fieldset disabled={busy} className="grid gap-3 text-sm sm:grid-cols-2">
         <label className="sm:col-span-2">{entryMode === "link" ? "네이버 개별 매물 링크" : "출처 링크 (선택)"}<input name="source_url" type="url" defaultValue={entryMode === "link" ? seed?.source_url??"" : ""} required={entryMode === "link"} className={inputClass} placeholder={entryMode === "link" ? "https://fin.land.naver.com/articles/매물번호" : "https://..."} /></label>
         {entryMode === "manual" && <label className="sm:col-span-2">확인 출처<input name="source_name" defaultValue="중개사·현장 직접 확인" required maxLength={100} className={inputClass} placeholder="예: 중개사무소 전화 확인" /></label>}
-        <ListingAddressFields initialName={seed?.fields.name ?? initialValues.name ?? ""} initialAddress={seed?.fields.address ?? initialValues.address ?? ""} requireSelection={entryMode === "manual"} />
+        <ListingPropertyFields initialName={seed?.fields.name ?? initialValues.name ?? ""} initialAddress={seed?.fields.address ?? initialValues.address ?? ""} initialType={initialValues.propertyType ?? "apartment"} initialArea={seed?.fields.area_sqm} requireSelection={entryMode === "manual"} />
         <label className="sm:col-span-2">별칭 (선택)<input name="alias" aria-label="별칭 (선택)" maxLength={100} className={inputClass} placeholder="예: 출퇴근이 편한 후보, 첫 번째 임장" /><span className="mt-1 block text-xs text-slate-500">나만의 이름입니다. 조회한 단지·건물명과 별도로 저장합니다.</span></label>
-        <label>부동산 유형<select name="property_type" defaultValue={initialValues.propertyType ?? "apartment"} className={inputClass}>{[["apartment","아파트"],["officetel","오피스텔"],["row_house","연립·다세대"],["detached","단독·다가구"],["non_residential","상업·업무"],["industrial","공장·창고"],["land","토지"]].map(([v,n])=><option value={v} key={v}>{n}</option>)}</select></label>
-        <label>층 (선택)<input name="floor" maxLength={30} className={inputClass} placeholder="예: 10층" /></label>
-        <label>확인한 면적 (㎡)<input name="area_sqm" defaultValue={seed?.fields.area_sqm??""} type="number" min="0.01" step="any" required className={inputClass} /></label>
         <label>거래 유형<select value={transaction} onChange={e=>setTransaction(e.target.value)} className={inputClass}><option value="purchase">매매</option><option value="lease">전세</option><option value="rent">월세</option></select></label>
         {transaction === "purchase" ? <label>확인한 호가 (원)<input name="asking_price" defaultValue={seed?.fields.asking_price??""} type="number" min="1" step="1" required className={inputClass} /></label> : <label>보증금 (원)<input name="deposit" defaultValue={seed?.fields.deposit??""} type="number" min={transaction === "lease" ? 1 : 0} step="1" required className={inputClass} /></label>}
         {transaction === "rent" && <label>월세 (원)<input name="monthly_rent" defaultValue={seed?.fields.monthly_rent??""} type="number" min="1" step="1" required className={inputClass} /></label>}

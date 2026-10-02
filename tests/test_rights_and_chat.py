@@ -83,6 +83,35 @@ class TestRightsAnalysis:
         assert not r["error"]
         assert r["violation"]
 
+    def test_invalid_pdf_is_unknown_not_safe(self):
+        res = ras.analyze_rights(registry_pdf=b"%PDF-1.7\ninvalid-document")
+        assert res["registry"]["error"]
+        assert res["risk_grade"] == "unknown" and res["risk_score"] is None
+        assert res["analysis_status"] == "failed"
+
+    def test_partial_failure_keeps_detected_risks(self, monkeypatch):
+        monkeypatch.setattr(ras, "extract_pdf_text", lambda raw: RISKY_REGISTRY if raw == b"registry" else "")
+        res = ras.analyze_rights(registry_pdf=b"registry", building_pdf=b"building")
+        assert res["analysis_status"] == "partial" and res["risk_grade"] == "danger"
+        assert res["document_status"]["building"] == "failed"
+
+    def test_partial_clean_document_is_unknown(self, monkeypatch):
+        monkeypatch.setattr(ras, "extract_pdf_text", lambda raw: CLEAN_REGISTRY if raw == b"registry" else "")
+        res = ras.analyze_rights(registry_pdf=b"registry", building_pdf=b"building")
+        assert res["risk_grade"] == "unknown" and res["risk_score"] is None
+
+    def test_single_warning_is_not_reported_as_no_risk_signals(self, monkeypatch):
+        monkeypatch.setattr(ras, "extract_pdf_text", lambda raw: CLEAN_REGISTRY + "\n임차권등기명령")
+        res = ras.analyze_rights(registry_pdf=b"registry")
+        assert res["analysis_status"] == "completed"
+        assert res["risk_grade"] == "caution" and res["risk_score"] == 15
+        assert any("임차권등기명령" in reason for reason in res["reasons"])
+
+    def test_building_only_cannot_confirm_registry(self, monkeypatch):
+        monkeypatch.setattr(ras, "extract_pdf_text", lambda raw: "건축물대장\n대지위치 서울 마포구 아현동 1\n주용도: 아파트\n세대 100\n사용승인일: 2005.01.01\n")
+        res = ras.analyze_rights(building_pdf=b"building")
+        assert res["risk_grade"] == "unknown" and res["document_status"]["registry"] == "not_supplied"
+
 
 # ─────────────────────────────────────────
 #  상속·증여세 골든

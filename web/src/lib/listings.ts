@@ -4,13 +4,34 @@ export type ListingAddressDetails = {
   name_source: "kakao_address" | "building_register" | "unknown";
   name_status: "found" | "unknown" | "ambiguous"; name_candidates: string[];
   source: "kakao_address"; checked_at: string; identity_level: "building" | "parcel";
+  parcel_main_no?: string; parcel_sub_no?: string; parcel_mountain?: boolean;
+  building_register?: BuildingRegisterEvidence;
 };
 export type ListingAddressChoice = ListingAddressDetails & { token: string };
+export type RegisterFields = Record<string, string | number | null>;
+export type RegisterBuilding = { id: string; dong_name: string; building_name: string; auxiliary: boolean; fields: RegisterFields };
+export type BuildingRegisterEvidence = {
+  source: "building_register"; checked_at: string; status: string; notes: string[];
+  record_checked_at?: Record<string, string | null>; area_matches_input?: boolean;
+  complex: { fields: RegisterFields } | null; selected_building: RegisterBuilding | null;
+  floors: { floor: string; use: string; other_use: string; structure: string; area_sqm: number | null }[];
+  unit: { status: string; message?: string; register_id?: string; dong_name?: string; unit_name?: string;
+    exclusive_area_sqm?: number | null; floor?: string | null; use?: string; checked_at?: string;
+    common_areas?: { area_sqm: number | null; floor: string; use: string }[] };
+  zones: { category: string; name: string; other: string }[];
+  sanitation: { type: string; capacity_people: number | null; capacity_m3: number | null }[];
+};
+export type BuildingRegisterResult = BuildingRegisterEvidence & { buildings: RegisterBuilding[]; building_token?: string };
+export type PropertyIdentity = {
+  building_dong: string; unit_number: string; floor: string; area_basis: "exclusive" | "supply" | "unknown";
+  unit_source?: "user_input" | "unknown"; verification_level?: "unit_user_input" | "building_or_parcel";
+};
 
 export type ImportedListing = {
   id: number; external_id: string; name: string; source_name: string; source_url: string | null;
   address: string; legal_region_code: string | null; property_type: string; transaction_type: string;
   alias?: string; address_details?: ListingAddressDetails | null;
+  identity?: PropertyIdentity; building_dong?: string; unit_number?: string; area_basis?: PropertyIdentity["area_basis"];
   area_sqm: number; floor: string; asking_price: number | null; deposit: number | null; monthly_rent: number | null;
   confirmed_at: string; status: string; needs_confirmation: boolean; region_linked: boolean;
   first_seen_at?: number | null; last_seen_at?: number | null; last_collection_at?: number | null; last_collection_outcome?: string | null;
@@ -42,6 +63,8 @@ async function request<T>(path: string, body?: object, timeout = 15000): Promise
 }
 export const listingApi = {
   addresses: (query: string) => request<{items:ListingAddressChoice[]}>(`/address/search?${new URLSearchParams({query})}`, undefined, 25000),
+  building: (input: {address_token: string; building_id?: string; building_dong?: string; unit_number?: string; property_type: string}) =>
+    request<BuildingRegisterResult>("/address/building", input, 60000),
   get: (id: number) => request<ImportedListing>(`/${id}`),
   collect: (source_url: string) => request<{job_id:string}>("/collection/jobs", {source_url}),
   collectionJob: (id: string) => request<{status:string; error:string; result?:ListingObservation}>(`/collection/jobs/${encodeURIComponent(id)}`),

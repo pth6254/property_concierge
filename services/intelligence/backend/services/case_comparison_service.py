@@ -92,6 +92,7 @@ def compare_case_candidates(case: dict, property_ids: list[int] | None = None, *
         rows.append({
             "property_id": candidate["id"], "name": candidate["name"],
             "address": candidate.get("address") or "", "status": candidate.get("status"),
+            "identity": candidate.get("identity"),
             "asking_price": asking, "area_sqm": candidate.get("area_sqm"),
             "estimated_value": estimated if gap is not None else None, "price_gap": gap, "price_gap_ratio": gap_ratio,
             "appraisal_confidence": confidence, "appraisal_match_level": appraisal_summary.get("match_level"),
