@@ -4,7 +4,7 @@
 매물 등록부터 분석·비교·선택 이유·다음 행동·거래 준비 기록을 하나의 매수 케이스로 연결한다.
 현재는 **아파트 매수 의사결정 기반을 강화하는 단계**이며, 독립 모바일 앱은 후속 계획이다.
 
-문서·최근 실행 검증: **2026-10-02**.
+문서·최근 실행 검증: **2026-10-04**.
 [문서 목록](docs/README.md) · [현재 구현과 다음 작업](docs/project-handoff.md) · [제품 전략](docs/product-strategy.md)
 
 > 시세추정은 자동가치산정(AVM) 기반 참고용 분석이며 「감정평가 및 감정평가사에 관한 법률」에 따른 감정평가가 아니다.
@@ -43,7 +43,7 @@ flowchart LR
 | 매물 보관함 | 주소·URL·직접 입력·CSV 등록, 건축물대장·선택 동/호 조회·전유면적 적용, 별칭·면적 기준·출처·변경 이력 | [매물](docs/features/listings.md) |
 | 매수 케이스 | 공통 매수 조건·후보·분석·체크리스트·비교·선택/제외 이유 | [의사결정](docs/features/decision.md) |
 | 매수 검토 요약 | 적합성·가격성·자금성·위험성·실행성의 근거·기준일·미확인 정보·다음 행동 | [판단 축](docs/features/decision.md#decision-assessment) |
-| AVM | 국토부 실거래 기반 유형별 가격 분석, 신뢰도·비교사례·본인 리포트 저장 | [AVM 흐름](docs/architecture.md#pipelines-avm) |
+| AVM | 자료 조건을 만족한 아파트 실거래 추정·상가/업무 임대료 시나리오·토지 공개자료. 공통 근거·보류·다음 행동과 이력 저장. CatBoost는 오프라인 후보 | [AVM 흐름](docs/architecture.md#pipelines-avm) · [모델 평가](services/intelligence/evaluation/README.md#catboost-후보-모델과-실거래-비교-avm) · [유형별 기준](docs/features/decision.md#valuation-standards) |
 | 자금·세금 | Kotlin의 대출·취득비용·현금흐름·간이 세금·LTV/DSR 계산; 화면·챗봇·비교의 동일 엔진 | [자금 기준](docs/features/decision.md#funding-input) |
 | 권리 위험 점검 | PDF 텍스트·규칙 기반 위험 신호, 판독 실패·미확인, 물건 대조·페이지/최소 발췌 | [분석 근거](docs/features/decision.md#analysis-evidence) |
 | AI 컨시어지·법률 챗봇 | 조건 해석·등록 매물 검색·동네/단지 탐색·AVM·자금·비교·법령 RAG, 대화 기억·새로고침 복원 | [챗봇](docs/features/chat.md) |
@@ -221,7 +221,20 @@ Kotlin 결과는 `evaluation-results/platform/`, Python 결과는 `platform-pyth
 이 수치는 실제 매수 성과·전국 AVM 정확도·전체 LLM 대화 성공률이 아니다. 원격 CI 완료와 로컬 성공도 구분한다.
 평가 실행·정답셋·보고서는 [평가 도구](services/intelligence/evaluation/README.md)를 따른다.
 
+2026-10-03 기존 실거래 비교 AVM과 CatBoost를 같은 아파트 거래 300건에서 비교했다.
+서초·강남·노원 2026-07~08 표본 MAPE는 기존 AVM **12.70%**, CatBoost **19.82%**로 기존 모델을 유지한다.
+학습·저장·비교 경로의 관련 회귀 **82개**, 프론트 타입·린트·빌드가 통과했다. 서비스 모델 교체와 전국 정확도 검증은 아니다.
+
 ## 데이터·운영 한계와 다음 작업
+
+2026-10-04 [유형별 AVM 기준 PC-AVM-1.0](docs/features/decision.md#valuation-standards)을 정립했다.
+유형·평가 단위별 필수 자료, 방법 선택·보류·결과 표시, ML 검증과 기존 코드의 수정 순서를 명시했다.
+상업·업무용은 현재 월세·운영비·환원율 가정을 입력해 수익률·조건부 가격 범위를 계산하고,
+토지는 주소로 필지·토지특성·공시지가·이용계획을 자동 조회한다.
+[사용법과 적용 범위](docs/features/decision.md#valuation-support)를 참고한다.
+환원율은 사용자 가정이며 공시지가는 시장가격이 아니다. 2026-10-05 공통 평가 계약과 출력 제한을 연결했다.
+아파트도 최근 6개월 동일 단지·전용면적 ±10% 유효 사례 5건 미만은 가격 보류다. 비아파트 주거의
+전문 모델과 공장·창고 고도화는 후속이며, 기존 MAPE는 새 제한 정책의 정확도·보류율 검증 수치가 아니다.
 
 - 사용자 호가·조건은 사용자 제공 자료다. 서비스가 모든 실호가·현재 매물 존재·개별 호의 동일성을 독립 검증한 것은 아니다.
 - 동네 탐색의 실거래 단지는 현재 광고 매물이 아니다. 샘플 추천·비교는 **가상 CSV 43건**으로 실제 사용자 후보와 구분한다.

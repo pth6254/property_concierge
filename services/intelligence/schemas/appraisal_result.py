@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, Field
+from schemas.valuation import ValuationAssessment
 
 
 class ComparableTransaction(BaseModel):
@@ -63,6 +64,7 @@ class ValuationMethodResult(BaseModel):
 
 class AppraisalResult(BaseModel):
     """가격 분석·감정평가 결과"""
+    valuation: ValuationAssessment | None = None
 
     # 추정 가격 범위 (원 단위)
     estimated_price: Optional[int]  = None

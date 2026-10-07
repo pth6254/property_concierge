@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Literal, Optional
 
 from pydantic import BaseModel
+from schemas.valuation import ValuationContext
 
 
 class PropertyQuery(BaseModel):
@@ -25,6 +26,8 @@ class PropertyQuery(BaseModel):
 
     # 물건 정보
     property_type: Optional[str]   = None   # 주거용 / 상업용 / 업무용 / 산업용 / 토지
+    property_detail: Optional[str] = None
+    valuation_context: ValuationContext | None = None
     region: Optional[str]          = None   # 시·군·구 단위 (예: 마포구)
     address: Optional[str]         = None   # 도로명 또는 지번 주소
     complex_name: Optional[str]    = None   # 단지명·건물명 (예: 마포래미안푸르지오)

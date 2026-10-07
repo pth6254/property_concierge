@@ -187,6 +187,7 @@ export interface ActivityItem {
 export type PurchaseCaseStatus = "exploring" | "reviewing" | "negotiating" | "decided" | "archived";
 
 export interface CaseAppraisalSummary {
+  valuation?: import("./valuation").ValuationAssessment | null;
   history_id: number;
   query: string;
   estimated_value: number | null;

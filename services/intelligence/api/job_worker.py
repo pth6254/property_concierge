@@ -44,7 +44,9 @@ def run_task(task_type: str, payload: dict, owner_id: int | None, job_id: str, s
             result = run_appraisal(req.user_input, req.building_name, req.appraisal_date,
                                    req.appraisal_purpose, progress_cb=set_step, address=req.address,
                                    property_category=req.property_category, property_detail=req.property_detail,
-                                   area_sqm=req.area_sqm)
+                                   area_sqm=req.area_sqm,
+                                   income_valuation=req.income_valuation.model_dump(mode="json") if req.income_valuation else None,
+                                   valuation_context=req.valuation_context.model_dump(mode="json") if req.valuation_context else None)
             if result.get("error") or not req.save_history:
                 return result, {}
             history_id = history_db.save(req.user_input, result, user_id=owner_id, job_id=job_id)
@@ -55,7 +57,8 @@ def run_task(task_type: str, payload: dict, owner_id: int | None, job_id: str, s
             return result, {"history_id": history_id}
         result = run_appraisal(payload["query"], payload["building_name"], progress_cb=set_step,
                                address=payload["address"], property_category=payload["category"],
-                               property_detail=payload["detail"], area_sqm=payload["area_sqm"])
+                               property_detail=payload["detail"], area_sqm=payload["area_sqm"],
+                               valuation_context=payload.get("valuation_context"))
         if result.get("error"):
             return result, {}
         history_id = history_db.save(payload["query"], result, user_id=owner_id, job_id=job_id)

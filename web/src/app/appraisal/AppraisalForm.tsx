@@ -2,6 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import IncomeValuationFields, { emptyIncomeDraft, incomeInput } from "@/components/IncomeValuationFields";
+import LandInformationLookup from "@/components/LandInformationDetails";
+import type { ValuationContext } from "@/lib/valuation";
 import { removeSessionValue, setSessionValue, useSessionValue } from "@/lib/sessionStore";
 
 const PROPERTY_TYPES = [
@@ -64,6 +67,10 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
   const [selectedAddress, setSelectedAddress] = useState("");
   const [buildingName, setBuildingName]   = useState("");
   const [areaSqm, setAreaSqm] = useState("");
+  const [areaBasis, setAreaBasis] = useState<ValuationContext["area_basis"]>("unknown");
+  const [scope, setScope] = useState<ValuationContext["scope"]>("unknown");
+  const [incomeDraft, setIncomeDraft] = useState(emptyIncomeDraft);
+  const incomeMode = selectedType?.category === "상업용" || selectedType?.category === "업무용";
   const [prefillLoading, setPrefillLoading] = useState(Boolean(caseId || candidateId));
   const [prefillError, setPrefillError] = useState("");
   const [manualInput, setManualInput]     = useState(false);
@@ -102,6 +109,11 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
         setBuildingName(candidate.name);
         setTypedQuery(candidate.address ?? "");
         setAreaSqm(candidate.area_sqm == null ? "" : String(candidate.area_sqm));
+        setAreaBasis(candidate.identity?.area_basis ?? "unknown");
+        setDongNo(candidate.identity?.building_dong ?? "");
+        setHoNo(candidate.identity?.unit_number ?? "");
+        setScope(type?.category === "토지" ? "single_parcel" : "single_unit");
+        setIncomeDraft({ ...emptyIncomeDraft, asking: candidate.asking_price == null ? "" : String(candidate.asking_price) });
         if (type) { setSelectedType(type); setStep(candidate.address ? 3 : 2); }
       } catch {
         if (!cancelled) setPrefillError("후보 정보를 불러오지 못했습니다. 케이스에서 다시 열어주세요.");
@@ -136,6 +148,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
   };
 
   const selectAddress = (doc: KakaoDoc) => {
+    setIncomeDraft(emptyIncomeDraft);
     setSelectedAddress(doc.road_address_name || doc.address_name || "");
     if (doc.place_name) setBuildingName(doc.place_name);
     setSearchResults([]);
@@ -223,6 +236,9 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
 
     try {
       const userInput = buildUserInput();
+      const analysisDate = getAppraisalDate();
+      const day = analysisDate ? `${analysisDate.slice(0, 4)}-${analysisDate.slice(4, 6)}-${analysisDate.slice(6, 8)}` : new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
+      const income = incomeMode ? incomeInput(incomeDraft, day) : undefined;
 
       // 1) 작업 시작 → job_id
       const { job_id } = await api.appraisalJobStart(
@@ -237,6 +253,9 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
         caseId,
         candidateId,
         areaSqm ? Number(areaSqm) : undefined,
+        income,
+        { scope: income?.valuation_unit ?? (selectedType?.category === "토지" ? "single_parcel" : scope), area_basis: areaBasis,
+          transaction_type: transactionType === "매매" ? "sale" : transactionType === "전세" ? "jeonse" : "rent", dong: dongNo, ho: hoNo },
       );
       resumingRef.current = true;
       setSessionValue(PENDING_JOB_KEY, JSON.stringify({ jobId: job_id, query: userInput, caseId, candidateId }));
@@ -260,7 +279,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
       {prefillLoading && <p role="status">후보 정보를 불러오는 중입니다.</p>}
       {prefillError && <p role="alert" className="text-red-600">{prefillError}</p>}
       {caseId && candidateId && !prefillLoading && !prefillError && <p className="mb-3 text-sm text-primary">후보 정보를 채웠습니다. 주소·면적·물건 종류를 확인해주세요. <a href={`/cases/${caseId}`} className="underline">후보로 돌아가기</a></p>}
-      <p className="text-slate-500 mb-5 text-sm">물건 정보를 단계별로 입력하면 AI가 실거래 데이터 기반으로 시세를 추정합니다.</p>
+      <p className="text-slate-500 mb-5 text-sm">아파트는 자료 조건을 확인한 뒤 실거래 기반 시세를 추정합니다. 상업·업무용은 입력 임대료 시나리오, 토지는 필지 공개정보를 제공합니다. 다른 유형은 평가 기준과 자료 보완이 필요합니다.</p>
 
       {/* 스텝 인디케이터 */}
       <div className="flex items-center gap-1 mb-6">
@@ -298,7 +317,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
             {PROPERTY_TYPES.map(pt => (
               <button
                 key={pt.detail}
-                onClick={() => { setSelectedType(pt); setStep(2); }}
+                onClick={() => { if (pt.detail !== selectedType?.detail) { setIncomeDraft(emptyIncomeDraft); setAreaBasis("unknown"); setScope("unknown"); } setSelectedType(pt); setTransactionType("매매"); setStep(2); }}
                 className="p-4 rounded-xl border-2 border-slate-200 hover:border-primary hover:bg-emerald-50 text-left transition-colors group"
               >
                 <div className="font-semibold text-sm text-slate-800 group-hover:text-primary-strong">{pt.label}</div>
@@ -412,6 +431,11 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
           </button>
 
           <h2 className="font-semibold text-base text-slate-800 mb-4">상세 정보 입력</h2>
+          {selectedType?.category === "토지" && <LandInformationLookup key={`${selectedAddress}:${getAppraisalDate()}`} address={selectedAddress} asOfDate={getAppraisalDate() ? `${getAppraisalDate().slice(0, 4)}-${getAppraisalDate().slice(4, 6)}-${getAppraisalDate().slice(6, 8)}` : ""} />}
+          {incomeMode && <IncomeValuationFields draft={incomeDraft} onChange={setIncomeDraft} />}
+          {!incomeMode && selectedType?.category !== "토지" && <label className="mb-4 block text-sm">평가 대상 범위<select aria-label="평가 대상 범위" value={scope} onChange={event => setScope(event.target.value as ValuationContext["scope"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">범위 확인 필요</option><option value="single_unit">개별 호실</option><option value="whole_building">건물 전체</option><option value="land_and_building">토지와 건물 전체</option></select></label>}
+          <label className="mb-4 block text-sm">분석 면적 기준<select aria-label="분석 면적 기준" value={areaBasis} onChange={event => setAreaBasis(event.target.value as ValuationContext["area_basis"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">미확인</option><option value="exclusive">전용면적</option><option value="supply">공급면적</option><option value="gross">연면적</option><option value="land">토지면적</option></select></label>
+          {selectedType?.category === "주거용" && selectedType.detail !== "아파트" && <p className="mb-4 text-sm text-amber-800">이 유형은 별도 거래 범위와 평가 기준의 보완이 필요합니다. 아파트 모델로 대체하지 않고 필요한 자료를 안내합니다.</p>}
           <label className="mb-4 block text-sm">면적(㎡)<input aria-label="면적(㎡)" type="number" min="0.01" step="any" value={areaSqm} onChange={(event) => setAreaSqm(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
           <label className="mb-4 block text-sm">건물명<input value={buildingName} onChange={(event) => setBuildingName(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
 
@@ -464,7 +488,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
           <div className="mb-4">
             <label className="block text-sm font-medium text-slate-600 mb-2">거래 유형</label>
             <div className="flex gap-2">
-              {["매매", "전세", "월세"].map(t => (
+              {(incomeMode || selectedType?.category === "토지" ? ["매매"] : ["매매", "전세", "월세"]).map(t => (
                 <button
                   key={t}
                   onClick={() => setTransactionType(t)}
@@ -545,7 +569,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
             disabled={loading}
             className="w-full py-3 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-primary-strong disabled:opacity-50 transition-colors"
           >
-            {loading ? "AI 시세추정 실행 중... (30초~2분 소요)" : "시세추정 시작"}
+            {loading ? "검토 자료를 만들고 있습니다…" : incomeMode ? "수익·가격 범위 계산" : selectedType?.category === "토지" ? "토지 공개정보 결과 저장" : "시세추정 시작"}
           </button>
         </section>
       )}

@@ -32,8 +32,10 @@ def replay_one(target: dict, months: dict[str, list[dict]], lawd_code: str, regi
 
     def historical_source(url, key, lawd, requested, category):
         rows = []
+        if lawd != lawd_code:
+            return rows
         for ym in requested:
-            if ym < target_ym:
+            if ym < target_ym and ym in months:
                 used_months.add(ym)
                 rows.extend(dict(row) for row in months.get(ym, []) if not row.get("is_cancelled"))
         return rows
@@ -60,8 +62,11 @@ def replay_one(target: dict, months: dict[str, list[dict]], lawd_code: str, regi
             analysis = agents.residential_agent(state)["analysis_result"]
     estimated = analysis.get("estimated_value") or 0
     comparables = analysis.get("comparables") or []
-    names = {row.get("apt_name") for row in comparables}
-    match = "same_complex" if comparables and target.get("apt_name") in names else "same_dong" if comparables and all(row.get("dong") == target.get("dong") for row in comparables) else "district"
+    from backend.comparable_matching import comparable_match_level
+    levels = [comparable_match_level(row) for row in comparables]
+    # 구 대체 사례의 단지 이름이 우연히 같아도 동일 단지로 승격하지 않는다.
+    order = ["same_complex", "same_dong", "same_gu", "nearby", "fallback"]
+    match = max(levels, key=order.index) if levels else "fallback"
     area = target["area_sqm"]
     year = _integer(target.get("year_built"))
     return {"target_month": target_ym, "actual_manwon": target["price"], "estimated_manwon": estimated,

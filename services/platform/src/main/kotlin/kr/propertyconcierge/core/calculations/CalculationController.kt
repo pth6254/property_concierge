@@ -19,7 +19,7 @@ data class OfficialInput(val marketPrice: Long)
 @RestController
 @RequestMapping("/internal/v1/calculations")
 class CalculationController(private val calculator: FinanceCalculator, private val primitives: CalculationPrimitives,
-    private val json: ObjectMapper, env: Environment) {
+    private val json: ObjectMapper, env: Environment, private val income: IncomeValuationCalculator = IncomeValuationCalculator()) {
     private val key = env.getRequiredProperty("INTERNAL_SERVICE_SECRET").also { require(it.length >= 32) }
     @PostMapping("/{operation}")
     fun calculate(@PathVariable operation: String, @RequestBody body: JsonNode,
@@ -28,6 +28,7 @@ class CalculationController(private val calculator: FinanceCalculator, private v
             throw ApiFailure(401, "내부 서비스 인증이 필요합니다")
         try {
             return when (operation) {
+                "income_valuation" -> income.calculate(json.treeToValue(body, IncomeValuationInput::class.java))
                 "simulation" -> calculator.calculate(json.treeToValue(body, SimulationInput::class.java))
                 "funding_summary" -> json.treeToValue(body, FundingSummaryInput::class.java).let {
                     val input = it.request.input()

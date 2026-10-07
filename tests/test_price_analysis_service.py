@@ -202,7 +202,7 @@ def test_district_fallback_never_claims_first_complex(monkeypatch):
 
 MOCK_PRICE_DATA = {
     "avg": 80000, "min": 72000, "max": 88000,
-    "count": 12, "per_sqm_avg": 952,
+    "count": 5, "per_sqm_avg": 952,
     "samples": [
         {
             "apt_name":   "마포래미안푸르지오",
@@ -210,9 +210,11 @@ MOCK_PRICE_DATA = {
             "area_sqm":   84.0,
             "per_sqm":    952,
             "dong":       "아현동",
-            "deal_year":  "2025",
-            "deal_month": "2",
+            "deal_year":  "2026",
+            "deal_month": "1",
+            "deal_day": day,
         }
+        for day in range(1, 6)
     ],
     "apt_name_matched": "마포래미안푸르지오",
     "used_months":      3,
@@ -228,6 +230,10 @@ class TestAnalyzePrice:
             "property_type": "주거용",
             "region":        "마포구",
             "area_m2":       84.0,
+            "property_detail": "아파트",
+            "address": "서울 마포구 아현동 777",
+            "complex_name": "마포래미안푸르지오",
+            "appraisal_date": "20260115",
         }
         defaults.update(kwargs)
         return PropertyQuery(**defaults)

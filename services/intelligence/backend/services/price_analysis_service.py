@@ -249,26 +249,44 @@ def analyze_price(query: PropertyQuery, as_of: str = "") -> AppraisalResult:
 
     asking_manwon = _to_manwon(query.asking_price)
 
-    if not region:
-        return AppraisalResult(
-            confidence    = 0.0,
-            appraisal_date = _format_appraisal_date(as_of_str),
-            warnings      = ["region(지역) 정보 없음 — 실거래가 조회 불가"],
-        )
+    from backend.valuation.policy import plan, allowed, blocked_result, eligible_comparables, finalize
+    state = {"building_name": complex_name, "appraisal_purpose": query.appraisal_purpose or "매매",
+             "raw_inputs": {"property_category": property_type, "property_detail": query.property_detail or "",
+                 "address": query.address or "", "area_sqm": area_m2, "appraisal_date": as_of_str,
+                 "valuation_context": query.valuation_context.model_dump() if query.valuation_context else None}}
+    state["valuation_plan"] = plan(state)
+    def reference(result):
+        return AppraisalResult(appraisal_date=result["as_of_date"], asking_price=query.asking_price,
+            confidence=0.0, warnings=result["limitations"], raw=result, valuation=result.get("valuation"))
+    if not region and property_type == "주거용":
+        state["valuation_plan"]["next_actions"].append("region(지역) 정보 없음 — 실거래가 조회 불가")
+        state["valuation_plan"]["methods"][0].update(status="blocked", reason="조회 지역 미확인")
+    if not allowed(state["valuation_plan"]):
+        return reference(blocked_result(state, state["valuation_plan"])["analysis_result"])
+    if property_type in {"상업용", "업무용", "토지"}:
+        from backend.services.valuation_support import analyze_support
+        return reference(finalize(analyze_support(state, property_type))["analysis_result"])
 
     # ── 1. 실거래가 조회 ─────────────────────────────────────────────────
     price_data = fetch_real_transaction_prices(
         category        = property_type,
         region_2depth   = region,
-        category_detail = property_type,
+        category_detail = query.property_detail,
         apt_name        = complex_name,
         as_of           = as_of_str,
+        area_sqm_exact  = area_m2 or 0.0,
     )
 
     apt_name_matched = price_data.get("apt_name_matched", "")
+    price_data = eligible_comparables(state, price_data)
+    if price_data is None:
+        return reference(blocked_result(state, state["valuation_plan"])["analysis_result"])
 
     # ── 2. 추정가 계산 ──────────────────────────────────────────────────
     val = calc_estimated_value(price_data, area_m2 or 0.0, property_type)
+    assessed = finalize({**state, "analysis_result": {**val, "value_unit": "만원"}})["analysis_result"]
+    if not assessed["valuation"]["comparison_eligible"]:
+        return reference(assessed)
 
     # ── 3. 시산가액 조정 (단일 방법) ───────────────────────────────────
     sources    = _collect_sources(price_data)
@@ -297,5 +315,6 @@ def analyze_price(query: PropertyQuery, as_of: str = "") -> AppraisalResult:
         comparables        = _to_comparables(price_data, apt_name_matched),
         warnings           = _collect_warnings(price_data, area_m2, complex_name, apt_name_matched),
         data_source        = sources,
-        raw                = {**val, "price_data_count": price_data.get("count", 0)},
+        raw                = {**assessed, "price_data_count": price_data.get("count", 0)},
+        valuation          = assessed["valuation"],
     )

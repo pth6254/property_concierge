@@ -105,6 +105,16 @@
             ],
             "title": "Case Id"
           },
+          "income_valuation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IncomeValuationInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "property_category": {
             "default": "",
             "enum": [
@@ -131,6 +141,16 @@
           "user_input": {
             "title": "User Input",
             "type": "string"
+          },
+          "valuation_context": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ValuationContext"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -898,6 +918,106 @@
           "regions"
         ],
         "title": "ImportValidation",
+        "type": "object"
+      },
+      "IncomeValuationInput": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "asking_price_won": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 1000000000000000.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asking Price Won"
+          },
+          "cap_rate_max_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.1,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$",
+                "type": "string"
+              }
+            ],
+            "title": "Cap Rate Max Pct"
+          },
+          "cap_rate_min_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.1,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$",
+                "type": "string"
+              }
+            ],
+            "title": "Cap Rate Min Pct"
+          },
+          "monthly_operating_cost_max_won": {
+            "anyOf": [
+              {
+                "maximum": 1000000000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Operating Cost Max Won"
+          },
+          "monthly_operating_cost_min_won": {
+            "anyOf": [
+              {
+                "maximum": 1000000000000000.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Monthly Operating Cost Min Won"
+          },
+          "monthly_rent_won": {
+            "maximum": 1000000000000000.0,
+            "minimum": 0.0,
+            "title": "Monthly Rent Won",
+            "type": "integer"
+          },
+          "valuation_unit": {
+            "enum": [
+              "single_unit",
+              "whole_building"
+            ],
+            "title": "Valuation Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "monthly_rent_won",
+          "cap_rate_min_pct",
+          "cap_rate_max_pct",
+          "valuation_unit",
+          "as_of_date"
+        ],
+        "title": "IncomeValuationInput",
         "type": "object"
       },
       "LoanSummary": {
@@ -1716,6 +1836,60 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "ValuationContext": {
+        "additionalProperties": false,
+        "properties": {
+          "area_basis": {
+            "default": "unknown",
+            "enum": [
+              "exclusive",
+              "supply",
+              "gross",
+              "land",
+              "unknown"
+            ],
+            "title": "Area Basis",
+            "type": "string"
+          },
+          "dong": {
+            "default": "",
+            "maxLength": 50,
+            "title": "Dong",
+            "type": "string"
+          },
+          "ho": {
+            "default": "",
+            "maxLength": 50,
+            "title": "Ho",
+            "type": "string"
+          },
+          "scope": {
+            "default": "unknown",
+            "enum": [
+              "single_unit",
+              "whole_building",
+              "land_and_building",
+              "single_parcel",
+              "unknown"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "transaction_type": {
+            "default": "sale",
+            "enum": [
+              "sale",
+              "jeonse",
+              "rent",
+              "unknown"
+            ],
+            "title": "Transaction Type",
+            "type": "string"
+          }
+        },
+        "title": "ValuationContext",
         "type": "object"
       }
     },

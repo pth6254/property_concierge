@@ -84,6 +84,18 @@ def compare_reports(baseline: Path, current: Path):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="부동산 컨시어지 계산·검색·대화 평가")
     sub = parser.add_subparsers(dest="command", required=True)
+    avm_compare = sub.add_parser("avm-compare", help="실거래 비교 AVM을 기준선으로 CatBoost 후보 모델 학습·평가")
+    avm_compare.add_argument("--regions", nargs="+", default=["11650", "11680", "11350"])
+    avm_compare.add_argument("--test-start", required=True, help="최종 평가 시작 월 YYYYMM")
+    avm_compare.add_argument("--test-end", required=True, help="최종 평가 마지막 월 YYYYMM")
+    avm_compare.add_argument("--train-months", type=positive_int, default=8)
+    avm_compare.add_argument("--validation-months", type=positive_int, default=1)
+    avm_compare.add_argument("--max-cases", type=positive_int, default=300)
+    avm_compare.add_argument("--iterations", type=positive_int, default=500)
+    avm_compare.add_argument("--threads", type=positive_int, default=4)
+    avm_compare.add_argument("--seed", type=int, default=42)
+    avm_compare.add_argument("--min-improvement", type=float, default=.05)
+    avm_compare.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     avm_service = sub.add_parser("avm-service", help="저장 실거래로 실제 주거용 에이전트 가격 계산 재생")
     avm_service.add_argument("--regions", nargs="+", default=["11650", "11680", "11350"])
     avm_service.add_argument("--max-cases", type=positive_int, default=30)
@@ -121,6 +133,9 @@ def main(argv=None):
     review.add_argument("reviews", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "avm-compare":
+            from evaluation.catboost_avm import run as run_avm_comparison
+            return run_avm_comparison(args)
         if args.command == "avm-service":
             import re
             if not all(re.fullmatch(r"\d{5}", code) for code in args.regions) or not 1 <= args.max_cases <= 100 or not 1 <= args.target_months <= 12 or not 0 <= args.min_coverage <= 1 or not 0 <= args.max_mape <= 10:

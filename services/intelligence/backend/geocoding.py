@@ -869,7 +869,7 @@ def _fetch_land_info_vworld(lat: float, lng: float) -> tuple[Optional[dict], str
             "official_land_price": int(props.get("pblntf_pric", 0)),
         }, "found"
     except Exception as e:
-        print(f"[vworld] 오류: {e}")
+        print(f"[vworld] 조회 실패: {type(e).__name__}")
         return None, "request_error"
 
 

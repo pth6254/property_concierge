@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import ValuationAssessmentCard from "@/components/ValuationAssessmentCard";
 import { candidateSimulationSeed } from "@/lib/candidateSimulationSeed";
 import { setSessionValue } from "@/lib/sessionStore";
 import type { BuyerProfile, CaseProperty, DecisionAssessmentStatus, DecisionAxis, DecisionEvidence } from "@/lib/types";
@@ -47,6 +48,7 @@ export default function DecisionAxisCard({ axis, property, caseId, profile }: {
     <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-bold">{axis.label}</h3><DecisionStatus status={axis.status} /></div>
     <p className="mt-3 font-semibold">{axis.headline}</p>
     <p className="mt-2 text-sm leading-relaxed text-slate-600">{axis.explanation}</p>
+    {axis.key === "price" && property.appraisal?.valuation && <details className="mt-3"><summary className="cursor-pointer text-sm font-semibold">저장된 평가 방법·적용 범위</summary><div className="mt-2"><ValuationAssessmentCard value={property.appraisal.valuation} /></div>{axis.status === "stale" && <p className="mt-2 text-sm text-amber-800">원본 변경 또는 만료된 이전 근거입니다. 현재 가격 비교에는 사용하지 않습니다.</p>}</details>}
     {axis.missing.length > 0 && <div className="mt-3 rounded bg-amber-50 p-3 text-sm text-amber-900"><p className="font-semibold">확인할 정보</p><ul className="mt-1 list-inside list-disc">{axis.missing.map(item => <li key={item}>{item}</li>)}</ul></div>}
     <details className="mt-4 text-sm">
       <summary className="cursor-pointer font-semibold text-slate-700">판단 근거 · {axis.evidence.length}개</summary>

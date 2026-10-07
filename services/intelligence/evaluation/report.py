@@ -27,6 +27,36 @@ def summarize(results: list[dict]) -> dict:
             "review_required": sum(bool(r.get("review_required")) for r in results)}
 
 
+def _avm_comparison(details: dict) -> str:
+    scores = details.get("scores")
+    if not scores or "paired" not in scores:
+        return ""
+
+    def percent(value):
+        return "미측정" if value is None else f"{value:.1%}"
+
+    rows = []
+    for label, key in (("실거래 비교 AVM", "baseline"), ("CatBoost", "catboost")):
+        values = scores["paired"][key]
+        mae = "미측정" if values["mae_won"] is None else f"{values['mae_won']:,.0f}원"
+        rows.append(f"<tr><td>{label}</td><td>{values['estimated']}</td><td>{percent(values['mape'])}</td>"
+                    f"<td>{percent(values['p90_ape'])}</td><td>{percent(values['hit10'])}</td><td>{mae}</td>"
+                    f"<td>{percent(scores[key]['coverage'])}</td></tr>")
+    regions = []
+    for code, values in details.get("by_group", {}).get("lawd_code", {}).items():
+        paired = values["paired"]
+        regions.append(f"<tr><td>{html.escape(code)}</td><td>{paired['count']}</td>"
+                       f"<td>{percent(paired['baseline']['mape'])}</td><td>{percent(paired['catboost']['mape'])}</td></tr>")
+    return ("<h3>같은 거래의 가격 오차 비교</h3><p>오차는 두 방식 모두 추정한 거래에서 비교합니다. "
+            "추정률은 전체 평가 표본 기준입니다. MAPE·P90 오차는 낮을수록, ±10% 적중률은 높을수록 좋습니다. "
+            "통과는 추가 검증 후보의 조건이며 서비스 자동 전환 승인이 아닙니다.</p><div class=table-wrap><table>"
+            "<thead><tr><th>방식</th><th>짝지은 표본</th><th>MAPE</th><th>P90 오차</th><th>±10% 적중률</th>"
+            "<th>평균 절대오차</th><th>전체 추정률</th></tr></thead><tbody>" + "".join(rows)
+            + "</tbody></table></div><h3>지역별 같은 거래의 오차</h3><div class=table-wrap><table>"
+            "<thead><tr><th>지역 코드</th><th>표본</th><th>기존 AVM MAPE</th><th>CatBoost MAPE</th></tr></thead><tbody>"
+            + "".join(regions) + "</tbody></table></div>")
+
+
 def write_report(directory: Path, metadata: dict, results: list[dict]) -> dict:
     directory.mkdir(parents=True, exist_ok=False)
     summary = summarize(results)
@@ -58,10 +88,11 @@ def write_report(directory: Path, metadata: dict, results: list[dict]) -> dict:
                          + f"</tbody></table></div><details><summary>실행 준비 상태</summary><p>{summary_text}</p></details></div>")
         scope = result.get("details", {}).get("scope") or result.get("details", {}).get("method") or ""
         details = esc(json.dumps(result.get("details", {}), ensure_ascii=False, indent=2))
+        avm = _avm_comparison(result.get("details", {})) if result["suite"] == "avm_compare" else ""
         cards.append(f"<article data-status='{esc(result['status'])}'><h2>{esc(result['suite'])} / {esc(result['id'])} "
                      f"<span class='{esc(result['status'])}'>{esc(result['status'])}</span></h2>"
                      f"<p>반복 {result['repeat']} · {result['elapsed_seconds']:.2f}초"
-                     f"{' · 사람 검토 필요' if result.get('review_required') else ''}</p><p>{esc(scope)}</p>{turns}{''.join(steps)}<ul>{checks}</ul>"
+                     f"{' · 사람 검토 필요' if result.get('review_required') else ''}</p><p>{esc(scope)}</p>{avm}{turns}{''.join(steps)}<ul>{checks}</ul>"
                      f"<details><summary>실행 근거와 추적 정보</summary><pre>{details}</pre></details></article>")
     document = """<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>부동산 컨시어지 평가 결과</title><style>

@@ -46,7 +46,23 @@ def documents() -> dict[str, dict]:
                     'signature': ast.unparse(node.args),
                     'return_annotation': ast.unparse(node.returns) if node.returns else None,
                     'source': path.relative_to(ROOT).as_posix()})
+    # 데이터 객체를 통째로 전달하는 계약은 데코레이터 기반 스칼라 계약과 함께 명시한다.
+    from schemas.income_valuation import IncomeValuationInput
+    from schemas.valuation import ValuationAssessment
+    operations.extend([
+        {'method': 'POST', 'path': '/internal/v1/calculations/income_valuation',
+         'source': 'services/intelligence/backend/services/valuation_support.py',
+         'input_schema': IncomeValuationInput.model_json_schema(),
+         'result_kinds': ['conditional_scenario', 'withheld'],
+         'version': 'income-scenario-1.0'},
+        {'method': 'POST', 'path': '/internal/v1/land/lookup',
+         'source': 'services/intelligence/backend/services/valuation_support.py',
+         'input_schema': {'type': 'object', 'required': ['address'], 'properties': {
+             'address': {'type': 'string'}, 'as_of_date': {'type': 'string', 'default': ''}}},
+         'result_kinds': ['public_reference'], 'version': 'land-information-1.0'},
+    ])
     manifest = {'version': 1, 'authentication_header': 'X-Internal-Service-Key',
+        'valuation_assessment_schema': ValuationAssessment.model_json_schema(),
         'units': {'money': 'KRW', 'area': 'm2'},
         'operations': sorted(operations, key=lambda item: item['path'])}
     return {'intelligence.openapi.json': specification, 'platform-client-contracts.json': manifest}

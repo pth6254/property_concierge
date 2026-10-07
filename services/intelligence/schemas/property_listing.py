@@ -23,6 +23,7 @@ class PropertyListing(BaseModel):
     address: str                         # 도로명 또는 지번 주소
     region: Optional[str]        = None  # 시·군·구 (예: 마포구)
     property_type: str                   # 주거용 / 상업용 / 업무용 / 산업용 / 토지
+    property_detail: Optional[str] = None  # 미확인 주거 유형을 아파트로 간주하지 않는다
     area_m2: Optional[float]     = None  # 전용면적 m²
     floor: Optional[int]         = None  # 층수
     built_year: Optional[int]    = None  # 준공연도

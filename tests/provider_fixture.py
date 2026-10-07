@@ -21,7 +21,17 @@ def kakao(kind:str,query:str):
     docs = state.get('documents',[])
     if kind=='keyword': docs = state.get('places',[])
     elif state.get('empty_query')==query: docs=[]
-    return {'documents':docs}
+    return {'documents':docs, 'meta': {'total_count': len(docs)}}
+
+@app.get('/land/{endpoint}')
+def land(endpoint: str, pnu: str, key: str):
+    wrappers = {'ladfrlList': 'ladfrlVOList', 'getLandCharacteristics': 'landCharacteristicss',
+                'getIndvdLandPriceAttr': 'indvdLandPrices', 'getLandUseAttr': 'landUses'}
+    wrapper = wrappers.get(endpoint)
+    if wrapper is None: return JSONResponse({}, status_code=404)
+    records = state.get('land_records', {}).get(endpoint, [])
+    return {wrapper: {'resultCode': state.get('land_error', ''), 'totalCount': len(records),
+                     ('ladfrlVOList' if endpoint == 'ladfrlList' else 'field'): records}}
 
 @app.get('/buildings')
 def buildings():

@@ -131,6 +131,7 @@ def _dict_to_appraisal_result(
         warnings             = list(additional_warnings or []),
         data_source          = [result["valuation_method"]] if result.get("valuation_method") else [],
         raw                  = result,
+        valuation            = result.get("valuation"),
     )
 
 
@@ -139,6 +140,12 @@ def _dict_to_appraisal_result(
 # ─────────────────────────────────────────
 
 def report_node(state: dict) -> dict:
+    if state.get("valuation_plan"):
+        from backend.valuation.policy import finalize
+        state = finalize(state)
+    if (state.get("analysis_result") or {}).get("support_version"):
+        from backend.services.valuation_support import support_report
+        return support_report(state)
     from schemas.report import AppraisalReport
 
     intent = state.get("intent")
@@ -163,6 +170,12 @@ def report_node(state: dict) -> dict:
     as_of             = getattr(intent, "appraisal_date", "") or ""
     # state에서 명시적으로 전달된 감정평가 목적 (intent보다 우선)
     appraisal_purpose = state.get("appraisal_purpose", "") or getattr(intent, "appraisal_purpose", "") or ""
+    if result.get("valuation"):
+        target = result["valuation"]["subject"]
+        address, category, building = target["address"], target["category"], target["building_name"]
+        dong_no, ho_no = target["dong"], target["ho"]
+        as_of = target["as_of_date"].replace("-", "")
+        appraisal_purpose = target["purpose"]
 
     # 기준시점 표시
     appraisal_date_display = _fmt_date(as_of)
@@ -502,5 +515,12 @@ def generate_price_analysis_report(result: "AppraisalResult") -> str:
             ", ".join(result.data_source),
             "",
         ]
+
+    if result.valuation:
+        value = result.valuation
+        lines += ["## 평가 기준과 자료 점검", f"- 기준: {value.policy_version}",
+                  f"- 결과 종류: {value.result_kind}", f"- 평가 범위: {value.subject.scope}"]
+        lines += [f"- {check.message}" for check in value.checks]
+        lines += [f"- {text}" for text in value.next_actions + value.limitations]
 
     return "\n".join(lines)

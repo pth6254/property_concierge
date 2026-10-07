@@ -44,22 +44,27 @@ CATEGORY_TO_AGENT = {
 def route_by_category(state: AgentState) -> str:
     if state.get("error") or not state.get("intent"):
         return "error_handler"
+    if state.get("analysis_result", {}).get("valuation"):
+        return "policy_result"
 
-    category   = state["intent"].category
+    category   = (state.get("valuation_plan") or {}).get("subject", {}).get("category") or state["intent"].category
     agent_node = CATEGORY_TO_AGENT.get(category)
 
     if not agent_node:
-        print(f"[라우터] ⚠️ 알 수 없는 카테고리 '{category}' → 주거용으로 대체")
-        return "residential_agent"
+        return "error_handler"
 
     print(f"[라우터] '{category}' → {agent_node}")
     return agent_node
 
 
 def router_node(state: AgentState) -> AgentState:
+    from backend.valuation.policy import plan, allowed, blocked_result
+    state["valuation_plan"] = plan(state)
+    if not allowed(state["valuation_plan"]):
+        return blocked_result(state, state["valuation_plan"])
     if state.get("intent"):
-        category = state["intent"].category
-        state["routed_to"] = CATEGORY_TO_AGENT.get(category, "residential_agent")
+        category = state["valuation_plan"]["subject"]["category"]
+        state["routed_to"] = CATEGORY_TO_AGENT.get(category, "error_handler")
     return state
 
 
@@ -126,6 +131,7 @@ def build_appraisal_graph():
             "industrial_agent":  "industrial_agent",
             "land_agent":        "land_agent",
             "error_handler":     "오류처리",
+            "policy_result":     "감정평가_리포트",
         },
     )
 

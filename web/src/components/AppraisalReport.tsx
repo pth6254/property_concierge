@@ -1,5 +1,9 @@
 "use client";
 import Link from "next/link";
+import ValuationSupportReport from "@/components/ValuationSupportReport";
+import type { ValuationSupportResult } from "@/lib/valuation";
+import type { ValuationAssessment } from "@/lib/valuation";
+import ValuationAssessmentCard from "@/components/ValuationAssessmentCard";
 
 /*
  * AppraisalReport — AI 시세추정 리포트 문서 렌더러 (공용)
@@ -52,6 +56,7 @@ type AppraisalResult = {
 };
 
 type AnalysisResult = {
+  valuation?: ValuationAssessment;
   estimated_value?: number;
   cap_rate?: number;
   annual_income?: number;
@@ -179,6 +184,9 @@ export default function AppraisalReport({
   query?: string;
 }) {
   const ar = (result.analysis_result || {}) as AnalysisResult;
+  if ((result.analysis_result as Partial<ValuationSupportResult> | undefined)?.support_version) {
+    return <ValuationSupportReport result={result.analysis_result as ValuationSupportResult} />;
+  }
   const ro = result.report_output as { structured?: AppraisalResult } | undefined;
   const ap: AppraisalResult = ro?.structured || {};
   const report = (result.final_report as string) || "";
@@ -314,6 +322,7 @@ export default function AppraisalReport({
 
   return (
     <div className="report-wrapper min-h-screen bg-slate-300 py-6 px-4">
+      <div className="mx-auto mb-4 max-w-[880px]"><ValuationAssessmentCard value={ar.valuation} /></div>
 
       {/* ── 상단 툴바 (인쇄 시 숨김) ── */}
       <div className="no-print max-w-[880px] mx-auto mb-4 flex justify-between items-center">

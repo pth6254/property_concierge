@@ -8,6 +8,9 @@ if TYPE_CHECKING:
 
 def _appraisal_won(result: dict) -> int | None:
     analysis = result.get("analysis_result") or {}
+    valuation = analysis.get("valuation")
+    if (valuation is not None and not valuation.get("comparison_eligible")) or analysis.get("result_kind") in {"conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"}:
+        return None
     value = analysis.get("estimated_value")
     if value is None:
         value = result.get("estimated_value")
@@ -18,8 +21,12 @@ def _appraisal_won(result: dict) -> int | None:
 
 def _appraisal_evidence(result: dict) -> dict:
     analysis = result.get("analysis_result") or {}
+    common = {"valuation": analysis["valuation"], "result_kind": analysis.get("result_kind")} if analysis.get("valuation") else {}
+    if analysis.get("support_version"):
+        return {**common, "result_kind": analysis.get("result_kind"), "limitations": analysis.get("limitations", []),
+                "income_scenario": analysis.get("income_scenario"), "land_information": analysis.get("land_information")}
     if "comparable_count" not in analysis:
-        return {}
+        return common
     from backend.confidence import compute_confidence
 
     count = analysis.get("comparable_count") or 0
@@ -29,7 +36,7 @@ def _appraisal_evidence(result: dict) -> dict:
     from services.price_analysis_service import _to_comparables
     samples = analysis.get("comparables") or []
     matched = samples[0].get("apt_name_matched", "") if samples else ""
-    return {"confidence": confidence["score"], "confidence_basis": confidence["basis"],
+    return {**common, "confidence": confidence["score"], "confidence_basis": confidence["basis"],
             "match_level": confidence["match_level"], "comparable_count": count,
             "comparables": [item.model_dump(mode="json", exclude_none=True) for item in _to_comparables({"samples": samples}, matched)]}
 
@@ -55,6 +62,7 @@ def _property_dict(item: CaseProperty, history: HistoryRecord | None = None, ana
             "estimated_value": _appraisal_won(history.result or {}),
             "valuation_verdict": analysis.get("valuation_verdict") or history.result.get("valuation_verdict"),
             "created": history.created,
+            "valuation": analysis.get("valuation"),
         }
     return {
         "id": item.id, "case_id": item.case_id, "name": item.name, "address": item.address,

@@ -61,11 +61,14 @@ def _appraise_listing(
         listing_query = PropertyQuery(
             intent        = base_query.intent,
             property_type = listing.property_type,
+            property_detail = listing.property_detail,
+            address       = listing.address,
             region        = listing.region or base_query.region,
-            complex_name  = listing.complex_name or base_query.complex_name,
-            area_m2       = listing.area_m2 or base_query.area_m2,
+            complex_name  = listing.complex_name,
+            area_m2       = listing.area_m2,
             asking_price  = listing.asking_price,
             purpose       = base_query.purpose,
+            appraisal_purpose = base_query.appraisal_purpose,
         )
         return analyze_price(listing_query, as_of=base_query.appraisal_date)
     except Exception as exc:

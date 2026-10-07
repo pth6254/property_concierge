@@ -10,7 +10,7 @@ analysis_tools.py — 삭제 완료
   calc_valuation_verdict             →  price_engine.py
   calc_investment_return             →  price_engine.py
   calc_cost_approach                 →  price_engine.py
-  _fetch_by_income_approach          →  price_engine.py
+  입력 임대료 시나리오             →  Kotlin IncomeValuationCalculator
   generate_appraisal_opinion         →  llm_utils.py
   search_nearby_facilities           →  llm_utils.py
   search_web_tavily                  →  llm_utils.py

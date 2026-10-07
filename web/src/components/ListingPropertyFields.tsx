@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ListingAddressFields from "@/components/ListingAddressFields";
 import BuildingRegisterDetails from "@/components/BuildingRegisterDetails";
+import LandInformationLookup from "@/components/LandInformationDetails";
 import { listingApi, type BuildingRegisterResult, type ListingAddressChoice } from "@/lib/listings";
 
 export default function ListingPropertyFields({ initialName = "", initialAddress = "", initialType = "apartment", initialArea, requireSelection }: {
@@ -36,7 +37,7 @@ export default function ListingPropertyFields({ initialName = "", initialAddress
   };
   const chooseAddress = (choice: ListingAddressChoice | null) => {
     sequence.current++; setAddress(choice); setResult(null); setBuildingId(""); setDirty(false); setBusy(false); setMessage("");
-    if (choice) void lookup(choice, "");
+    if (choice && propertyType !== "land") void lookup(choice, "");
   };
   const input = "mt-1 block w-full min-w-0 rounded-lg border border-slate-300 p-2.5 outline-none focus:ring-2 focus:ring-primary/30";
   const exclusive = result?.unit.status === "found" ? result.unit.exclusive_area_sqm : null;
@@ -52,7 +53,8 @@ export default function ListingPropertyFields({ initialName = "", initialAddress
       <label>면적 기준<select aria-label="면적 기준" name="area_basis" value={basis} onChange={event => setBasis(event.target.value)} className={input}><option value="unknown">확인 필요</option><option value="exclusive">전용면적</option><option value="supply">공급면적</option></select></label>
       <label>확인한 면적 (㎡)<input name="area_sqm" value={area} onChange={event => setArea(event.target.value)} type="number" min="0.01" step="any" required className={input} /></label>
     </div>
-    {address && <div className="space-y-3">
+    {address && propertyType === "land" && <LandInformationLookup key={address.jibun_address} address={address.jibun_address} />}
+    {address && propertyType !== "land" && <div className="space-y-3">
       {result && result.buildings.length > 1 && <label className="block text-sm">조회할 건물 선택<select aria-label="조회할 건물 선택" value={buildingId || result.selected_building?.id || ""} className={input} onChange={event => {
         const selected = result.buildings.find(building => building.id === event.target.value);
         setBuildingId(event.target.value); setDong(selected?.dong_name || "");

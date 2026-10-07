@@ -17,6 +17,7 @@ class AgentState(TypedDict, total=False):
     user_input:       str
     building_name:    str
     raw_inputs:       dict           # 사용자가 직접 고른 주소·유형 (LLM 추론과 분리)
+    valuation_plan:   dict           # 사용자 입력과 자료 조건을 검토한 공통 평가 정책
     intent:           Optional[object]   # PropertyIntent (순환 import 방지로 object 사용)
     raw_llm_output:   str
     error:            str

@@ -29,7 +29,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def main():
     load_dotenv(ROOT / ".env", override=False)
     raw = os.getenv("TEST_DATABASE_URL") or URL.create("postgresql", username=os.getenv("POSTGRES_USER", "postgres"),
-        password=os.environ["POSTGRES_PASSWORD"], host="localhost", port=5432, database="real_estate_test").render_as_string(hide_password=False)
+        password=os.environ["POSTGRES_PASSWORD"], host=os.getenv("TEST_POSTGRES_HOST", "localhost"),
+        port=int(os.getenv("TEST_POSTGRES_PORT", "5432")), database="real_estate_test").render_as_string(hide_password=False)
     database = make_url(raw)
     if database.database != "real_estate_test" or database.drivername not in ("postgresql", "postgresql+psycopg2"):
         raise SystemExit("real_estate_test PostgreSQL만 검증할 수 있습니다")
@@ -66,6 +67,7 @@ def main():
             "KAKAO_API_ROOT":"http://property-provider-test:8000/local/", "MOLIT_API_KEY":"isolated-provider-key",
             "BUILDING_REGISTER_URL":"http://property-provider-test:8000/buildings", "RESEND_API_KEY":"",
             "BUILDING_REGISTER_API_ROOT":"http://property-provider-test:8000/register",
+            "VWORLD_API_KEY":"isolated-provider-key", "VWORLD_NED_ROOT":"http://property-provider-test:8000/land",
             "GOOGLE_CLIENT_ID":"isolated-google-client", "GOOGLE_CLIENT_SECRET":"isolated-google-secret",
             "GOOGLE_AUTH_URL":"http://property-provider-test:8000/oauth/authorize",
             "GOOGLE_TOKEN_URL":"http://property-provider-test:8000/oauth/token", "GOOGLE_USERINFO_URL":"http://property-provider-test:8000/oauth/userinfo"}
@@ -134,7 +136,7 @@ def main():
             browser_env["WSLENV"] = ":".join(filter(None, (browser_env.get("WSLENV"), names)))
         browser_scripts = ("verify_listing_import_browser.cjs", "verify_navigation_browser.cjs", "verify_service_quality_browser.cjs",
                        "verify_candidate_funding_browser.cjs", "verify_decision_assessment_browser.cjs", "verify_listing_address_browser.cjs",
-                       "verify_property_evidence_browser.cjs", "verify_building_register_browser.cjs")
+                       "verify_property_evidence_browser.cjs", "verify_building_register_browser.cjs", "verify_valuation_support_browser.cjs")
         if "--browser-script" in sys.argv:
             selected = sys.argv[sys.argv.index("--browser-script") + 1:]
             if not selected or selected[0] not in browser_scripts:

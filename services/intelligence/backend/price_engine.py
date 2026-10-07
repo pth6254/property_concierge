@@ -9,7 +9,7 @@ analysis_tools.py에서 분리된 순수 가격 데이터 계산 모듈.
   calc_estimated_value()          — 추정 시장가치 산출
   calc_investment_return()        — 수익률 계산
   calc_cost_approach()            — 건축원가법
-  _fetch_by_income_approach()     — 수익환원법 (상업·업무용)
+  수익 시나리오 계산은 Kotlin IncomeValuationCalculator에 있다.
 """
 
 from __future__ import annotations
@@ -27,7 +27,6 @@ from dotenv import find_dotenv, load_dotenv
 load_dotenv(find_dotenv())
 
 MOLIT_API_KEY = os.getenv("MOLIT_API_KEY", "")
-RBONE_API_KEY = os.getenv("RBONE_API_KEY", "")
 
 if not MOLIT_API_KEY:
     print("[price_engine] ⚠️  MOLIT_API_KEY 없음 → 실거래가 조회 불가")
@@ -860,158 +859,7 @@ def calc_estimated_value(price_data: dict, area_sqm: float, category: str) -> di
 
 
 # ─────────────────────────────────────────
-#  수익환원법 — 상업용·업무용
-# ─────────────────────────────────────────
-
-RBONE_BASE_URL = "https://www.reb.or.kr/r-one/openapi/SttsApiTblData.do"
-
-RBONE_BLDG_TYPE = {
-    "상업용": "A01",
-    "업무용": "B01",
-}
-
-RBONE_RENT_FALLBACK = {
-    "상업용": {
-        "서울": {"서초구": 12.0, "강남구": 14.0, "마포구": 8.0,
-                 "영등포구": 9.0, "송파구": 10.0, "default": 7.0},
-        "경기": {"default": 4.5},
-        "부산": {"해운대구": 6.0, "default": 4.0},
-        "default": 4.0,
-    },
-    "업무용": {
-        "서울": {"서초구": 3.5, "강남구": 4.0, "중구": 3.8,
-                 "영등포구": 3.2, "마포구": 2.8, "default": 2.5},
-        "경기": {"성남시": 2.0, "default": 1.5},
-        "부산": {"default": 1.5},
-        "default": 1.5,
-    },
-}
-
-RBONE_VACANCY_FALLBACK = {
-    "상업용": {
-        "서울": {"서초구": 7.0, "강남구": 6.0, "default": 10.0},
-        "default": 12.0,
-    },
-    "업무용": {
-        "서울": {"서초구": 8.0, "강남구": 7.0, "여의도": 9.0, "default": 12.0},
-        "경기": {"default": 15.0},
-        "default": 14.0,
-    },
-}
-
-CAP_RATE_TABLE = {
-    "상업용": {"서울": 4.5, "경기": 5.5, "default": 5.5},
-    "업무용": {"서울": 4.0, "경기": 5.0, "default": 5.0},
-}
-
-
-def _get_rbone_rent(category: str, region_1depth: str, region_2depth: str) -> tuple[float, float]:
-    if RBONE_API_KEY:
-        try:
-            bldg_type = RBONE_BLDG_TYPE.get(category, "A01")
-            now       = datetime.now()
-            quarter   = (now.month - 1) // 3 + 1
-            if quarter == 1:
-                stdr_de = f"{now.year - 1}Q4"
-            else:
-                stdr_de = f"{now.year}Q{quarter - 1}"
-
-            params = (
-                f"serviceKey={RBONE_API_KEY}"
-                f"&statbl_id=A_2024_00006"
-                f"&stdr_de={stdr_de}"
-                f"&numOfRows=100"
-                f"&pageNo=1"
-            )
-            res = requests.get(f"{RBONE_BASE_URL}?{params}", timeout=8)
-            res.raise_for_status()
-            root  = ET.fromstring(res.text)
-            items = root.findall(".//row")
-
-            for item in items:
-                area    = item.findtext("AREA_NM", "")
-                type_nm = item.findtext("BLDG_TYPE_NM", "")
-                if region_2depth in area and bldg_type in type_nm:
-                    rent    = float(item.findtext("RENT_AMT", "0") or 0)
-                    vacancy = float(item.findtext("VCNC_RATE", "0") or 0)
-                    if rent > 0:
-                        print(f"[rbone] {region_2depth} {category} 임대료: {rent}만원/㎡, 공실: {vacancy}%")
-                        return rent, vacancy
-
-        except Exception as e:
-            print(f"[rbone] API 오류: {e} → 기준값 사용")
-
-    rent_table    = RBONE_RENT_FALLBACK.get(category, {})
-    vacancy_table = RBONE_VACANCY_FALLBACK.get(category, {})
-
-    r1 = region_1depth.replace("특별시", "").replace("광역시", "").replace("특별자치시", "").replace("도", "").strip()
-
-    rent_region    = rent_table.get(r1, rent_table.get("default", {}))
-    vacancy_region = vacancy_table.get(r1, vacancy_table.get("default", {}))
-
-    if isinstance(rent_region, dict):
-        rent    = rent_region.get(region_2depth, rent_region.get("default", 4.0))
-        vacancy = vacancy_region.get(region_2depth, vacancy_region.get("default", 12.0)) if isinstance(vacancy_region, dict) else vacancy_region
-    else:
-        rent    = rent_region
-        vacancy = vacancy_region if isinstance(vacancy_region, (int, float)) else 12.0
-
-    print(f"[rbone] 기준값 사용: {region_2depth} {category} 임대료 {rent}만원/㎡, 공실 {vacancy}%")
-    return float(rent), float(vacancy)
-
-
-def _fetch_by_income_approach(
-    category: str,
-    region_1depth: str,
-    region_2depth: str,
-    area_sqm: float,
-    cap_rate_override: float = 0.0,
-) -> dict:
-    """수익환원법: NOI / Cap Rate = 추정 시세 (상업용·업무용 실거래 없을 때 폴백)"""
-    if area_sqm <= 0:
-        return _empty_price_data("수익환원법: 면적 정보 없음")
-
-    rent_per_sqm, vacancy_rate = _get_rbone_rent(category, region_1depth, region_2depth)
-
-    annual_rent    = rent_per_sqm * area_sqm * 12
-    vacancy_loss   = annual_rent * (vacancy_rate / 100)
-    operating_cost = annual_rent * 0.15
-    noi            = annual_rent - vacancy_loss - operating_cost
-
-    r1        = region_1depth.replace("특별시","").replace("광역시","").replace("도","").strip()
-    cap_table = CAP_RATE_TABLE.get(category, {})
-    cap_rate  = cap_rate_override or cap_table.get(r1, cap_table.get("default", 5.0))
-    cap_rate  = cap_rate / 100
-
-    estimated = round(noi / cap_rate) if cap_rate > 0 else 0
-    per_sqm   = round(estimated / area_sqm) if area_sqm > 0 else 0
-
-    print(f"[수익환원법] 월임대료 {rent_per_sqm}만원/㎡ × {area_sqm}㎡ "
-          f"→ 연임대 {annual_rent:,.0f}만원 / NOI {noi:,.0f}만원 "
-          f"/ Cap {cap_rate:.1%} → 추정가 {estimated:,}만원")
-
-    return {
-        "avg":              estimated,
-        "min":              round(estimated * 0.85),
-        "max":              round(estimated * 1.15),
-        "count":            0,
-        "per_sqm_avg":      per_sqm,
-        "samples":          [],
-        "apt_name_matched": "",
-        "used_months":      0,
-        "used_region":      region_2depth,
-        "noi":              round(noi),
-        "annual_rent":      round(annual_rent),
-        "vacancy_rate":     vacancy_rate,
-        "cap_rate_used":    cap_rate * 100,
-        "source":           (f"수익환원법 (월임대료 {rent_per_sqm}만원/㎡, "
-                             f"공실률 {vacancy_rate}%, Cap Rate {cap_rate:.1%})"),
-        "error":            "",
-    }
-
-
-# ─────────────────────────────────────────
-#  건축원가법 — 산업용 (공장·창고)
+#  건축원가법 — 산업용 (이번 고도화에서는 보류)
 # ─────────────────────────────────────────
 
 STANDARD_CONSTRUCTION_COST = {

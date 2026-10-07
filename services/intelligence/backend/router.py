@@ -117,6 +117,8 @@ def run_appraisal(
     property_category: str = "",
     property_detail: str = "",
     area_sqm: float | None = None,
+    income_valuation: dict | None = None,
+    valuation_context: dict | None = None,
 ) -> dict:
     """
     감정평가(시세추정) 실행 — FastAPI 등 외부에서 호출하는 공개 API.
@@ -152,13 +154,28 @@ def run_appraisal(
             "property_category": property_category.strip(),
             "property_detail": property_detail.strip(),
             "area_sqm": area_sqm,
+            "appraisal_date": appraisal_date,
+            "income_valuation": income_valuation,
+            "valuation_context": valuation_context,
         },
         "error":             "",
         "retry_count":       0,
     }
 
-    graph = _get_graph()
     try:
+        from backend.valuation.policy import plan, allowed, blocked_result, finalize
+        if property_category:
+            initial_state["valuation_plan"] = plan(initial_state)
+            if not allowed(initial_state["valuation_plan"]):
+                from backend.services.valuation_support import support_report
+                return support_report(blocked_result(initial_state, initial_state["valuation_plan"]))
+        # 구조화된 요청은 이미 유형과 주소를 사용자가 선택했다. 임대료·필지 조회에 LLM 재해석을 끼우지 않는다.
+        if property_category in {"상업용", "업무용", "토지"}:
+            from backend.services.valuation_support import analyze_support, support_report
+            if progress_cb:
+                progress_cb("입력 임대료 계산" if property_category != "토지" else "필지 공개정보 조회")
+            return support_report(finalize(analyze_support(initial_state, property_category)))
+        graph = _get_graph()
         if progress_cb is None:
             return graph.invoke(initial_state)
 

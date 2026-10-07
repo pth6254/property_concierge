@@ -513,16 +513,16 @@ flowchart LR
     Validate -->|보완 재분석 최대 2회| Intent
     Validate --> Geo[지오코딩]
     Geo --> Deep[심층분석]
-    Deep --> Router[유형 라우터]
-    Router --> Residential[주거용]
-    Router --> Commercial[상업용]
-    Router --> Office[업무용]
-    Router --> Industrial[산업용]
-    Router --> Land[토지]
+    Deep --> Router[공통 자료 점검·유형 라우터]
+    Router --> Residential[조건을 만족한 아파트 비교]
+    Router --> Commercial[상업용 입력 수익 시나리오]
+    Router --> Office[업무용 입력 수익 시나리오]
+    Router --> Held[자료 부족·미지원 유형 보류]
+    Router --> Land[토지 공개자료]
     Residential --> Report[감정평가_리포트 노드]
     Commercial --> Report
     Office --> Report
-    Industrial --> Report
+    Held --> Report
     Land --> Report
     Router -->|오류| Error[오류처리]
 ```
@@ -532,10 +532,20 @@ flowchart LR
 
 LLM이 주소·면적·유형 후보를 해석한 뒤 지오코딩과 공식 자료로 보강한다. 사용자 지정 유형·구조화 입력과 충돌하는
 LLM 추정을 확정값으로 덮어쓰지 않는다. 국토부 실거래 저장 자료를 조회하고 필요하면 API로 보강하며 비교사례를 선정한다.
-주거·토지의 시점수정은 R-ONE 지수, 다른 유형은 현재 근사 규칙을 사용한다.
+기존 비교 엔진의 주거·토지 시점수정 코드는 R-ONE 지수를 사용한다. 현재 토지 공개정보 경로는 가격 시점 보정을 실행하지 않는다.
 유형별 비교·보정과 신뢰도 산정 후 의견을 생성한다. AVM 의견의 허용되지 않은 수치는 출력 검증하고,
 위반 시 1회 재생성 후 결정론적 폴백을 사용한다. 내부 만원 단위와 외부 원 단위의 변환은 리포트 경계에서 처리한다.
 유형 분기가 존재한다는 사실이 모든 지역·자산에서 같은 정확도로 검증됐다는 뜻은 아니다.
+
+공개 가격 분석과 직접 호출 경로는 `valuation/policy.py`의 공통 대상·자료·결과 계약을 따른다.
+알 수 없는 유형을 주거용으로 대체하지 않는다. 산업용 노드는 남아 있지만 공개 정책에서 차단하며
+비아파트 주거도 별도 검증 전 가격을 보류한다. 기준은 [PC-AVM-1.0](features/decision.md#valuation-standards)을 따른다.
+구조화된 상업·업무·토지 입력은 `run_appraisal`에서 LLM 그래프 없이 `valuation_support.py`로 직접 실행한다.
+자연어 그래프의 같은 유형 에이전트도 이 경계를 사용한다. 상업·업무는 Spring의
+`/internal/v1/calculations/income_valuation`, 토지는 `/internal/v1/land/lookup`을 호출한다.
+고정 계산은 Kotlin만 실행하고 Python은 입력 검증·작업·보고서 연결을 담당한다.
+조건부 가격·공시자료·보류 결과를 기존 AVM 이력으로 저장하되 현재 시세 비교 금액과 분리한다.
+전체 기준의 남은 수정 위치와 순서는 [기준 적용 계획](features/decision.md#valuation-implementation)에 있다.
 
 <a id="pipelines-funding"></a>
 
@@ -663,7 +673,7 @@ LLM 후보 비확정과 5개 서비스 유형 규칙을 고정한다.
 | 시점수정 | **부동산원 월간 매매가격지수** (`RBONE_API_KEY` 설정 시, 시군구 단위) → 미공표·미지원 시 유형별 근사 변동률 폴백 |
 | 실거래 폴백 | 실거래 없을 시 공시가격 ÷ 현실화율 역산 (주거용) |
 | 투자 수익률 | 추정가 × 유형별 Cap Rate |
-| 신뢰도 | **다요인 모델 + 백테스트 보정** (`confidence.py`) — 매칭수준·표본수·산포(CV)·신선도·시점수정 방식 기반점에, 백테스트 실측 적중률(`data/avm_calibration.json`)을 버킷별로 블렌딩. 정의: "유사 조건에서 추정치가 실거래가 ±10% 이내에 들 확률" |
+| 신뢰도 | **다요인 모델 + 백테스트 보정** (`confidence.py`) — 매칭수준·표본수·산포(CV)·신선도·시점수정 방식의 참고 점수에 기존 버킷별 실측 적중률(`data/avm_calibration.json`)을 블렌딩. 유형·지역·기간별 확률 보정 검증이 없으므로 점수를 개별 물건의 ±10% 적중 확률로 보장하지 않음 |
 | AI 분석 의견 | LLM 생성 + **수치 가드레일** (`opinion_guard.py`) — 컨텍스트로 주입한 수치 외의 숫자가 든 문장은 자동 삭제, 위반 시 1회 재시도 후 결정론적 폴백. 출력은 프로바이더 무관 OpinionOutput 스키마로 강제 |
 
 #### 시점수정 상세 (부동산원 지수 기반)

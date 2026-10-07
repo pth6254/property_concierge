@@ -76,6 +76,8 @@ export const api = {
     caseId?: number,
     candidateId?: number,
     areaSqm?: number,
+    incomeValuation?: import("./valuation").IncomeValuationInput,
+    valuationContext?: import("./valuation").ValuationContext,
   ) =>
     req<{ job_id: string }>("/appraisal/jobs", {
       method: "POST",
@@ -91,6 +93,8 @@ export const api = {
         case_id:            caseId,
         candidate_id:       candidateId,
         area_sqm:           areaSqm,
+        income_valuation:   incomeValuation,
+        valuation_context: valuationContext,
       }),
     }),
 
@@ -370,4 +374,6 @@ export const api = {
     req<{ documents: object[]; meta: object }>(
       `/address/search?query=${encodeURIComponent(query)}&type=${type}`
     ),
+  landInformation: (address: string, asOfDate = "", signal?: AbortSignal) =>
+    req<import("./valuation").LandInformation>("/address/land", { method: "POST", body: JSON.stringify({ address, as_of_date: asOfDate }), signal }),
 };

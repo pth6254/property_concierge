@@ -16,6 +16,9 @@ import java.time.format.DateTimeFormatter
 @Service
 class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, private val tx: TransactionTemplate,
     private val listings: ListingService, private val python: PythonClient, private val execution: ExecutionStore) {
+    private fun limitedValuation(summary: JsonNode): Boolean =
+        summary.path("result_kind").asText() in setOf("conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported") ||
+            (summary.hasNonNull("valuation") && !summary.path("valuation").path("comparison_eligible").asBoolean(false))
     private val jsonFields = setOf("buyer_profile", "target_regions", "source_snapshot", "summary", "stats_snapshot", "result",
         "previous_snapshot", "applied_snapshot", "previous_decision", "invalidated_analyses", "previous_analyses", "previous_execution")
     private val snapshotTransaction = TransactionTemplate(requireNotNull(tx.transactionManager)).apply {
@@ -201,8 +204,10 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
                             expires_at,created,updated) VALUES (?,?,'appraisal',?,'completed',?::json,?,?,?,?)""", caseId, id, historyId,
                             requireNotNull(appraisalSummary).toString(), timestamp,
                             LocalDateTime.parse(timestamp.replace(' ', 'T')).plusDays(30).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), now(), now())
-                        jdbc.update("""UPDATE candidate_checklist_items SET status='done',source='appraisal',evidence=?,completed_at=?
-                            WHERE property_id=? AND category='price'""", "시세추정 이력 #$historyId 연결", now(), id)
+                        val limited = limitedValuation(appraisalSummary)
+                        jdbc.update("""UPDATE candidate_checklist_items SET status=?,source='appraisal',evidence=?,completed_at=?
+                            WHERE property_id=? AND category='price'""", if (limited) "todo" else "done",
+                            if (limited) "참고자료 이력 #$historyId 연결 · 시장가격 확인 필요" else "시세추정 이력 #$historyId 연결", if (limited) null else now(), id)
                     }
                     touch(requireNotNull(caseId)); mapOf("property_id" to id, "already" to false)
                 }
@@ -317,6 +322,24 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
             throw ApiFailure(422, "분석 중 후보 정보가 바뀌었습니다. 최신 정보로 다시 실행해주세요")
         }
         val summary = if (appraisal) requireNotNull(appraisalSummary) else args.path("summary")
+        if (appraisal && summary.hasNonNull("valuation")) {
+            val subject = summary.path("valuation").path("subject")
+            val addresses = setOf(item.text("address"), item.path("source_snapshot").path("address_details").path("jibun_address").asText(),
+                item.path("source_snapshot").path("address_details").path("road_address").asText()).filter { it.isNotBlank() }
+            if (subject.path("address").asText() !in addresses ||
+                (subject.hasNonNull("area_sqm") && item.hasNonNull("area_sqm") && subject.path("area_sqm").decimalValue().compareTo(item.path("area_sqm").decimalValue()) != 0))
+                throw ApiFailure(422, "평가 대상의 주소·면적이 후보와 다릅니다. 후보 정보를 먼저 수정해주세요")
+            val subtype = mapOf("아파트" to "apartment", "오피스텔" to "officetel", "연립다세대" to "row_house",
+                "상가" to "commercial", "사무실" to "office", "공장" to "factory", "창고" to "warehouse", "토지" to "land")
+                .getOrDefault(item.text("category"), item.text("category"))
+            if (subtype in setOf("apartment", "officetel", "row_house", "commercial", "office", "factory", "warehouse", "land") &&
+                subject.path("subtype").asText() != subtype)
+                throw ApiFailure(422, "평가 대상의 부동산 유형이 후보와 다릅니다")
+            val unit = identity(item.path("source_snapshot"))
+            if (mapOf("building_dong" to "dong", "unit_number" to "ho").any { (saved, analyzed) ->
+                    unit.text(saved).isNotBlank() && unit.text(saved) != subject.path(analyzed).asText() })
+                throw ApiFailure(422, "평가 대상의 동·호가 후보와 다릅니다")
+        }
         // 공개 계산을 거치지 않는 내부 저장도 현재 후보 가격과 다른 결과를 연결하면 안 된다.
         // 가격 없는 과거 기록은 기존 호환성을 유지하고 의사결정 평가에서 미확인으로 구분한다.
         if (type == "simulation" && item.hasNonNull("asking_price") && summary.amount("purchase_price") != item.amount("asking_price"))
@@ -326,9 +349,10 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
             VALUES (?,?,?,?,'completed',?::json,?,?,?,?) ON CONFLICT(property_id,analysis_type) DO UPDATE SET reference_id=excluded.reference_id,
             status='completed',summary=excluded.summary,analyzed_at=excluded.analyzed_at,expires_at=excluded.expires_at,updated=excluded.updated""",
             caseId, propertyId, type, history, summary.toString(), now(), LocalDateTime.now().plusDays(days).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), now(), now())
-        val status = if (appraisal) "done" else args.text("checklist_status", "done")
+        val limitedAppraisal = appraisal && limitedValuation(summary)
+        val status = if (limitedAppraisal) "todo" else if (appraisal) "done" else args.text("checklist_status", "done")
         jdbc.update("UPDATE candidate_checklist_items SET status=?,source=?,evidence=?,completed_at=?,updated=? WHERE property_id=? AND category=?",
-            status, type, if (appraisal) "시세추정 이력 #$history 연결" else args.text("evidence"), if (status == "done") now() else null, now(), propertyId, category)
+            status, type, if (limitedAppraisal) "참고자료 이력 #$history 연결 · 시장가격 확인 필요" else if (appraisal) "시세추정 이력 #$history 연결" else args.text("evidence"), if (status == "done") now() else null, now(), propertyId, category)
         if (appraisal) jdbc.update("UPDATE case_properties SET history_id=?,updated=? WHERE id=?", history, version(), propertyId)
         else jdbc.update("UPDATE case_properties SET updated=? WHERE id=?", version(), propertyId)
         touch(caseId); return true

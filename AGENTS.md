@@ -5,6 +5,10 @@
 > 사람이 읽는 셋업·기능 설명은 `README.md` 에 있다. 여기에는 **코드를 고칠 때 알아야 할
 > 제약과 함정**만 적는다.
 
+문서 갱신: **2026-10-06**. 최근 구현·실행 검증은 **2026-10-05** 기록이다.
+이어받을 때는 이 파일의 **2-14(현재 AVM 계약) → 8(다음 작업) → 9(최근 검증 범위)**와
+[인수인계 문서](docs/project-handoff.md)를 함께 읽는다. 문서 갱신일을 서비스 재검증일로 해석하지 않는다.
+
 ---
 
 ## 1. 프로젝트 한눈에
@@ -42,10 +46,11 @@ FastAPI 내부 :8000 (공개 포트 없음, uvicorn --workers 4)
 PostgreSQL(+pgvector) · Redis
 ```
 
-시세추정은 `주거 / 상업 / 업무 / 산업 / 토지` **5개 유형별 에이전트**로 조건부 분기한다
-(`services/intelligence/backend/graphs/appraisal_graph.py` 의 `CATEGORY_TO_AGENT`). 신규 유형은 이 매핑에
-에이전트를 추가하면 된다. 이 분기가 존재한다는 사실을 전국·모든 자산 유형의 같은 수준의
-데이터 및 제품 검증이 완료됐다는 뜻으로 설명하지 않는다.
+시세추정의 `주거 / 상업 / 업무 / 산업 / 토지` 에이전트 매핑은
+`services/intelligence/backend/graphs/appraisal_graph.py`의 `CATEGORY_TO_AGENT`에 있다.
+공개 실행은 **공통 자료 점검·방법 선택 정책**을 먼저 거친다. 산업용 에이전트가 남아 있어도 현재 공개 정책에서는
+실행을 차단한다. 신규 유형은 매핑만 추가해서 공개하지 말고 입력 계약·적용 조건·검증·결과 표시까지 연결한다.
+현재 유형별 지원 범위와 되돌리면 안 되는 조건은 **2-14**에 모았다. 전체 기준의 모델 구현·전국 정확도 검증 완료는 아니다.
 
 기획안의 `Property` 유형별 모델·Buyer Decision Graph·Listing Time Machine·Marketplace는
 후속 설계다. 현재의 `ImportedListing`·관측/변경 이력·`PurchaseCase`·후보·거래 준비 모델을
@@ -145,8 +150,10 @@ id를 훑어 타인 데이터를 전량 읽을 수 있다(실제로 있었던 �
 
 ### 2-5. 리버스 프록시 뒤에 배포하면 FORWARDED_ALLOW_IPS 를 반드시 지정한다
 
-현재 레이트 리밋(`RedisLimits`)과 로그인 잠금이 **클라이언트 IP 기준**인데, 프록시를 거치면
-FastAPI 에는 모든 요청이 프록시 IP 하나로 들어온다. 실제 IP 는 `X-Forwarded-For` 에 있다.
+현재 일반 API의 레이트 리밋(`RedisLimits`)과 로그인 잠금은 **Spring의 클라이언트 IP 기준**이다.
+신뢰 경계는 Caddy → Spring → 내부 Python 순서다. Spring은 지정 Caddy IP에서 온 헤더만,
+Python은 지정 Spring IP에서 온 헤더만 신뢰한다. 구체적인 현재 주소는 2절 백엔드 전환 지침을 따른다.
+아래 uvicorn 설명·실측은 **Python이 공개 API를 담당하던 당시의 회귀 사례**이며 일반 인증을 Python에 복구할 근거가 아니다.
 
 uvicorn 은 `proxy_headers=True` 가 기본이지만 `forwarded_allow_ips` 기본값이
 `"127.0.0.1"` 이라 **같은 기계의 프록시만** 신뢰한다. sh scripts/compose.sh dev 처럼 프록시가
@@ -195,7 +202,7 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 
 | 배포 형태 | `COOKIE_SAMESITE` |
 |---|---|
-| 프론트·API 가 같은 출처 (**현재 구조** — `next.config.ts` 의 rewrites 가 `/api/*` 중계) | `lax` (기본) |
+| 프론트·API 가 같은 출처 (**현재 Docker** — Caddy가 `/api/*`를 Spring으로 중계; 개발 서버는 Next rewrites 사용) | `lax` (기본) |
 | 서로 다른 사이트 (예: `app.vercel.app` ↔ `api.fly.dev`) | `none` — HTTPS 필수 |
 
 - `none` 이면 `APP_ENV` 와 무관하게 `secure` 가 자동으로 켜진다. Secure 없는 `SameSite=None`
@@ -286,6 +293,46 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 공공데이터 API 키는 원문과 인코딩 형식을 모두 지원한다. 원문 `+`를 URLDecoder로 공백으로 바꾸면 실제 조회가 거절된다.
 Spring `decodeDataGoKey`를 통해 정규화하고 쿼리 값은 한 번 인코딩한다. 키·키 포함 요청 URL을 로그나 검증 아티팩트에 출력하지 않는다.
 
+### 2-14. AVM은 공통 정책을 거치고 결과의 용도를 구분한다
+
+설계 기준은 [PC-AVM-1.0](docs/features/decision.md#valuation-standards), 현재 실행 정책은
+**`PC-AVM-1.0-runtime-1`**, 응답 계약은 **`valuation-assessment-1.0`**이다.
+Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/policy.py`가 공통 원본이다.
+공개 `run_appraisal`, 자연어 그래프, `price_analysis_service.analyze_price` 직접 호출에 같은 제한을 유지한다.
+
+| 유형 | 현재 결과와 실행 조건 |
+|---|---|
+| 아파트 | 개별 호실 범위·전용면적·단지명·주소·기준일 입력 조건 확인 후, 최근 6개월·동일 단지·면적 ±10% 유효 거래 5건 이상이면 기존 비교 엔진 실행. `market_reference` 또는 `withheld` |
+| 오피스텔·연립다세대·단독/다가구 | 별도 기준·자료 검증 전 `withheld`. 아파트 모델로 대체하지 않음 |
+| 상가·업무용 | 현재 월세·운영비·환원율 가정에 따른 `conditional_scenario` 또는 `withheld`. Kotlin `IncomeValuationCalculator`가 계산 |
+| 토지 | 주소→PNU→VWorld 4종 자료를 Spring `LandInformationService`가 대조. 공개자료 참고와 누락을 표시하고 시장가격은 산출하지 않음 |
+| 공장·창고·미확인 유형·지원 밖 목적 | `unsupported`. 공장·창고 고도화는 사용자 결정으로 보류 |
+
+`partial_reference`는 구성 부분 참고용 계약이며 완성된 별도 가격 엔진이 있다는 뜻이 아니다.
+거래일 누락·미래 거래·기간 밖 거래·다른 단지/동/구·면적 불일치·해제·중복은 아파트 사례에서 제외한다.
+5건 기준은 초기 서비스 출력 정책이다. 정확도 보장이나 법정 기준으로 설명하지 않는다.
+동·호는 선택이며 사용자 입력을 공식 호실 확인으로 승격하지 않는다. 단지·면적형 참고와 개별 호 식별을 구분한다.
+
+- `valuation_context`는 범위·면적 기준·거래 유형·동·호를 전달한다. 기존 `area_sqm`의 전용면적 계약은 유지하되
+  명시된 `unknown`·`supply`를 전용으로 덮어쓰지 않는다. 원본/후보의 `building_dong`·`unit_number`를 분석의 `dong`·`ho`로 매핑한다.
+- `valuation`에는 대상·기준일·입력 지문·자료 점검·선택/미사용 방법·버전·제약·다음 행동을 저장한다.
+  기존 이력·후보 JSON을 사용하며 새 테이블이나 Python 중복 저장 경로를 만들지 않는다.
+- `CaseStore.linkAnalysis`의 후보 소유자·주소/면적·지원하는 세부 유형·저장된 동호 대조와
+  `expected_inputs` 동시 변경 검사를 유지한다. 원본/후보 변경 시 분석을 `stale`로 바꾸고 이전 근거·선택 이력을 보존한다.
+- `comparison_eligible=false` 또는 조건부·공개자료·부분 참고·보류·미지원 결과는 시장가격 차이와 가격 체크리스트 완료에 쓰지 않는다.
+  `market_reference`도 케이스의 유효기간·신뢰도·자료 기준을 따로 통과해야 한다. 기준 버전 없는 이전 기록은 보존하며 새 기준 통과로 변경하지 않는다.
+- 환원율은 사용자 가정이다. 운영비 미입력을 0으로 처리하거나 NOI가 0 이하일 때 자산 가치를 0원으로 확정하지 않는다.
+  토지대장의 현재 면적과 특성 기준연도의 면적을 섞지 않는다. 동일 연도 특성 면적×공시지가는 **공시 참고 총액**이다.
+  제거한 고정 임대료·운영비 15%·상업/업무 건물 30/40% 가산·토지 배수·개발 키워드 가산을 복구하지 않는다.
+- 가격 범위는 기존 규칙의 참고 구간, 수익 범위는 가정별 시나리오다. 보정된 통계적 예측구간이라고 표시하지 않는다.
+  LLM은 입력 해석·설명에 사용하고 근거 없는 가격을 만들게 하지 않는다. CatBoost/DL을 운영에 연결하거나 자료 부족의 폴백으로 쓰지 않는다.
+
+화면의 `ValuationAssessmentCard`·`ValuationSupportReport`·`DecisionAxisCard`는 이 저장 계약을 표시한다.
+API 변경 시 `web/src/lib/valuation.ts`·`api.ts`·`types.ts`와 `contracts/v1/`를 함께 갱신한다.
+회귀는 `tests/test_valuation_policy.py`·`tests/test_valuation_support.py`, Kotlin 저장 검사는
+`services/platform/src/test/kotlin/kr/propertyconcierge/core/store/ValuationEvidenceIT.kt`, 화면 검사는
+`scripts/verify_valuation_support_browser.cjs`다. 상세 입력·제약은 [적용 계약](docs/features/decision.md#valuation-implementation)을 따른다.
+
 ---
 
 ## 3. 실측으로 확인한 함정
@@ -300,6 +347,9 @@ AppraisalResult(judgement="저평가")   # judgement 는 존재하지 않는 필
 
 `AppraisalResult` 에서 제거된 `judgement` · `gap_rate` 를 테스트가 계속 넘기고 있었고,
 **아무것도 검증하지 않으면서 통과하는 상태**였다. 스키마를 바꾸면 테스트도 함께 갱신할 것.
+
+주거용 `report_node`의 `report_output`은 `AppraisalReport` 객체다. 원시 dict로 인덱싱하지 말고
+속성이나 `model_dump(mode="json")` 직렬화 경계에서 검사한다. 참고자료 경로의 dict 응답과 구분한다.
 
 ### 3-2. `create_all` 은 멀티 프로세스에서 경합한다
 
@@ -364,6 +414,13 @@ sh scripts/compose.sh dev up -d pgvector redis          # DB·캐시 먼저
 
 ./venv-wsl/bin/python scripts/run_isolated_tests.py tests/ -q
 
+# 위 Python 회귀와 순서대로 실행 (동일 테스트 DB/Redis를 초기화함)
+./venv-wsl/bin/python scripts/run_spring_tests.py --browser --browser-script verify_valuation_support_browser.cjs
+
+# API/응답 계약 변경 후 생성 → 차이 검토 → 일치 검사
+./venv-wsl/bin/python scripts/export_service_contracts.py
+./venv-wsl/bin/python scripts/export_service_contracts.py --check
+
 alembic -c services/intelligence/alembic.ini upgrade head                          # 마이그레이션 적용
 
 # ── 프론트엔드 ──────────────────────────────────────────
@@ -385,11 +442,17 @@ sh scripts/compose.sh local up -d --build   # 운영 (override 배제)
 - `test` — PostgreSQL·Redis 서비스 컨테이너 + `alembic -c services/intelligence/alembic.ini upgrade head` + `pytest` + 오프라인 평가.
 - `frontend` — `tsc --noEmit` + `npm run lint` + `npm run build`
 - `spring` — 먼저 Kotlin의 단위·전용 Testcontainers 저장/권한/롤백 검사를 실행한다. 이어서 별도 API·작업 실행기를
-  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 8종을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
+  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 9종을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
   주소 등록·선택 별칭·매물 변경 재검토를 포함하며 결과 JSON과 화면 이미지를 아티팩트로 보관한다.
 
-**변경 후에는 양쪽을 모두 돌려볼 것.** 백엔드만 고쳤다고 프론트가 안전한 게 아니다
+**동작·API 변경 후에는 양쪽을 모두 돌려볼 것.** 백엔드만 고쳤다고 프론트가 안전한 게 아니다
 (API 응답 형태가 바뀌면 `web/src/lib/api.ts` 의 타입도 함께 고쳐야 한다).
+문서만 바꾼 경우에는 참조 경로·계약 이름·검증 기록·diff를 확인하고 서비스 실행 검증을 새로 했다고 기록하지 않는다.
+
+WSL에서 테스트 인프라 주소가 필요하면 현재 컨테이너 연결 정보를 확인해 `TEST_POSTGRES_HOST`·
+`TEST_REDIS_URL`(DB 15)을 지정한다. 이전 세션의 Docker IP를 영구 설정으로 복사하지 않는다.
+로컬 기동 확인은 웹 `http://localhost:3002`, Spring `http://localhost:8002/health`·`/ready`다.
+`/health`만으로 의존성 정상 여부를 단정하지 않는다. `/ready`와 작업 실행기 상태도 확인한다.
 
 현재 실행 중인 로컬 서비스의 후보 흐름 확인은 저장소 루트의 **PowerShell**에서 실행한다:
 
@@ -430,8 +493,17 @@ node scripts/verify_decision_assessment_browser.cjs
 - **AVM 신뢰도 편차가 크다.** 백테스트(서초구 434건) 실측 기준 동일 단지 매칭은
   ±10% 적중률 69~84%지만 **동일동·구 매칭은 8~33%** 다.
   신뢰도는 이 실측치를 블렌딩해 하향 보정된다(`services/intelligence/backend/confidence.py`).
-- **시점수정은 주거용·토지만** 부동산원 R-ONE 지수를 적용한다. 상업·업무·산업용은
-  적합한 월간 시군구 지수가 없어 근사 변동률을 쓴다.
+  이 과거 기록을 현재 `PC-AVM-1.0-runtime-1`의 정확도나 전국 성능으로 인용하지 않는다.
+- **CatBoost는 오프라인 후보 모델이다.** `evaluation avm-compare`는 시간 분리한 아파트 거래에서 기존
+  `residential_agent` 재생과 비교한다. 정답 가격·단가를 특성에 넣거나 최종 평가를 early stopping에 사용하지 않는다.
+  서비스 기준선을 자동 교체하지 않는다. 첫 비교는 기준 미달이며 결과를 보고 튜닝하면 이후 기간으로 다시 검증한다.
+  학습용 `requirements-ml.txt`는 평가/CI에 설치하고 모델·거래별 보고서는 `evaluation-results/`에 보관한다.
+  `production_avm.py`는 공통 출력 제한 이전 주거 에이전트 기준선을 재생한다. 새 정책의 보류율·오차 평가는 후속이다.
+- **기존 비교 엔진의 주거·토지 시점수정 코드는 R-ONE 지수를 사용한다.** 현재 토지 공개정보와 상업·업무
+  입력 임대료 시나리오는 이 시점수정으로 시장가격을 계산하지 않는다. 산업용 공개 실행은 차단돼 있다.
+- **LLM 제공자와 모델은 역할별 설정을 따른다.** `.env.example`·실행 코드와 현재 설정을 확인한다.
+  과거 대화의 free 모델 전용 요청 이후 유료 크레딧 사용으로 변경됐으므로 free 전용 제한을 임의 복구하지 않는다.
+  키 값은 문서·로그에 기록하지 않는다. LLM 제공자를 바꾸는 일과 CatBoost 가격 모델을 운영 승인하는 일은 별개다.
 - **의도분석의 `clarification_question` 은 사용자에게 노출되지 않는다.**
   내부 재분석 루프(최대 2회)에만 쓰이고, 그래도 부족하면 오류로 끝난다.
   "사용자에게 보완 질문을 던진다"고 설명하면 사실과 다르다.
@@ -447,10 +519,23 @@ node scripts/verify_decision_assessment_browser.cjs
 
 ---
 
-## 8. 현재 알려진 부채
+## 8. 다음 작업과 현재 알려진 부채
+
+**직전 합의에서 이어갈 순서**
+
+1. 새 `PC-AVM-1.0-runtime-1`을 실제 아파트 거래로 평가한다. 기존 기준선·후보 모델과 같은 시점 분할에서
+   가격 산출률/보류율, 산출된 표본의 MAPE·±10% 적중률, 지역·가격대별 편차를 함께 기록한다.
+   보류를 정답·0원으로 처리하거나 산출 성공 건만으로 전체 품질을 높게 보고하지 않는다.
+2. 오차·보류 원인을 단지 식별·주소·면적·거래 신선도·표본 부족으로 나눠 데이터와 비교 기준을 개선한다.
+   CatBoost는 기존 기준선을 넘는 별도 검증을 통과한 뒤 적용 범위를 결정한다. 평가를 보고 튜닝했으면 이후 기간으로 다시 확인한다.
+3. 대표 아파트의 등록 → 실제 AVM → 자금 → 비교 → 선택 → 변경 재검토 → 복원을 연결하고,
+   연결 성공과 시장가격 정확도를 별도로 평가한다. 비아파트는 유형별 자료·정답셋·평가 기준을 확보한 순서로 확대한다.
+
+공장·창고의 설비/원가 확대, 독립 모바일 앱, Marketplace는 이번 구현 완료 범위가 아니다.
+새 사용자가 다른 작업을 지시하면 그 범위를 따르고, 위 목록을 이미 실행한 작업으로 설명하지 않는다.
 
 **코드 쪽**
-- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 8종이 있다.
+- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 9종이 있다.
 - 후보 → 자금 화면의 입력 전달·저장·새로고침과 판단 축 표시는 브라우저로 검증했다.
   홈 → `/appraisal`, 샘플 추천 → `/simulation`의 프리필은 별도 브라우저 검증이 필요하다.
 - 실제 AVM과 권리 PDF까지 연결한 전체 흐름의 품질 검증은 아직 별도 작업이다.
@@ -492,6 +577,32 @@ node scripts/verify_decision_assessment_browser.cjs
    비상자금 적용을 통일하고 후보별 저장 조건을 유지했다(2-12). 미확인 자료가 검토 완료로 보이지 않도록
    다섯 판단 축의 공통 계약을 도입해 후보 비교와 매수 검토 요약에 함께 적용했다(2-11).
    기존 매물·케이스 모델을 재사용하고, 모바일 앱 개발은 후속 단계로 남겼다.
+6. 일반 백엔드·저장·고정 계산을 **Kotlin + Spring Boot**, AI·데이터를 **Python**으로 분리하고
+   폴더를 서비스 책임 중심으로 정리했다. 언어별 루트 폴더나 대체된 Python 저장/인증 코드를 복구하지 않는다(2절).
+7. 2026-10-04, 유형별 가치평가 기준을 정리하고 **상업·업무 입력 임대료 시나리오와 토지 공개정보**를 연결했다.
+   고정 임대료·토지 배수 등의 근거 없는 대체를 제거했으며 공장·창고 고도화는 보류했다(2-14).
+8. 2026-10-05, 공통 AVM 대상·자료 점검·방법 선택·결과 종류·보류·다음 행동을 작업/이력/후보/화면까지 연결했다.
+   분석의 범위 불일치와 후보 변경을 검증하며 기존 근거를 보존한다. 새 가격 모델의 운영 배포는 아니다(2-14).
+
+### 최근 인수인계 시점의 검증과 반영 상태
+
+아래는 **2026-10-05에 실행한 결과**다. 2026-10-06에는 지침 문서를 최신화했으며 이 검사를 다시 실행한 것은 아니다.
+
+| 범위 | 확인 기록 |
+|---|---|
+| Python | 마지막 전체 실행 1,180건 통과·1건 생략·신규 테스트의 객체 접근 오류 1건. 테스트 직렬화 수정 후 정책 검사 25건 통과. 수정 후 전체 재실행 기록은 없음 |
+| Kotlin | 단위 48건·Testcontainers 저장/권한/롤백 통합 21건 통과 |
+| 서비스 연결 | Spring 계약 18항목·계산 연결 6항목/54조건·프록시 2항목 통과 |
+| 격리 브라우저 | 임대료·토지·보류·저장/복원·후보 호실 변경 재검토 7항목 통과. 공공 API는 대역, 계산·작업·저장은 실제 실행 |
+| 프론트·계약 | 타입·린트·프로덕션 빌드·내부 명세 일치 검사 통과 |
+| 로컬 Docker | API·Spring·작업 실행기·프론트 재빌드/교체. 웹 3002와 Spring 8002 `/ready` 확인. 실제 화면의 보류/저장/복원·비교 제외·모바일 3항목 통과, 임시 계정 삭제 200 |
+
+근거는 `evaluation-results/platform/`, `valuation-support-browser.json`, `valuation-policy-live.json`과
+해당 화면 이미지다(뒤의 두 파일도 `evaluation-results/` 아래). 이 폴더는 로컬 생성물이므로 새 체크아웃에 없을 수 있다.
+전체 기록은 [검증 상태와 경계](docs/project-handoff.md#검증-상태와-경계)를 따른다.
+원격 GitHub Actions 완료, 새 정책의 실거래 정확도·보류율, LLM 대화 품질, 전국 데이터 제공률을 검증한 기록은 아니다.
+2026-10-03 아파트 300건 비교의 기존 AVM MAPE 12.70%·CatBoost 19.82%도 **이전 기준선의 오프라인 기록**이다.
+2026-10-04 VWorld 실제 필지 1건 확인은 별도 기록이며 키 상태·전국 제공률이 현재도 같다고 단정하지 않는다.
 
 ### 실제로 잡은 결함 (전부 재현 → 수정 → 검증 순으로 처리)
 

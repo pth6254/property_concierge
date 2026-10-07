@@ -121,6 +121,143 @@
       "source": "services/intelligence/backend/tax_rules.py"
     },
     {
+      "input_schema": {
+        "additionalProperties": false,
+        "properties": {
+          "as_of_date": {
+            "format": "date",
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "asking_price_won": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 1000000000000000,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Asking Price Won"
+          },
+          "cap_rate_max_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.1,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$",
+                "type": "string"
+              }
+            ],
+            "title": "Cap Rate Max Pct"
+          },
+          "cap_rate_min_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.1,
+                "type": "number"
+              },
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d{0,4}0*$",
+                "type": "string"
+              }
+            ],
+            "title": "Cap Rate Min Pct"
+          },
+          "monthly_operating_cost_max_won": {
+            "anyOf": [
+              {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monthly Operating Cost Max Won"
+          },
+          "monthly_operating_cost_min_won": {
+            "anyOf": [
+              {
+                "maximum": 1000000000000000,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Monthly Operating Cost Min Won"
+          },
+          "monthly_rent_won": {
+            "maximum": 1000000000000000,
+            "minimum": 0,
+            "title": "Monthly Rent Won",
+            "type": "integer"
+          },
+          "valuation_unit": {
+            "enum": [
+              "single_unit",
+              "whole_building"
+            ],
+            "title": "Valuation Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "monthly_rent_won",
+          "cap_rate_min_pct",
+          "cap_rate_max_pct",
+          "valuation_unit",
+          "as_of_date"
+        ],
+        "title": "IncomeValuationInput",
+        "type": "object"
+      },
+      "method": "POST",
+      "path": "/internal/v1/calculations/income_valuation",
+      "result_kinds": [
+        "conditional_scenario",
+        "withheld"
+      ],
+      "source": "services/intelligence/backend/services/valuation_support.py",
+      "version": "income-scenario-1.0"
+    },
+    {
+      "input_schema": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "as_of_date": {
+            "default": "",
+            "type": "string"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "type": "object"
+      },
+      "method": "POST",
+      "path": "/internal/v1/land/lookup",
+      "result_kinds": [
+        "public_reference"
+      ],
+      "source": "services/intelligence/backend/services/valuation_support.py",
+      "version": "land-information-1.0"
+    },
+    {
       "method": "POST",
       "path": "/internal/v1/store/activity/count_today",
       "return_annotation": "int",
@@ -446,6 +583,307 @@
   "units": {
     "area": "m2",
     "money": "KRW"
+  },
+  "valuation_assessment_schema": {
+    "$defs": {
+      "ValuationCheck": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "observed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Observed At"
+          },
+          "reference_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reference Date"
+          },
+          "source": {
+            "enum": [
+              "user_input",
+              "official_data",
+              "analysis",
+              "policy"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "available",
+              "missing",
+              "conflict"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "status",
+          "message",
+          "source"
+        ],
+        "title": "ValuationCheck",
+        "type": "object"
+      },
+      "ValuationMethod": {
+        "properties": {
+          "engine_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Engine Version"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "selected",
+              "blocked",
+              "not_applicable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "status",
+          "reason"
+        ],
+        "title": "ValuationMethod",
+        "type": "object"
+      },
+      "ValuationSubject": {
+        "additionalProperties": false,
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "area_basis": {
+            "default": "unknown",
+            "enum": [
+              "exclusive",
+              "supply",
+              "gross",
+              "land",
+              "unknown"
+            ],
+            "title": "Area Basis",
+            "type": "string"
+          },
+          "area_sqm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Area Sqm"
+          },
+          "as_of_date": {
+            "title": "As Of Date",
+            "type": "string"
+          },
+          "building_name": {
+            "default": "",
+            "title": "Building Name",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "dong": {
+            "default": "",
+            "maxLength": 50,
+            "title": "Dong",
+            "type": "string"
+          },
+          "ho": {
+            "default": "",
+            "maxLength": 50,
+            "title": "Ho",
+            "type": "string"
+          },
+          "identity_level": {
+            "default": "user_address",
+            "enum": [
+              "user_address",
+              "parcel",
+              "complex_area",
+              "unknown"
+            ],
+            "title": "Identity Level",
+            "type": "string"
+          },
+          "purpose": {
+            "title": "Purpose",
+            "type": "string"
+          },
+          "scope": {
+            "default": "unknown",
+            "enum": [
+              "single_unit",
+              "whole_building",
+              "land_and_building",
+              "single_parcel",
+              "unknown"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "subtype": {
+            "title": "Subtype",
+            "type": "string"
+          },
+          "transaction_type": {
+            "default": "sale",
+            "enum": [
+              "sale",
+              "jeonse",
+              "rent",
+              "unknown"
+            ],
+            "title": "Transaction Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "category",
+          "subtype",
+          "address",
+          "as_of_date",
+          "purpose"
+        ],
+        "title": "ValuationSubject",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "checks": {
+        "items": {
+          "$ref": "#/$defs/ValuationCheck"
+        },
+        "title": "Checks",
+        "type": "array"
+      },
+      "comparison_eligible": {
+        "default": false,
+        "title": "Comparison Eligible",
+        "type": "boolean"
+      },
+      "input_fingerprint": {
+        "title": "Input Fingerprint",
+        "type": "string"
+      },
+      "interval_basis": {
+        "default": "not_provided",
+        "title": "Interval Basis",
+        "type": "string"
+      },
+      "limitations": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Limitations",
+        "type": "array"
+      },
+      "methods": {
+        "items": {
+          "$ref": "#/$defs/ValuationMethod"
+        },
+        "title": "Methods",
+        "type": "array"
+      },
+      "model_status": {
+        "const": "not_used",
+        "default": "not_used",
+        "title": "Model Status",
+        "type": "string"
+      },
+      "next_actions": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Next Actions",
+        "type": "array"
+      },
+      "policy_version": {
+        "const": "PC-AVM-1.0-runtime-1",
+        "default": "PC-AVM-1.0-runtime-1",
+        "title": "Policy Version",
+        "type": "string"
+      },
+      "result_kind": {
+        "enum": [
+          "market_reference",
+          "conditional_scenario",
+          "public_reference",
+          "partial_reference",
+          "withheld",
+          "unsupported"
+        ],
+        "title": "Result Kind",
+        "type": "string"
+      },
+      "schema_version": {
+        "const": "valuation-assessment-1.0",
+        "default": "valuation-assessment-1.0",
+        "title": "Schema Version",
+        "type": "string"
+      },
+      "subject": {
+        "$ref": "#/$defs/ValuationSubject"
+      }
+    },
+    "required": [
+      "subject",
+      "input_fingerprint",
+      "result_kind"
+    ],
+    "title": "ValuationAssessment",
+    "type": "object"
   },
   "version": 1
 }

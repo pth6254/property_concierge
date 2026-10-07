@@ -37,7 +37,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r services/intelligence/requirements.txt
+          pip install -r services/intelligence/requirements.txt -r services/intelligence/requirements-ml.txt
           python -m pip install --no-deps -e services/intelligence
           pip install pytest
 
@@ -179,6 +179,7 @@ jobs:
             evaluation-results/address-browser-result.json
             evaluation-results/property-evidence-browser.json
             evaluation-results/building-register-browser.json
+            evaluation-results/valuation-support-browser.json
             evaluation-results/building-register-*.png
             evaluation-results/*browser*.png
           if-no-files-found: ignore

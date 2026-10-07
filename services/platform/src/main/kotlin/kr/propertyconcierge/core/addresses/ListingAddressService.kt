@@ -104,6 +104,22 @@ class ListingAddressService(private val http: ExternalJsonClient, private val js
                 parcelMountain=address.path("mountain_yn").asText() == "Y").also { it.check() }
         }.getOrNull()
     }
+    fun parcel(query: String): ListingAddressValue {
+        if (query.trim().length !in 2..200) throw ApiFailure(422, "정확한 도로명 또는 지번 주소를 입력해주세요")
+        val documents = kakao(query.trim(), "address", 10)
+        val rows = documents.path("documents").toList()
+        if (rows.size != 1 || documents.path("meta").path("total_count").asInt() != 1)
+            throw ApiFailure(422, "필지를 하나로 확인하지 못했습니다. 지번을 포함한 정확한 주소를 선택해주세요")
+        // 토지 조회에는 건물명 보완 호출이 필요 없다. 지번·법정동·산 여부를 공급자 응답으로 확정한다.
+        val doc = rows.single(); val a = doc.path("address"); val road = doc.path("road_address")
+        return try {
+            ListingAddressValue(roadAddress=road.path("address_name").asText(""), jibunAddress=a.path("address_name").asText(),
+                legalRegionCode=a.path("b_code").asText(), latitude=doc.path("y").asText().toDouble(), longitude=doc.path("x").asText().toDouble(),
+                nameSource="unknown", nameStatus="unknown", checkedAt=Instant.now().toString(), identityLevel="parcel",
+                parcelMainNo=a.path("main_address_no").asText(), parcelSubNo=a.path("sub_address_no").asText(), parcelMountain=a.path("mountain_yn").asText() == "Y")
+                .also { it.check(); require(it.parcelMainNo.isNotBlank()) }
+        } catch (_: IllegalArgumentException) { throw ApiFailure(422, "주소의 필지번호를 확인하지 못했습니다") }
+    }
     fun search(query: String, owner: Long): Map<String, Any> {
         if (query.trim().length !in 2..200) throw ApiFailure(422, "주소 또는 단지명을 두 글자 이상 입력해주세요.")
         val documents = kakao(query.trim(), "address").path("documents").toMutableList()

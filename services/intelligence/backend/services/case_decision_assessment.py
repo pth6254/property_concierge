@@ -124,10 +124,12 @@ def _price(candidate, analysis):
     summary = analysis.get("summary") or {}
     state = _analysis_status(analysis)
     asking = _number(candidate.get("asking_price"), minimum=1)
-    estimate = _number(summary.get("estimated_value"), minimum=1)
+    valuation = summary.get("valuation") or {}
+    limited = summary.get("result_kind") in {"conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"} or bool(valuation and not valuation.get("comparison_eligible"))
+    estimate = None if limited else _number(summary.get("estimated_value"), minimum=1)
     confidence = _number(summary.get("confidence"))
     count = _number(summary.get("comparable_count"), minimum=1)
-    missing = []
+    missing = list(valuation.get("next_actions") or [])
     if asking is None:
         missing.append("양수 희망가")
     if estimate is None:
@@ -154,6 +156,9 @@ def _price(candidate, analysis):
         _evidence("comparable_count", "실거래 비교사례", count, "calculation", as_of=analysis.get("analyzed_at"), unit="건", usable=usable, reference_url=reference),
         _evidence("match_level", "사례 매칭 수준", summary.get("match_level"), "calculation", as_of=analysis.get("analyzed_at"), usable=usable, reference_url=reference),
     ]
+    if valuation:
+        evidence.append(_evidence("valuation_policy", "평가 기준·결과 종류", f"{valuation['policy_version']} · {valuation['result_kind']}",
+                                  "calculation", as_of=analysis.get("analyzed_at"), usable=usable, reference_url=reference, provenance=valuation))
     for index, comp in enumerate((summary.get("comparables") or [])[:10]):
         label = f"실거래 사례 {index + 1} · {comp.get('complex_name') or '이름 미확인'}"
         value = f"{comp.get('deal_date') or '거래일 미확인'} · {comp.get('area_m2') or '면적 미확인'}㎡ · 원거래 {comp.get('original_price') or comp.get('deal_price') or '가격 미확인'}원"
@@ -165,7 +170,8 @@ def _price(candidate, analysis):
         headline=f"희망가가 AVM 추정가 대비 {ratio:+.1f}%" if ratio is not None else "유효한 가격 비교 필요",
         explanation="5% 초과 차이는 추가 확인을 위한 서비스 기준입니다. 매수 적정가격을 확정하는 기준은 아닙니다." if state == "warning" else "유효기간·신뢰도·비교사례가 확인된 AVM에 한해 희망가 차이를 계산합니다.",
         evidence=evidence, missing=missing,
-        limitations=["AVM은 법정 감정평가가 아니며 호가와 현재 매물 존재를 독립 검증하지 않습니다."],
+        limitations=["AVM은 법정 감정평가가 아니며 호가와 현재 매물 존재를 독립 검증하지 않습니다.",
+                     *(["수익 시나리오·필지 공개정보는 시장 시세로 비교하지 않습니다."] if limited else [])],
         review_target="appraisal", review_label="시세 분석·근거 확인"), gap, ratio
 
 

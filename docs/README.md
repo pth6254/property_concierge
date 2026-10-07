@@ -6,7 +6,7 @@
 | 분야 | 문서 |
 |---|---|
 | 매물 | [등록·주소·수집](features/listings.md): 주소·별칭, 직접·URL·CSV 등록, 출처·시점·변경 재검토 |
-| 의사결정 | [매수 검토·자금·화면 흐름](features/decision.md): 판단 축, 입력·계산 기준, 비교·선택·다음 행동 |
+| 의사결정 | [매수 검토·자금·화면 흐름](features/decision.md): 판단 축, 입력·계산 기준, 비교·선택·다음 행동, [유형별 AVM 기준](features/decision.md#valuation-standards) |
 | 챗봇 | [AI 컨시어지·법률 챗봇](features/chat.md): 단지 추천·자금·비교 도구, 대화 기억·복원 |
 | 탐색 | [동네 탐색·실거래 비교](features/exploration.md): 행정구역 계층, 집계 조건·한계 |
 | 구조 | [아키텍처](architecture.md): 폴더 구조, 서비스·저장·권한·계산 책임, 내부 계약과 [최신 파이프라인](architecture.md#pipelines) |
