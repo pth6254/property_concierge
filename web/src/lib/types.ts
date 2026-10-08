@@ -588,6 +588,7 @@ export interface SimulationRequest {
   holding_years: number;
   expected_annual_growth_rate: number;
   rent_deposit?: number;
+  assumed_deposit?: number; // 기존 임차인 보증금 승계(잔금에서 차감, 종료 시 반환 의무)
   rent_fee?: number;
   monthly_management_fee?: number;
   property_type: string;

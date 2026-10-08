@@ -42,6 +42,22 @@ class FinanceCalculatorTest {
         assertEquals(0.0, result.scenarioBase.equityRoi)
         assertEquals(result.requiredCash, input.summary(result, json)["cash_shortfall"])
     }
+    @Test fun `승계 보증금은 필요 현금에서 빼되 반환 의무를 기록하고 잘못된 조합을 거부한다`() {
+        val plain = FundingRequest(600_000_000, loanRatio = decimal("0.5"), cashAvailable = 100_000_000)
+        val assumed = plain.copy(assumedDeposit = 200_000_000)
+        val base = engine.calculate(plain.input()); val result = engine.calculate(assumed.input())
+        assertEquals(base.requiredCash - 200_000_000, result.requiredCash)
+        assertEquals(base.acquisitionCost, result.acquisitionCost)
+        val summary = assumed.summary(result, json)
+        assertEquals(200_000_000L, summary["deposit_return_obligation"])
+        assertEquals(null, plain.summary(base, json)["assumed_deposit"])
+        assertThrows(ApiFailure::class.java) { engine.calculate(SimulationInput(600_000_000, loanAmount = 300_000_000, assumedDeposit = 300_000_000)) }
+        assertThrows(ApiFailure::class.java) { engine.calculate(SimulationInput(600_000_000, assumedDeposit = 100_000_000, rentDeposit = 100_000_000)) }
+        // 임차인이 거주 중인 집은 매수인의 거주 기간으로 보지 않아 장기보유특별공제 거주분이 달라진다.
+        val owner = engine.calculate(SimulationInput(600_000_000, holdingYears = 3, expectedAnnualGrowthRate = decimal("10")))
+        val tenanted = engine.calculate(SimulationInput(600_000_000, holdingYears = 3, expectedAnnualGrowthRate = decimal("10"), assumedDeposit = 100_000_000))
+        assertEquals(owner.scenarioBase.expectedSalePrice, tenanted.scenarioBase.expectedSalePrice)
+    }
     @Test fun `금액은 소수와 null을 거부하고 미확인 소득을 보존한다`() {
         for (body in listOf("""{"purchase_price":null}""", """{"purchase_price":1.5}""", """{"purchase_price":600000000,"loan_amount":null}"""))
             assertThrows(JacksonException::class.java) { json.readValue<SimulationInput>(body) }

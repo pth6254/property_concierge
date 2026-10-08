@@ -1443,6 +1443,19 @@
             "title": "Annual Interest Rate",
             "type": "number"
           },
+          "assumed_deposit": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "승계할 기존 임차 보증금 (원). 필요 현금에서 차감",
+            "title": "Assumed Deposit"
+          },
           "cash_available": {
             "anyOf": [
               {

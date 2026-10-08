@@ -11,7 +11,7 @@ const REPAY_TYPES  = [
   { value: "equal_principal", label: "원금균등상환" },
   { value: "interest_only",   label: "만기일시상환" },
 ];
-const RENTAL_MODES = ["없음", "전세", "월세"];
+const RENTAL_MODES = ["없음", "전세", "월세", "임차인 승계"];
 
 function parsePrice(s: string): number {
   if (!s.trim()) return 0;
@@ -95,7 +95,8 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
   const [holdingYears, setHoldingYears] = useState(previous?.holding_years ?? 3);
   const [growthRate, setGrowthRate] = useState(previous?.expected_annual_growth_rate ?? 0);
   // 전세 보증금이 있는 매물이면 임대 모드를 전세로 맞춰서 시작한다
-  const [rentalMode, setRentalMode] = useState(previous?.rent_fee ? "월세" : (previous?.rent_deposit ?? seed.deposit_price) ? "전세" : "없음");
+  const [rentalMode, setRentalMode] = useState(previous?.assumed_deposit ? "임차인 승계" : previous?.rent_fee ? "월세" : (previous?.rent_deposit ?? seed.deposit_price) ? "전세" : "없음");
+  const [assumedStr, setAssumedStr] = useState(String(previous?.assumed_deposit ?? ""));
   const [depositStr, setDepositStr] = useState(
     String(previous?.rent_deposit ?? seed.deposit_price ?? ""),
   );
@@ -186,6 +187,7 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
         property_type: propType,
         owned_homes: ownedHomes,
         rent_deposit: rentalMode === "전세" && depositStr ? parsePrice(depositStr) : undefined,
+        assumed_deposit: rentalMode === "임차인 승계" && assumedStr ? parsePrice(assumedStr) : undefined,
         rent_fee: rentalMode === "월세" && rentFeeStr ? parseInt(rentFeeStr) : undefined,
         monthly_management_fee: mgmtFeeStr ? parseInt(mgmtFeeStr) : undefined,
         official_price: officialPriceStr ? parsePrice(officialPriceStr) : undefined,
@@ -316,6 +318,14 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
                   <label className="block text-xs text-slate-500 mb-1">전세 보증금</label>
                   <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 3억"
                     value={depositStr} onChange={e => setDepositStr(e.target.value)} />
+                </div>
+              )}
+              {rentalMode === "임차인 승계" && (
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">승계할 임차 보증금</label>
+                  <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 4억"
+                    value={assumedStr} onChange={e => setAssumedStr(e.target.value)} />
+                  <p className="mt-1 text-xs text-slate-500">잔금에서 이 금액을 뺀 대신, 임대차 종료 때 임차인에게 돌려줄 의무를 넘겨받습니다. 임차인이 있는 주택의 대출 가능 여부·한도 규정은 계산에 반영하지 않았으니 금융기관에 확인하세요.</p>
                 </div>
               )}
               {rentalMode === "월세" && (

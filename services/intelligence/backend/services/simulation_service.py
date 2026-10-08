@@ -211,6 +211,8 @@ def generate_simulation_report(
         ]
         if inp.rent_deposit:
             rows.append(("전세 보증금", _fmt_won(inp.rent_deposit)))
+        if inp.assumed_deposit:
+            rows.append(("승계 임차 보증금", _fmt_won(inp.assumed_deposit)))
         if inp.rent_fee:
             rows.append(("월세", _fmt_won(inp.rent_fee)))
         if inp.monthly_management_fee:
@@ -242,6 +244,8 @@ def generate_simulation_report(
     lines.append(f"| 매수가 | {_fmt_won(result.purchase_price)} |")
     lines.append(f"| 대출금 | −{_fmt_won(result.loan_amount)} |")
     lines.append(f"| 취득 비용 | +{_fmt_won(acq.total)} |")
+    if inp and inp.assumed_deposit:
+        lines.append(f"| 임차 보증금 승계 (차감) | −{_fmt_won(inp.assumed_deposit)} |")
     lines.append(f"| **필요 현금 합계** | **{_fmt_won(result.required_cash)}** |")
     if inp and inp.rent_deposit:
         lines.append(f"| 전세 보증금 (차감) | −{_fmt_won(inp.rent_deposit)} |")

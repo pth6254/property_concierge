@@ -39,6 +39,7 @@ class SimulationInput(BaseModel):
 
     # 임대 수입
     rent_deposit: Optional[int] = Field(None, ge=0, description="전세 보증금 (원)")
+    assumed_deposit: Optional[int] = Field(None, ge=0, description="승계할 기존 임차 보증금 (원). 필요 현금에서 차감")
     rent_fee: Optional[int] = Field(None, ge=0, description="월세 (원)")
     monthly_management_fee: Optional[int] = Field(None, ge=0, description="월 관리비 (원)")
 
@@ -66,6 +67,10 @@ class SimulationInput(BaseModel):
             raise ValueError("loan_amount는 purchase_price보다 작아야 합니다.")
         if self.rent_deposit and self.rent_fee:
             raise ValueError("rent_deposit과 rent_fee는 동시에 입력할 수 없습니다.")
+        if self.assumed_deposit and self.rent_deposit:
+            raise ValueError("assumed_deposit과 rent_deposit은 동시에 입력할 수 없습니다.")
+        if self.assumed_deposit and self.assumed_deposit + self.loan_amount >= self.purchase_price:
+            raise ValueError("assumed_deposit과 loan_amount의 합은 purchase_price보다 작아야 합니다.")
         if self.rent_deposit and self.rent_deposit >= self.purchase_price:
             raise ValueError("rent_deposit은 purchase_price보다 작아야 합니다.")
         return self

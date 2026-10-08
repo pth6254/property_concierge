@@ -209,6 +209,8 @@ def _funding(candidate, analysis):
                        ("cash_shortfall", "현금 부족액"), ("monthly_payment", "첫 달 대출 상환액"),
                        ("monthly_payment_limit", "월 상환 한도")):
         evidence.append(_evidence(key, label, _number(summary.get(key)), "user_input" if key in {"cash_available", "monthly_payment_limit"} else "calculation", as_of=analysis.get("analyzed_at"), unit="원", usable=usable))
+    if _number(summary.get("assumed_deposit"), minimum=1) is not None:
+        evidence.append(_evidence("assumed_deposit", "승계 임차 보증금(반환 의무)", summary.get("assumed_deposit"), "user_input", as_of=analysis.get("analyzed_at"), unit="원", usable=usable))
     evidence.append(_evidence("owned_homes", "취득 후 주택 수", inputs.get("owned_homes"), "user_input", as_of=analysis.get("analyzed_at"), unit="주택", usable=summary.get("home_count_basis") == "after_purchase"))
     for key, label, unit in (("annual_interest_rate", "가정 금리", "%"), ("loan_years", "대출 기간", "년"), ("annual_income", "연소득", "원")):
         evidence.append(_evidence(key, label, inputs.get(key), "user_input", as_of=analysis.get("analyzed_at"), unit=unit, usable=usable))
@@ -220,11 +222,43 @@ def _funding(candidate, analysis):
         headline="자금 조건 재검토" if state == "warning" else "입력한 현금·상환 기준 확인" if state == "confirmed" else "자금 조건 확인 필요",
         explanation="이 후보에 저장된 자금 분석이 없습니다. 조건을 입력해 계산하세요." if not analysis else " ".join(issue[2] for issue in issues) or "이 후보의 분석에 저장된 개별 금융 조건을 기준으로 계산했습니다.",
         evidence=evidence, missing=list(dict.fromkeys(missing)),
-        limitations=["비상자금을 제외한 가용 현금과 첫 달 상환액을 비교합니다. 생활비·관리비는 별도이며 금융기관의 대출 승인이 아닙니다.", "현재 간이 세금·대출 모델의 결과입니다. 실제 조건은 별도 확인해야 합니다."],
+        limitations=["비상자금을 제외한 가용 현금과 첫 달 상환액을 비교합니다. 생활비·관리비는 별도이며 금융기관의 대출 승인이 아닙니다.", "현재 간이 세금·대출 모델의 결과입니다. 실제 조건은 별도 확인해야 합니다.",
+                     *(["승계 보증금은 잔금에서 차감했지만 임대차 종료 때 현금으로 반환해야 하며, 임차인이 있는 주택의 대출 규정은 반영하지 않았습니다."] if _number(summary.get("assumed_deposit"), minimum=1) is not None else [])],
         review_target="simulation", review_label="자금 조건 확인·재계산"), usable
 
 
-def _risk(candidate, analysis):
+# 서비스 참고 기준이며 법적·금융기관 기준이 아니다. 낮은 값을 안전으로 해석하지 않는다.
+HIGH_RATIO_PCT = 80.0
+
+
+def _deposit_signals(candidate, appraisal, simulation):
+    """전세가율(동일 단지 신고)과 승계 보증금 비율에서 보증금 반환 위험 신호를 만든다. 낮은 값은 신호로 쓰지 않는다."""
+    evidence, missing, high = [], [], False
+    jeonse = ((appraisal.get("summary") or {}).get("valuation") or {}).get("jeonse_context")
+    if jeonse:
+        fresh = _analysis_status(appraisal) == "confirmed" and not _source_changed(candidate)
+        ratio = _number(jeonse.get("ratio_pct"))
+        sufficient = jeonse.get("sufficient") is True and ratio is not None
+        evidence.append(_evidence("jeonse_ratio", "동일 단지 전세가율(참고)", ratio, "official_data", as_of=appraisal.get("analyzed_at"),
+                                  unit="%", usable=fresh and sufficient, provenance={k: v for k, v in jeonse.items() if k != "leases"}))
+        evidence.append(_evidence("jeonse_samples", "전세·매매 신고 표본", f"전세 {jeonse.get('lease_count', 0)}건 · 매매 {jeonse.get('sale_count', 0)}건",
+                                  "official_data", as_of=appraisal.get("analyzed_at"), usable=fresh))
+        if fresh and sufficient and ratio >= HIGH_RATIO_PCT:
+            high = True
+            missing.append(f"전세가율 {ratio:g}% (참고 기준 {HIGH_RATIO_PCT:g}% 이상): 기존 보증금·선순위 권리·반환 자금 확인")
+    funding = simulation.get("summary") or {}
+    assumed, price = _number(funding.get("assumed_deposit"), minimum=1), _number(funding.get("purchase_price"), minimum=1)
+    if assumed is not None and price is not None:
+        share = round(assumed / price * 100, 1)
+        usable = _analysis_status(simulation) == "confirmed" and price == candidate.get("asking_price") and not _source_changed(candidate)
+        evidence.append(_evidence("assumed_deposit_share", "승계 보증금 ÷ 매매가", share, "calculation", as_of=simulation.get("analyzed_at"), unit="%", usable=usable))
+        if usable and share >= HIGH_RATIO_PCT:
+            high = True
+            missing.append(f"승계 보증금이 매매가의 {share:g}%: 임대차 종료 시 반환 자금 마련 방안 확인")
+    return evidence, missing, high
+
+
+def _risk(candidate, analysis, appraisal=None, simulation=None):
     summary = analysis.get("summary") or {}
     state = _analysis_status(analysis)
     grade = summary.get("risk_grade")
@@ -248,6 +282,11 @@ def _risk(candidate, analysis):
         evidence.append(_evidence(f"document_{index}", f"{'등기부' if item.get('document_type') == 'registry' else '건축물대장'} {item.get('page')}쪽 · {item.get('item')}",
                                   item.get("excerpt"), "document", as_of=item.get("issued_at"),
                                   usable=_analysis_status(analysis) == "confirmed" and (summary.get("subject_match") or {}).get("status") not in {"mismatch", "unknown"}, provenance=item))
+    deposit_evidence, deposit_missing, deposit_high = _deposit_signals(candidate, appraisal or {}, simulation or {})
+    evidence.extend(deposit_evidence)
+    missing.extend(deposit_missing)
+    if deposit_high and state != "error":
+        state = "warning"
     source = candidate.get("source_status") or {}
     current = source.get("current") or {}
     evidence.append(_evidence("listing_confirmation", "매물 원본 확인 상태", source.get("status", "미확인"), "user_input", as_of=current.get("confirmed_at"), usable=source.get("status") == "current"))
@@ -260,10 +299,12 @@ def _risk(candidate, analysis):
         if state == "confirmed":
             state = "unknown"
     return DecisionAxis(key="risk", label="위험성", status=state,
-        headline="문서 위험 신호 확인 필요" if grade in {"danger", "caution"} else "업로드 문서 내 위험 신호 미검출" if state == "confirmed" else "문서·매물 확인 필요",
+        headline="문서 위험 신호 확인 필요" if grade in {"danger", "caution"} else "보증금 반환 관련 확인 필요" if deposit_high else "업로드 문서 내 위험 신호 미검출" if state == "confirmed" else "문서·매물 확인 필요",
         explanation="업로드한 문서에서 탐지한 신호와 확인하지 못한 정보를 구분합니다. 문서가 없거나 판독하지 못한 경우 안전으로 표시하지 않습니다.",
         evidence=evidence, missing=missing,
-        limitations=["문서 발급일과 실제 현재 권리관계의 일치, 소유자·현장 하자·공실·규제 전체는 검증하지 않았습니다.", *(summary.get("limitations") or [])],
+        limitations=["문서 발급일과 실제 현재 권리관계의 일치, 소유자·현장 하자·공실·규제 전체는 검증하지 않았습니다.",
+                     *(["전세가율·승계 보증금 비율은 서비스 참고 기준(80%)이며 낮다고 보증금 반환이 안전하다는 뜻이 아닙니다."] if deposit_evidence else []),
+                     *(summary.get("limitations") or [])],
         review_target="rights", review_label="권리 문서 확인·분석")
 
 
@@ -277,7 +318,7 @@ def assess_case_decision(case: dict, *, now: datetime | None = None) -> CaseDeci
         fit = _fit(case, candidate)
         price, gap, ratio = _price(candidate, appraisal)
         funding, usable_funding = _funding(candidate, simulation)
-        risk = _risk(candidate, rights)
+        risk = _risk(candidate, rights, appraisal, simulation)
         axes = [fit, price, funding, risk]
         # 만료 여부를 다시 계산한 상태를 다음 행동에도 사용해 화면 간 안내가 엇갈리지 않게 한다.
         actions = candidate_next_actions(case, {**candidate, "analyses": [

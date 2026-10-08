@@ -228,3 +228,48 @@ def test_rejected_candidate_has_no_next_actions(case):
     assessment = result(case)
     assert not assessment.review_ready and not assessment.next_actions
     assert assessment.axes[-1].status == "unknown"
+
+
+def jeonse(ratio, sufficient=True):
+    return {"policy_version": "PC-AVM-1.0-runtime-1", "result_kind": "market_reference", "comparison_eligible": True,
+            "subject": {}, "jeonse_context": {"ratio_pct": ratio, "sufficient": sufficient, "lease_count": 5 if sufficient else 1,
+                                              "sale_count": 6, "window_months": 6, "leases": []}}
+
+
+def test_high_jeonse_ratio_warns_but_low_or_thin_ratio_never_clears_risk(case):
+    summary(case, "appraisal")["valuation"] = jeonse(82.4)
+    risk = axis(case, "risk")
+    assert risk.status == "warning" and "보증금" in risk.headline
+    assert any("82.4%" in text for text in risk.missing)
+    assert not result(case).review_ready
+    assert any(item.key == "jeonse_ratio" and item.usable for item in risk.evidence)
+
+    summary(case, "appraisal")["valuation"] = jeonse(45.0)
+    low = axis(case, "risk")
+    assert low.status == "confirmed" and "미검출" in low.headline  # 낮은 값은 문서 판단을 바꾸지 않는다
+    assert any(item.key == "jeonse_ratio" and item.usable for item in low.evidence)
+
+    summary(case, "appraisal")["valuation"] = jeonse(90.0, sufficient=False)
+    thin = axis(case, "risk")
+    assert thin.status == "confirmed"  # 표본 부족 비율은 경고에도 쓰지 않는다
+    assert not next(item for item in thin.evidence if item.key == "jeonse_ratio").usable
+
+
+def test_stale_or_changed_source_does_not_trigger_jeonse_warning(case):
+    summary(case, "appraisal")["valuation"] = jeonse(95.0)
+    case["properties"][0]["source_status"] = {"status": "changed"}
+    risk = axis(case, "risk")
+    assert not next(item for item in risk.evidence if item.key == "jeonse_ratio").usable
+    assert not any("전세가율" in text for text in risk.missing)
+
+
+def test_assumed_deposit_share_warns_and_is_shown_on_funding(case):
+    sim = summary(case, "simulation")
+    sim.update(assumed_deposit=500_000_000, deposit_return_obligation=500_000_000)
+    risk = axis(case, "risk")
+    assert risk.status == "warning" and any("83.3%" in text for text in risk.missing)
+    funding = axis(case, "funding")
+    assert next(item for item in funding.evidence if item.key == "assumed_deposit").value == 500_000_000
+    assert any("반환" in text for text in funding.limitations)
+    sim["assumed_deposit"] = 200_000_000
+    assert axis(case, "risk").status == "confirmed"

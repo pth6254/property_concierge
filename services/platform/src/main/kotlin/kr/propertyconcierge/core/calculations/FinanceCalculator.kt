@@ -116,7 +116,8 @@ class FinanceCalculator {
             val yearlyOfficial = (bd(official) * multiplier.pow(year, MC)).won()
             holdingTax = plusExact(holdingTax, TaxRules.holding(yearlyOfficial, homes).total)
         }
-        val residence = input.residenceYears ?: if (rent > 0 || deposit > 0) 0 else input.holdingYears
+        // 임차인이 살고 있는 집을 승계하면 매수인이 거주한 기간으로 보지 않는다.
+        val residence = input.residenceYears ?: if (rent > 0 || deposit > 0 || (input.assumedDeposit ?: 0) > 0) 0 else input.holdingYears
         val tax = TaxRules.capitalGains(input.purchasePrice, sale, input.holdingYears, homes, plusExact(cost, saleFee), residence)
         val preTax = plusExact(capital, totalRent, -interest, -cost)
         val net = plusExact(preTax, -tax.tax, -holdingTax, -saleFee)
@@ -134,7 +135,8 @@ class FinanceCalculator {
     fun calculate(input: SimulationInput): SimulationResult {
         input.check()
         val acquisition = acquisition(input.purchasePrice, input.propertyType, input.ownedHomes)
-        val required = plusExact(input.purchasePrice, -input.loanAmount, acquisition.total)
+        // 승계 보증금은 매도인에게 주지 않고 임차인에게 돌려줄 의무를 넘겨받으므로 잔금에서 뺀다.
+        val required = plusExact(input.purchasePrice, -input.loanAmount, acquisition.total, -(input.assumedDeposit ?: 0))
         val equity = required - (input.rentDeposit ?: 0)
         val loan = loan(input.loanAmount, input.annualInterestRate, input.loanYears, input.repaymentType)
         val rent = input.rentFee ?: 0

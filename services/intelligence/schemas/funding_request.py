@@ -17,6 +17,7 @@ class SimulationRequest(BaseModel):
     holding_years: int = Field(3, ge=1, le=50)
     expected_annual_growth_rate: float = Field(0.0, ge=-20.0, le=50.0)
     rent_deposit: Optional[int] = None
+    assumed_deposit: Optional[int] = Field(None, ge=0, description="승계할 기존 임차 보증금. 잔금에서 차감하며 반환 의무를 넘겨받음")
     rent_fee: Optional[int] = None
     monthly_management_fee: Optional[int] = None
     property_type: str = "아파트"

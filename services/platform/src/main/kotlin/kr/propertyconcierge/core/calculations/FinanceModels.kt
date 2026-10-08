@@ -17,6 +17,8 @@ data class SimulationInput(
     val expectedAnnualGrowthRate: BigDecimal = BigDecimal.ZERO,
     val rentDeposit: Long? = null,
     val rentFee: Long? = null,
+    // 기존 임차인의 보증금을 승계해 잔금에서 빼고 지급하는 금액. 새로 받을 임대 보증금(rentDeposit)과 다르다.
+    val assumedDeposit: Long? = null,
     val monthlyManagementFee: Long? = null,
     val propertyType: String? = "아파트",
     val ownedHomes: Int = 1,
@@ -31,10 +33,13 @@ data class SimulationInput(
 ) {
     fun check() {
         money(purchasePrice, positive = true)
-        listOf(cashAvailable, loanAmount, rentDeposit, rentFee, monthlyManagementFee, officialPrice,
+        listOf(cashAvailable, loanAmount, rentDeposit, assumedDeposit, rentFee, monthlyManagementFee, officialPrice,
             annualIncome, existingLoanAnnualPayment).filterNotNull().forEach { money(it) }
         requireInput(loanAmount < purchasePrice)
         requireInput((rentDeposit ?: 0) < purchasePrice)
+        // 승계 보증금과 대출을 합친 금액이 매매가 이상이면 잔금에 낼 현금이 음수가 된다.
+        requireInput(loanAmount + (assumedDeposit ?: 0) < purchasePrice)
+        requireInput((assumedDeposit ?: 0) == 0L || (rentDeposit ?: 0) == 0L)
         requireInput((rentDeposit ?: 0) == 0L || (rentFee ?: 0) == 0L)
         requireInput(loanYears in 1..50 && holdingYears in 1..50 && ownedHomes in 1..100)
         requireInput(residenceYears == null || residenceYears in 0..100)
