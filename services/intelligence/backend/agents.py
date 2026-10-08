@@ -201,6 +201,19 @@ def _fetch_build_year(state: dict) -> tuple[int, str]:
 #  1. 주거용 에이전트 (아파트·빌라·오피스텔)
 # ═══════════════════════════════════════════════════════════════
 
+def _attach_jeonse(state: dict, price_data: dict) -> None:
+    """전세가율 참고는 부가 정보다. 조회 실패가 가격 분석을 막지 않는다."""
+    try:
+        from datetime import date
+        from backend.valuation import jeonse_context
+        plan = state["valuation_plan"]
+        context = jeonse_context.build(price_data, plan["subject"], date.fromisoformat(plan["subject"]["as_of_date"]))
+        if context:
+            plan["jeonse_context"] = context
+    except Exception as exc:
+        print(f"[jeonse] 전세가율 참고 생략: {type(exc).__name__}")
+
+
 def residential_agent(state: dict) -> dict:
     try:
         intent, geo, region, region3 = _extract_context(state)
@@ -263,6 +276,7 @@ def residential_agent(state: dict) -> dict:
 
         if state.get("valuation_plan"):
             from backend.valuation.policy import eligible_comparables, blocked_result
+            _attach_jeonse(state, price_data)
             filtered = eligible_comparables(state, price_data)
             if filtered is None:
                 return blocked_result(state, state["valuation_plan"])
@@ -273,12 +287,8 @@ def residential_agent(state: dict) -> dict:
         nearby = search_nearby_facilities(lat, lng,
             ["지하철역", "학교", "편의점", "마트", "병원"], radius=1000)
 
-        subway_m = nearby.get("지하철역", {}).get("nearest_m", 9999)
-        if subway_m <= 300:
-            val["estimated_value"] = round(val["estimated_value"] * 1.05)
-            val["value_max"]       = round(val["value_max"] * 1.05)
-        elif subway_m > 1000:
-            val["estimated_value"] = round(val["estimated_value"] * 0.97)
+        # 역 거리 가산·감액은 근거·검증이 없고, 조회 실패({})가 '역 없음'(-3%)으로 둔갑했다.
+        # 시설 정보는 설명용으로만 전달하고 가격은 비교사례 결과 그대로 둔다.
 
         web     = search_web_tavily(f"{location} 아파트 시세 매매 실거래가")
         llm_out = generate_appraisal_opinion("주거용", location, {**val, **roi}, nearby, web)

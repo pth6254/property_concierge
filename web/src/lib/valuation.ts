@@ -56,6 +56,18 @@ export type ValuationContext = {
   transaction_type: "sale" | "jeonse" | "rent" | "unknown";
   dong: string; ho: string;
 };
+export type ReferenceContext = {
+  window_months: number; area_tolerance_pct: number; time_adjusted: false; complex_name: string; trade_count: number;
+  trades: { deal_date: string; floor: string; area_sqm: number; price_won: number; price_per_sqm_won: number }[];
+  per_sqm_min_won: number | null; per_sqm_median_won: number | null; per_sqm_max_won: number | null;
+};
+export type JeonseContext = {
+  window_months: number; area_tolerance_pct: number; complex_name: string;
+  lease_count: number; sale_count: number; renewal_count: number;
+  lease_per_sqm_median_won: number | null; sale_per_sqm_median_won: number | null;
+  ratio_pct: number | null; sufficient: boolean; missing_months: number;
+  leases: { deal_date: string; area_sqm: number; deposit_won: number; deposit_per_sqm_won: number; renewal: boolean }[];
+};
 export type ValuationAssessment = {
   schema_version: string; policy_version: string; input_fingerprint: string;
   subject: ValuationContext & { category: string; subtype: string; address: string; building_name: string; area_sqm: number | null; as_of_date: string; purpose: string; identity_level: string };
@@ -64,4 +76,6 @@ export type ValuationAssessment = {
   checks: { code: string; status: string; message: string; source: string; reference_date: string | null; observed_at: string | null }[];
   methods: { method: string; status: string; reason: string; engine_version: string | null }[];
   next_actions: string[]; limitations: string[];
+  reference_context?: ReferenceContext | null;
+  jeonse_context?: JeonseContext | null;
 };

@@ -139,6 +139,8 @@ def eligible_comparables(state, price_data):
         except (ValueError, KeyError, TypeError, ZeroDivisionError):
             continue
     ok = len(selected) >= 5
+    if not ok:
+        assessment["reference_context"] = reference_context(price_data, target, as_of)
     assessment["checks"].append({"code": "comparables", "status": "available" if ok else "missing", "source": "official_data",
         "message": f"최근 6개월·동일 단지·전용면적 ±10%의 중복 제외 비교사례 {len(selected)}건 / 산출 기준 5건",
         "reference_date": target["as_of_date"], "observed_at": None})
@@ -150,6 +152,39 @@ def eligible_comparables(state, price_data):
             "avg": round(sum(s["price"] for s in selected) / len(selected)),
             "min": min(s["price"] for s in selected), "max": max(s["price"] for s in selected),
             "per_sqm_avg": round(sum(s["price"] / s["area_sqm"] for s in selected) / len(selected))}
+
+
+def reference_context(price_data, target, as_of, months=12, tolerance=.20, limit=10):
+    """보류 시 참고용으로만 보여줄 동일 단지 최근 거래. 가격 추정·시점수정에 쓰지 않는다."""
+    from backend.comparable_matching import comparable_match_level
+    index = as_of.year * 12 + as_of.month - 1 - months
+    start = date(index // 12, index % 12 + 1, 1)
+    trades, seen = [], set()
+    for row in price_data.get("samples") or []:
+        try:
+            day = date(int(row["deal_year"]), int(row["deal_month"]), int(row["deal_day"]))
+            if (comparable_match_level(row, matched_complex=price_data.get("apt_name_matched", ""),
+                    target_dong=price_data.get("target_dong", ""), target_sigungu_code=price_data.get("target_sigungu_code", "")) != "same_complex"
+                    or not start <= day <= as_of or not _positive(row.get("price")) or not _positive(row.get("area_sqm"))
+                    or abs(float(row["area_sqm"]) / target["area_sqm"] - 1) > tolerance + 1e-6
+                    or row.get("is_cancelled") or row.get("cancel_date") or row.get("cancellation_date")):
+                continue
+            identity = row.get("transaction_ref") or (day.isoformat(), row.get("floor"), row.get("area_sqm"), row["price"])
+            if identity in seen: continue
+            seen.add(identity)
+            won = round(float(row["price"]) * 10_000)  # 실거래 원자료는 만원 단위
+            trades.append((day, {"deal_date": day.isoformat(), "floor": str(row.get("floor") or ""), "area_sqm": float(row["area_sqm"]),
+                "price_won": won, "price_per_sqm_won": round(won / float(row["area_sqm"]))}))
+        except (ValueError, KeyError, TypeError, ZeroDivisionError):
+            continue
+    trades.sort(key=lambda item: item[0], reverse=True)
+    rows = [item[1] for item in trades]
+    unit = sorted(row["price_per_sqm_won"] for row in rows)
+    middle = len(unit) // 2
+    median = None if not unit else unit[middle] if len(unit) % 2 else round((unit[middle - 1] + unit[middle]) / 2)
+    return {"window_months": months, "area_tolerance_pct": round(tolerance * 100), "time_adjusted": False,
+        "complex_name": price_data.get("apt_name_matched", ""), "trade_count": len(rows), "trades": rows[:limit],
+        "per_sqm_min_won": unit[0] if unit else None, "per_sqm_median_won": median, "per_sqm_max_won": unit[-1] if unit else None}
 
 
 def finalize(state):

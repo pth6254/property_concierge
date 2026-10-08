@@ -586,6 +586,244 @@
   },
   "valuation_assessment_schema": {
     "$defs": {
+      "JeonseContext": {
+        "additionalProperties": false,
+        "description": "동일 단지 전세·매매 ㎡당 중앙값의 대조. 가격 추정이 아니며 표본이 적으면 sufficient=false다.",
+        "properties": {
+          "area_tolerance_pct": {
+            "title": "Area Tolerance Pct",
+            "type": "integer"
+          },
+          "complex_name": {
+            "title": "Complex Name",
+            "type": "string"
+          },
+          "lease_count": {
+            "title": "Lease Count",
+            "type": "integer"
+          },
+          "lease_per_sqm_median_won": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Lease Per Sqm Median Won"
+          },
+          "leases": {
+            "items": {
+              "$ref": "#/$defs/JeonseLease"
+            },
+            "title": "Leases",
+            "type": "array"
+          },
+          "missing_months": {
+            "default": 0,
+            "title": "Missing Months",
+            "type": "integer"
+          },
+          "ratio_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ratio Pct"
+          },
+          "renewal_count": {
+            "default": 0,
+            "title": "Renewal Count",
+            "type": "integer"
+          },
+          "sale_count": {
+            "title": "Sale Count",
+            "type": "integer"
+          },
+          "sale_per_sqm_median_won": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sale Per Sqm Median Won"
+          },
+          "sufficient": {
+            "default": false,
+            "title": "Sufficient",
+            "type": "boolean"
+          },
+          "window_months": {
+            "title": "Window Months",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "window_months",
+          "area_tolerance_pct",
+          "complex_name",
+          "lease_count",
+          "sale_count"
+        ],
+        "title": "JeonseContext",
+        "type": "object"
+      },
+      "JeonseLease": {
+        "properties": {
+          "area_sqm": {
+            "title": "Area Sqm",
+            "type": "number"
+          },
+          "deal_date": {
+            "title": "Deal Date",
+            "type": "string"
+          },
+          "deposit_per_sqm_won": {
+            "title": "Deposit Per Sqm Won",
+            "type": "integer"
+          },
+          "deposit_won": {
+            "title": "Deposit Won",
+            "type": "integer"
+          },
+          "renewal": {
+            "default": false,
+            "title": "Renewal",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deal_date",
+          "area_sqm",
+          "deposit_won",
+          "deposit_per_sqm_won"
+        ],
+        "title": "JeonseLease",
+        "type": "object"
+      },
+      "ReferenceContext": {
+        "additionalProperties": false,
+        "description": "가격 산출이 보류된 경우에도 사용자가 직접 볼 수 있는 동일 단지 거래 목록. 추정가로 쓰지 않는다.",
+        "properties": {
+          "area_tolerance_pct": {
+            "title": "Area Tolerance Pct",
+            "type": "integer"
+          },
+          "complex_name": {
+            "title": "Complex Name",
+            "type": "string"
+          },
+          "per_sqm_max_won": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Per Sqm Max Won"
+          },
+          "per_sqm_median_won": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Per Sqm Median Won"
+          },
+          "per_sqm_min_won": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Per Sqm Min Won"
+          },
+          "time_adjusted": {
+            "const": false,
+            "default": false,
+            "title": "Time Adjusted",
+            "type": "boolean"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          },
+          "trades": {
+            "items": {
+              "$ref": "#/$defs/ReferenceTrade"
+            },
+            "title": "Trades",
+            "type": "array"
+          },
+          "window_months": {
+            "title": "Window Months",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "window_months",
+          "area_tolerance_pct",
+          "complex_name",
+          "trade_count"
+        ],
+        "title": "ReferenceContext",
+        "type": "object"
+      },
+      "ReferenceTrade": {
+        "properties": {
+          "area_sqm": {
+            "title": "Area Sqm",
+            "type": "number"
+          },
+          "deal_date": {
+            "title": "Deal Date",
+            "type": "string"
+          },
+          "floor": {
+            "default": "",
+            "title": "Floor",
+            "type": "string"
+          },
+          "price_per_sqm_won": {
+            "title": "Price Per Sqm Won",
+            "type": "integer"
+          },
+          "price_won": {
+            "title": "Price Won",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "deal_date",
+          "area_sqm",
+          "price_won",
+          "price_per_sqm_won"
+        ],
+        "title": "ReferenceTrade",
+        "type": "object"
+      },
       "ValuationCheck": {
         "properties": {
           "code": {
@@ -822,6 +1060,17 @@
         "title": "Interval Basis",
         "type": "string"
       },
+      "jeonse_context": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/JeonseContext"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "limitations": {
         "items": {
           "type": "string"
@@ -854,6 +1103,17 @@
         "default": "PC-AVM-1.0-runtime-1",
         "title": "Policy Version",
         "type": "string"
+      },
+      "reference_context": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ReferenceContext"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       },
       "result_kind": {
         "enum": [
