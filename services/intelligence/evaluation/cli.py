@@ -102,6 +102,7 @@ def main(argv=None):
     avm_service.add_argument("--target-months", type=positive_int, default=3)
     avm_service.add_argument("--min-coverage", type=float, default=.8)
     avm_service.add_argument("--max-mape", type=float, default=.25)
+    avm_service.add_argument("--policy", action="store_true", help="PC-AVM 공통 정책을 거쳐 산출률·보류율·기준선 대비 오차를 평가")
     avm_service.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     listing = sub.add_parser("listing-check", help="실제 매물 원문과 사람이 확인한 정답 대조")
     listing.add_argument("--dataset", type=Path, required=True)
@@ -143,7 +144,7 @@ def main(argv=None):
             from dotenv import load_dotenv
             load_dotenv(ROOT / ".env", override=False)
             from evaluation.production_avm import evaluate
-            result = evaluate(args.regions, args.target_months, args.max_cases, args.min_coverage, args.max_mape)
+            result = evaluate(args.regions, args.target_months, args.max_cases, args.min_coverage, args.max_mape, args.policy)
             result["repeat"] = 1
             directory = args.output / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-avm-service-" + uuid.uuid4().hex[:8])
             write_report(directory, {"run_id": directory.name, "live": True, "created_at":datetime.now(timezone.utc).isoformat(),

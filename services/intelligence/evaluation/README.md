@@ -38,6 +38,9 @@ python -m evaluation run --suite rag --live --timeout 120
 # 실제 주거용 에이전트 가격 계산: 서초·강남·노원, 면적·연식별 과거 거래 재생
 python -m evaluation avm-service --regions 11650 11680 11350 --target-months 3 --max-cases 30
 
+# PC-AVM-1.0-runtime-1 정책을 거친 산출률·보류율·보류 원인·기준선 대비 오차 (같은 대상·같은 과거 자료)
+python -m evaluation avm-service --policy --regions 11650 11680 11350 --target-months 3 --max-cases 100
+
 # CatBoost 후보 학습과 기존 서비스 AVM의 같은 거래 비교 (별도 ML 의존성 필요)
 python -m pip install -r services/intelligence/requirements-ml.txt
 python -m evaluation avm-compare --regions 11650 11680 11350 --test-start 202607 --test-end 202608 --max-cases 300
@@ -157,6 +160,12 @@ PostgreSQL `DATABASE_URL`을 환경 또는 비공개 `.env`에 명시해야 한�
 `avm-service`는 실제 `residential_agent`와 실거래 매칭·면적·층 필터·가격 계산을 재사용한다.
 2026-09-30 서초·강남·노원 30개 표본은 모두 추정 가능했으며 MAPE 8.8%, ±10% 적중률 60%였다.
 같은 날 공식 법령 검색 정답셋 30건은 모두 통과했다. 이는 작은 표본의 계산·검색 결과이며 답변 전체 품질이나 전체 지역 정확도 보장이 아니다.
+`avm-service --policy`는 보류를 오차 0이나 정답으로 계산하지 않고 `withheld_rate`와 보류 원인(`complex_not_matched`·`no_recent_trades`·`insufficient_samples`·`input_*`)을 따로 기록한다.
+2026-10-07 서초·강남·노원 100건(저장 실거래, 시설·웹·LLM 비움): 산출 5건·보류 95건, 산출분 MAPE 6.8%·±10% 적중 80%(표본 5건이라 참고 불가),
+정책 이전 기준선 전체 MAPE 14.7%. 이 표본은 면적·연식 그룹을 번갈아 뽑아 소형 단지가 많아 **대표 표본이 아니다**.
+같은 시점의 무작위 대상 450건 단순 집계(동일 단지·6개월·±10%·5건)로는 통과율 서초 24%·강남 38%·노원 84%(전체 약 49%)였다.
+새 정책의 정확도 검증이 아니라 보류율 확인이며, 기준 5건 자체의 적정성은 별도 검토 대상이다.
+
 저장 실거래를 지역·대상월·면적·연식에 걸쳐 결정적으로 추출하며 대상 월 및 이후 거래와
 해제 거래를 비교사례에서 제외한다. 지역·면적·연식·매칭별 오차, ±10% 적중률, 범위 적중률,
 미추정 수를 JSON·HTML에 기록한다. 데이터 없는 지역·미추정은 성공으로 처리하지 않는다.

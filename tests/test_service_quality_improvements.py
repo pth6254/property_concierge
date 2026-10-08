@@ -85,6 +85,21 @@ def test_real_agent_replay_excludes_target_month_and_future(monkeypatch):
     assert not absent["estimated"] and absent["ape"] is None
 
 
+def test_policy_replay_withholds_below_five_and_classifies_reason():
+    from evaluation.production_avm import replay_one
+    target={"deal_ym":"202608","apt_name":"검증단지","dong":"반포동","area_sqm":84,"price":50000,"floor":"10","year_built":"2010"}
+    def trade(day):
+        return {**target,"price":49000,"per_sqm":49000/84,"deal_ym":"202607","deal_year":2026,"deal_month":7,"deal_day":str(day),
+                "floor":str(day),"is_cancelled":False}
+    enough=replay_one(target,{"202607":[trade(day) for day in range(1,6)]},"11650","서초구",policy=True)
+    assert enough["estimated"] and enough["result_kind"]=="market_reference" and enough["withheld_reason"]==""
+    few=replay_one(target,{"202607":[trade(day) for day in range(1,4)]},"11650","서초구",policy=True)
+    assert not few["estimated"] and few["ape"] is None and few["result_kind"]=="withheld"
+    assert few["withheld_reason"]=="insufficient_samples"
+    empty=replay_one(target,{},"11650","서초구",policy=True)
+    assert not empty["estimated"] and empty["withheld_reason"] in {"complex_not_matched","no_recent_trades"}
+
+
 def test_feedback_owner_operator_status_and_anonymous_boundaries(client,monkeypatch):
     own=client.get("/api/auth/me").json()["id"]
     result=client.post("/api/feedback",json={"feature":"explore","category":"confusing","message":"면적 조건 안내가 어려워요"})
