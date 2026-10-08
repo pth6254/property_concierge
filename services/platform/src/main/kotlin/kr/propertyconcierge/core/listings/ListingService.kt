@@ -101,6 +101,23 @@ class ListingService(private val jdbc: JdbcTemplate, private val json: ObjectMap
             WHERE i.user_id=? AND i.id=? ORDER BY r.id DESC LIMIT 100""", owner, id)
         return mapOf("items" to rows.map { payload(it).put("imported_at", Instant.ofEpochMilli(((it["imported_at"] as Number).toDouble()*1000).toLong()).toString()) })
     }
+    private val naverHost = Regex("""^https://(land|new\.land|fin\.land|m\.land)\.naver\.com/""")
+    private fun article(url: String?): String? {
+        if (url == null || !naverHost.containsMatchIn(url)) return null
+        return Regex("""/articles/([0-9]+)""").find(url)?.groupValues?.get(1) ?: Regex("""[?&]articleNo=([0-9]+)""").find(url)?.groupValues?.get(1)
+    }
+    /** 저장된 확인값과 원문 수집 시도를 나눠 보여준다. 조회 중 외부 호출이나 상태 변경은 하지 않는다. */
+    fun timeline(owner: Long, id: Long): JsonNode {
+        val current = get(owner, id)
+        val revisions = jdbc.queryForList("""SELECT r.payload,r.imported_at FROM listing_revisions r JOIN imported_listings i ON i.id=r.listing_id
+            WHERE i.user_id=? AND i.id=? ORDER BY r.id ASC LIMIT 500""", owner, id)
+            .map { (it["imported_at"] as Number).toDouble() to (json.readTree(it["payload"].toString()) as JsonNode) }
+        val articleNo = article(current.path("source_url").asText(null))
+        val observations = if (articleNo == null) emptyList() else
+            jdbc.queryForList("SELECT fetched_at,outcome,payload FROM listing_observations WHERE user_id=? AND external_id=? ORDER BY fetched_at DESC,id DESC LIMIT 200", owner, articleNo)
+                .map { Triple((it["fetched_at"] as Number).toDouble(), it["outcome"].toString(), json.readTree(it["payload"].toString()) as JsonNode) }
+        return ListingTimeline(json).build(id, revisions, observations, current.path("needs_confirmation").asBoolean(false))
+    }
     fun import(owner: Long, source: String, csv: String, commit: Boolean): JsonNode {
         if (source.isBlank() || source.length > 100 || source.contains('\u0000') || csv.isBlank() || csv.length > 1_000_000)
             throw ApiFailure(422, "출처와 CSV 입력을 확인해주세요")

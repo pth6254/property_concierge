@@ -197,6 +197,7 @@ Docker의 Spring·AI API·작업 실행기·웹에 반영한 뒤 실제 카카�
 - `POST /api/listings/import`: `{source_name, csv_text, commit:false}`로 검증, `commit:true`로 재검증 후 저장.
 - `GET /api/listings`: 페이지당 기본 20건(최대 100건). region_code, property_type, transaction_type, status, budget_max(원), area_min(㎡), fresh_only, page, page_size 필터.
 - `GET /api/listings/{id}/history`: 본인 매물 이력. 타 사용자 자료는 404.
+- `GET /api/listings/{id}/timeline`: 저장한 확인값 이력과 원문 수집 시도를 나눈 요약(아래 매물 타임라인). 본인 자료만, 타인은 404.
 - `POST /api/listings/{id}/candidate`: `{case_id}`. 본인 매물과 본인 케이스를 검증하고 서버의 매물 값을 후보로 저장. 전세·월세는 현재 매수 케이스로 변환하지 않음.
 
 실제 환경 적용 전에 `alembic -c services/intelligence/alembic.ini upgrade head`를 실행한다. 신규 리비전은 `k0b1d2e3f456`. 새 테이블 2개만 추가하며 기존 실거래·RAG 테이블을 변경하지 않는다. 운영 Docker의 기존 Alembic 선행 기동 순서를 유지한다.
@@ -260,6 +261,21 @@ CSV에는 `building_dong`, `unit_number`, `area_basis`를 추가할 수 있으�
 <a id="listing-collection"></a>
 
 ## 원문 수집과 시점·상태 관리
+
+### 매물 타임라인 (2026-10-08)
+
+`ListingTimeline`(Kotlin)이 기존 `listing_revisions`(사용자가 저장한 확인값)와 `listing_observations`(원문 수집 시도)에서 읽기 전용으로 만든다.
+새 테이블·외부 호출·상태 변경이 없다. 결과는 두 흐름을 섞지 않는다.
+
+- 가격 요약: 거래 유형별로 매매 `asking_price`, 전세 `deposit`, 월세 `deposit`·`monthly_rent`의 최초 값·현재 값·저장값이 바뀐 횟수·최저/최고·누적 변화율.
+  변화율의 분모가 0이면 `null`이다. 저장 시점 사이는 값이 유지된 계단형으로만 그리며 중간 값을 추정하지 않는다.
+- 기간은 항상 서비스 관측기간(`basis=service_observed`)이다. 광고 최초 게시일을 알 수 없으므로 서비스가 저장하기 전 변화는 모른다.
+- 상태 변경은 사용자가 저장한 값 사이의 변화만 보인다. 수집 실패·접근 제한·페이지 미노출(`blocked`·`unavailable` 등)은 거래 완료나 가격 변경으로 해석하지 않고
+  `collection`에 시도 횟수·읽음/못 읽음·최근 10건으로만 표시한다.
+- 원문을 읽은 시도의 표시 가격이 저장값과 다르면 `differs_from_saved`로 알리기만 한다. 사용자가 확인해 직접 저장하기 전에는 저장값·후보·분석을 바꾸지 않는다.
+- 가격 인하 이력은 협상 근거 준비용 참고이며 협상 가능성이나 매도인 사정을 확정하지 않는다. 같은 화면에 실거래·AVM 비교를 겹치는 일은 아직 하지 않았다.
+
+검증: Kotlin 단위 3건(`ListingTimelineTest`)과 실제 Spring·PostgreSQL 통합(`ListingPersistenceIT`의 타임라인·타인 404). 화면은 타입·린트만 통과했으며 브라우저 흐름 검증은 아직 없다.
 
 `/listings`의 ‘매물 원문 불러오기 · 시점 이력’에서 네이버 개별 매물 링크를 조회한다. Playwright Chromium을 백그라운드 작업으로 실행하며 작업 상태는 기존 Redis 작업 관리자에 저장한다. 사용자당 요청 간격은 1분, 브라우저 작업 제한은 45초다.
 

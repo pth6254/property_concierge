@@ -61,6 +61,17 @@ async function request<T>(path: string, body?: object, timeout = 15000): Promise
   }
   return response.json();
 }
+export type ListingTimeline = {
+  listing_id: number; basis: "service_observed"; transaction_type?: string; needs_confirmation?: boolean;
+  points: { confirmed_at: string; imported_at: string; status: string; asking_price: number | null; deposit: number | null; monthly_rent: number | null }[];
+  metrics: { key: string; label: string; initial: number; current: number; change_count: number; lowest: number; highest: number; cumulative_change_pct: number | null }[];
+  status_changes: { at: string; from: string; to: string }[];
+  period: { first_confirmed_at: string; last_confirmed_at: string; days: number; saved_versions: number } | null;
+  collection: { attempts: number; observed: number; unreadable: number; last_attempt_at: string | null; last_outcome?: string;
+    recent: { fetched_at: string; outcome: string; differs_from_saved?: boolean; differing_fields?: string[];
+      observed_asking_price?: number; observed_deposit?: number; observed_monthly_rent?: number }[] };
+  limitations: string[];
+};
 export const listingApi = {
   addresses: (query: string) => request<{items:ListingAddressChoice[]}>(`/address/search?${new URLSearchParams({query})}`, undefined, 25000),
   building: (input: {address_token: string; building_id?: string; building_dong?: string; unit_number?: string; property_type: string}) =>
@@ -71,6 +82,7 @@ export const listingApi = {
   observations: (source_url: string) => request<{items:ListingObservation[]}>(`/collection/history?${new URLSearchParams({source_url})}`),
   import: (source_name: string, csv_text: string, commit = false) => request<ListingImportResult>("/import", {source_name, csv_text, commit}),
   search: (params: URLSearchParams) => request<{items: ImportedListing[]; total: number}>(`?${params}`),
+  timeline: (id: number) => request<ListingTimeline>(`/${id}/timeline`),
   history: (id: number) => request<{items: (ImportedListing & {imported_at: string})[]}>(`/${id}/history`),
   saveCandidate: (id: number, case_id: number) => request<{id:number}>(`/${id}/candidate`, {case_id}),
 };

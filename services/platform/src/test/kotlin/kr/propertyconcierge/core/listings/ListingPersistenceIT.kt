@@ -15,6 +15,13 @@ class ListingPersistenceIT : PlatformIntegrationSupport() {
         val saved = body(request("GET", "/api/listings", cookie=cookie)).path("items").single()
         assertEquals(700_000_000L, saved.path("asking_price").asLong()); assertEquals("withdrawn", saved.path("status").asText())
         assertEquals(2, body(request("GET", "/api/listings/${saved.path("id").asLong()}/history", cookie=cookie)).path("items").size())
+        // 타임라인은 같은 이력에서 만들며 저장하지 않은 값이나 수집 시도를 가격 변경으로 만들지 않는다.
+        val timeline = body(request("GET", "/api/listings/${saved.path("id").asLong()}/timeline", cookie=cookie))
+        assertEquals(2, timeline.path("period").path("saved_versions").asInt())
+        val metric = timeline.path("metrics").single()
+        assertEquals(1, metric.path("change_count").asInt()); assertEquals(700_000_000L, metric.path("current").asLong())
+        assertEquals("withdrawn", timeline.path("status_changes").single().path("to").asText())
+        assertEquals(0, timeline.path("collection").path("attempts").asInt())
     }
     @Test fun `배치 중간의 상충 갱신은 새 행과 변경 이력까지 롤백한다`() {
         val (_, cookie) = register(); val first = row()
@@ -49,6 +56,7 @@ class ListingPersistenceIT : PlatformIntegrationSupport() {
         assertEquals(0, body(request("GET", "/api/listings", cookie=other)).path("total").asInt())
         request("GET", "/api/listings/$id", cookie=other, expected=404)
         request("GET", "/api/listings/$id/history", cookie=other, expected=404)
+        request("GET", "/api/listings/$id/timeline", cookie=other, expected=404)
         request("POST", "/api/listings/$id/candidate", mapOf("case_id" to case), other, 404)
     }
 }

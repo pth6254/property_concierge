@@ -7,7 +7,8 @@ import ListingLinkForm from "@/components/ListingLinkForm";
 import PropertyIdentityDetails from "@/components/PropertyIdentityDetails";
 import BuildingRegisterDetails from "@/components/BuildingRegisterDetails";
 import { api } from "@/lib/api";
-import { listingApi, type ImportedListing, type ListingImportResult } from "@/lib/listings";
+import { listingApi, type ImportedListing, type ListingImportResult, type ListingTimeline } from "@/lib/listings";
+import ListingTimelinePanel from "@/components/ListingTimelinePanel";
 import type { PurchaseCase } from "@/lib/types";
 import DecisionJourney from "@/components/DecisionJourney";
 import type { ListingEntryContext } from "@/lib/listingNavigation";
@@ -29,7 +30,7 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
   const [loading, setLoading] = useState(true);
   const [casesLoading, setCasesLoading] = useState(true);
   const [focusedListing, setFocusedListing] = useState(entry.listingId ?? "");
-  const [notice, setNotice] = useState(""); const [history, setHistory] = useState<string[]>([]);
+  const [notice, setNotice] = useState(""); const [history, setHistory] = useState<string[]>([]); const [timeline, setTimeline] = useState<ListingTimeline | null>(null);
   const sequence = useRef(0); const lock = useRef(false);
   const [applied, setApplied] = useState(""); const [refresh, setRefresh] = useState(0);
   useEffect(() => {
@@ -132,10 +133,11 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
       <p className="text-xs">출처 {item.source_name} / {item.external_id} · 확인 {new Date(item.confirmed_at).toLocaleString("ko-KR")}</p>
       {item.last_collection_at&&<p className="text-xs text-slate-600">최근 수집 시도 {new Date(item.last_collection_at*1000).toLocaleString("ko-KR")} · {COLLECTION_LABELS[item.last_collection_outcome||""]} · 마지막 원문 확인 {item.last_seen_at?new Date(item.last_seen_at*1000).toLocaleString("ko-KR"):"없음"}</p>}
       {item.source_url&&<a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">원문 확인</a>}
-      <div className="flex gap-3"><button disabled={busy||casesLoading||item.needs_confirmation||item.status!=="active"||!item.region_linked||item.transaction_type!=="purchase"} onClick={()=>save(item)} className="rounded border px-3 py-1 text-sm disabled:opacity-40">매수 후보 저장</button><button className="text-sm underline" onClick={async()=>{try{const r=await listingApi.history(item.id);setHistory(r.items.map(h=>`${h.confirmed_at} · ${STATUS[h.status]} · 희망가 ${money(h.asking_price)} · 보증금 ${money(h.deposit)} · 월세 ${money(h.monthly_rent)}`));}catch{setError("이력을 불러오지 못했습니다.");}}}>변경 이력</button></div>
+      <div className="flex gap-3"><button disabled={busy||casesLoading||item.needs_confirmation||item.status!=="active"||!item.region_linked||item.transaction_type!=="purchase"} onClick={()=>save(item)} className="rounded border px-3 py-1 text-sm disabled:opacity-40">매수 후보 저장</button><button className="text-sm underline" onClick={async()=>{try{setTimeline(await listingApi.timeline(item.id));}catch{setError("타임라인을 불러오지 못했습니다.");}}}>타임라인</button><button className="text-sm underline" onClick={async()=>{try{const r=await listingApi.history(item.id);setHistory(r.items.map(h=>`${h.confirmed_at} · ${STATUS[h.status]} · 희망가 ${money(h.asking_price)} · 보증금 ${money(h.deposit)} · 월세 ${money(h.monthly_rent)}`));}catch{setError("이력을 불러오지 못했습니다.");}}}>변경 이력</button></div>
     </article>)}</div>
     {!loading&&!items.length&&<div className="rounded-xl border border-dashed border-slate-300 p-8 text-center"><p className="text-slate-600">등록된 매물이 없거나 검색 조건에 맞는 자료가 없습니다.</p><a href="#register-listing" onClick={()=>setRegistrationOpen(true)} className="mt-3 inline-block font-semibold text-primary underline">매물 등록 시작하기</a><Link href="/explore" className="ml-4 text-sm text-primary underline">동네부터 찾아보기</Link></div>}
     {total>20&&!focusedListing&&<div className="flex items-center justify-center gap-3"><button className="rounded-lg border px-3 py-2 disabled:opacity-40" disabled={page===1||loading} onClick={()=>{setLoading(true);setPage(v=>v-1);}}>이전</button><span>{page}페이지</span><button className="rounded-lg border px-3 py-2 disabled:opacity-40" disabled={page*20>=total||loading} onClick={()=>{setLoading(true);setPage(v=>v+1);}}>다음</button></div>}
+    {timeline&&<ListingTimelinePanel value={timeline} onClose={()=>setTimeline(null)} />}
     {!!history.length&&<section className="rounded border bg-white p-4"><h2 className="font-bold">최근 변경 이력 (최대 100건)</h2>{history.map((h,i)=><p key={i} className="text-sm">{h}</p>)}<button className="text-sm underline" onClick={()=>setHistory([])}>닫기</button></section>}
   </div>;
 }
