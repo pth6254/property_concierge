@@ -92,6 +92,8 @@ export const listingApi = {
   observations: (source_url: string) => request<{items:ListingObservation[]}>(`/collection/history?${new URLSearchParams({source_url})}`),
   import: (source_name: string, csv_text: string, commit = false) => request<ListingImportResult>("/import", {source_name, csv_text, commit}),
   search: (params: URLSearchParams) => request<{items: ImportedListing[]; total: number}>(`?${params}`),
+  confirm: (id: number, body: { confirmed_at: string; status: string; asking_price?: number; deposit?: number; monthly_rent?: number }) =>
+    request<ImportedListing>(`/${id}/confirm`, body),
   marketOverlay: (id: number) => request<ListingMarketOverlay>(`/${id}/market-overlay`, undefined, 30000),
   timeline: (id: number) => request<ListingTimeline>(`/${id}/timeline`),
   history: (id: number) => request<{items: (ImportedListing & {imported_at: string})[]}>(`/${id}/history`),

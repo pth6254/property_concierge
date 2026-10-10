@@ -72,6 +72,28 @@ class ListingPersistenceIT : PlatformIntegrationSupport() {
         val (_, other) = register()
         request("GET", "/api/listings/$id/market-overlay", cookie=other, expected=404)
     }
+    @Test fun `재확인은 확인 시각·상태·가격만 새 이력으로 저장하고 이전 시각·잘못된 금액·타인 매물은 거부한다`() {
+        val (_, cookie) = register(); import(cookie, listOf(row(time=Instant.now().minusSeconds(9*86400))))
+        val id = body(request("GET", "/api/listings", cookie=cookie)).path("items").single().path("id").asLong()
+        assertTrue(body(request("GET", "/api/listings/$id", cookie=cookie)).path("needs_confirmation").asBoolean())
+        val checked = Instant.now().minusSeconds(5)
+        val saved = body(request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to checked.toString(), "status" to "active", "asking_price" to 790_000_000), cookie))
+        assertFalse(saved.path("needs_confirmation").asBoolean()); assertEquals(790_000_000L, saved.path("asking_price").asLong())
+        // 물건 정보와 별칭은 그대로 둔다
+        assertEquals("101동", saved.path("building_dong").asText()); assertEquals("임장", saved.path("alias").asText()); assertEquals(84.9, saved.path("area_sqm").asDouble())
+        assertEquals(2, body(request("GET", "/api/listings/$id/history", cookie=cookie)).path("items").size())
+        // 같은 시각 재저장, 매매에 보증금, 0원, 미래 시각, 잘못된 상태는 저장하지 않는다
+        request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to checked.toString(), "status" to "active", "asking_price" to 780_000_000), cookie, 409)
+        val later = Instant.now().toString()
+        request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to later, "status" to "active", "asking_price" to 1, "deposit" to 1), cookie, 422)
+        request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to later, "status" to "active", "asking_price" to 0), cookie, 422)
+        request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to Instant.now().plusSeconds(3600).toString(), "status" to "active", "asking_price" to 1), cookie, 422)
+        request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to later, "status" to "sold", "asking_price" to 1), cookie, 422)
+        request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to "2026-10-10T10:00:00", "status" to "active", "asking_price" to 1), cookie, 422)
+        assertEquals(2, body(request("GET", "/api/listings/$id/history", cookie=cookie)).path("items").size())
+        val (_, other) = register()
+        request("POST", "/api/listings/$id/confirm", mapOf("confirmed_at" to later, "status" to "active", "asking_price" to 1), other, 404)
+    }
     @Test fun `타인의 매물 이력과 후보 저장은 모두 404이다`() {
         val (_, cookie) = register(); import(cookie, listOf(row()))
         val id = body(request("GET", "/api/listings", cookie=cookie)).path("items").single().path("id").asLong()

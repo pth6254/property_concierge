@@ -78,10 +78,10 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_mo
     await card.getByText(`예상 필요 현금 ${item.funding_preview.summary.required_cash.toLocaleString()}원 · 월 상환액 ${item.funding_preview.summary.monthly_payment.toLocaleString()}원`,{exact:true}).waitFor();
     check('실제 계산기의 필요 현금·월 상환액을 단지 카드에 표시');
     await card.getByRole('button',{name:'매물 링크 없이 후보 직접 입력'}).click();
-    assert.equal(await card.getByLabel('확인한 희망가 (만원, 선택)').inputValue(),'');
+    assert.equal(await card.getByLabel('확인한 희망가 (선택)',{exact:true}).inputValue(),'');
     await card.getByLabel('검토 주소',{exact:true}).fill('서울특별시 강남구 역삼동 123');
     await card.getByLabel('실제 검토 전용면적 (㎡)').fill('84');
-    await card.getByLabel('확인한 희망가 (만원, 선택)').fill('80000');
+    await card.getByLabel('확인한 희망가 (선택)',{exact:true}).fill('8억');
     await card.getByRole('button',{name:'케이스에 후보 저장',exact:true}).click();
     await card.getByRole('button',{name:'이 케이스에 후보 저장됨'}).waitFor();
     const detail=await(await context.request.get(`/api/cases/${target.id}`)).json();

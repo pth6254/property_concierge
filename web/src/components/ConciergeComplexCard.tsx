@@ -4,6 +4,8 @@ import { useState } from "react";
 import ExternalListingLink from "@/components/ExternalListingLink";
 import ComplexAddressDetails from "@/components/ComplexAddressDetails";
 import type { ConciergeComplex } from "@/lib/types";
+import MoneyInput from "@/components/MoneyInput";
+import { parseWon } from "@/lib/moneyInput";
 
 export type ComplexCandidateInput = { name: string; address: string; area_sqm: number; asking_price?: number };
 
@@ -21,7 +23,8 @@ export default function ConciergeComplexCard({ item, region, disabled, onSave, c
   const save = async () => {
     if (disabled || saving) return;
     const sqm = Number(area);
-    const won = price ? Math.round(Number(price) * 10000) : undefined;
+    // 다른 화면과 같은 금액 규칙(숫자만 = 원, 억·만 허용)을 쓴다. 이전에는 이 칸만 만원 숫자였다.
+    const won = price.trim() ? parseWon(price) : undefined;
     if (!address.trim() || !Number.isFinite(sqm) || sqm <= 0 || (won !== undefined && (!Number.isSafeInteger(won) || won <= 0))) {
       setError("주소와 실제 검토할 전용면적을 입력해주세요. 희망가는 양수로 입력하거나 비워둘 수 있습니다."); return;
     }
@@ -49,7 +52,7 @@ export default function ConciergeComplexCard({ item, region, disabled, onSave, c
     {open && <div className="space-y-3 border-t border-slate-100 pt-3">
     <label className="block">검토 주소<input value={address} onChange={(e) => setAddress(e.target.value)} disabled={disabled || saving} className="mt-1 w-full rounded border border-slate-300 p-2" /></label>
     <label className="block">실제 검토 전용면적 (㎡)<input type="number" min="0.01" step="any" value={area} onChange={(e) => setArea(e.target.value)} disabled={disabled || saving} placeholder="검토할 주택의 면적 입력" className="mt-1 w-full rounded border p-2" /></label>
-    <label className="block">확인한 희망가 (만원, 선택)<input type="number" min="1" step="any" value={price} onChange={(e) => setPrice(e.target.value)} disabled={disabled || saving} placeholder="평균 실거래가는 자동 입력하지 않습니다" className="mt-1 w-full rounded border p-2" /></label>
+    <label className="block">확인한 희망가 (선택)<MoneyInput aria-label="확인한 희망가 (선택)" value={price} onChange={setPrice} disabled={disabled || saving} smallWarningBelow={10_000_000} placeholder="예: 8억 · 평균 실거래가는 자동 입력하지 않습니다" className="mt-1 w-full rounded border p-2" /></label>
     <p className="text-slate-500">주소·면적을 확인해 저장하세요. 자금 분석에는 실제 희망가가 필요합니다.</p>
     {error && <p role="alert" className="text-red-600">{error}</p>}
     <button type="button" onClick={save} disabled={disabled || saving} className="rounded bg-primary px-3 py-2 text-white disabled:opacity-40">{saving ? "저장 중…" : saveLabel}</button>

@@ -145,6 +145,20 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_mo
     await active.getByRole('button',{name:'변경 이력'}).click();await active.getByRole('heading',{name:'최근 변경 이력 (최대 100건)'}).waitFor();
     check('보관함: 저장 불가 사유 표시, 타임라인·변경 이력을 누른 카드 안에 표시');
 
+    // 7-1) 다시 확인해 저장: 상태·가격만 새 이력으로 저장하고 저장 불가 사유가 풀린다
+    await withdrawn.getByRole('button',{name:'다시 확인해 저장'}).click();
+    const confirmForm=withdrawn.getByRole('form',{name:'안전장치 철회 매물 다시 확인'});
+    await confirmForm.getByLabel('거래 상태',{exact:true}).selectOption('active');
+    await confirmForm.getByLabel('확인한 희망가',{exact:true}).fill('7억 500만');await confirmForm.getByText('= 7억 500만원',{exact:true}).waitFor();
+    await confirmForm.getByRole('button',{name:'확인 내용 저장'}).click();
+    await page.getByRole('status').filter({hasText:'안전장치 철회 매물의 확인 내용을 저장했습니다'}).waitFor();
+    assert.equal(await withdrawn.getByText('후보 저장 불가',{exact:false}).count(),0);
+    assert.equal(await withdrawn.getByRole('button',{name:'매수 후보 저장'}).isDisabled(),false);
+    const reconfirmed=(await(await context.request.get('/api/listings')).json()).items.find(item=>item.external_id==='ux-withdrawn');
+    assert.equal(reconfirmed.status,'active');assert.equal(reconfirmed.asking_price,705000000);assert.equal(reconfirmed.address,'서울특별시 강남구 역삼동 124');
+    assert.equal((await(await context.request.get(`/api/listings/${reconfirmed.id}/history`)).json()).items.length,2);
+    check('보관함: 다시 확인해 저장 → 상태·가격만 새 이력으로 저장, 저장 불가 사유 해제');
+
     await page.screenshot({path:path.join(output,'ux-safeguards-browser.png'),fullPage:true});
     await page.setViewportSize({width:390,height:844});await page.goto(`/cases/${caseId}`);await page.getByRole('heading',{name:'화면 안전장치 검증 케이스'}).waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);

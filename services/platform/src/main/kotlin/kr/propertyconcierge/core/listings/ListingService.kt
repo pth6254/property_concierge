@@ -9,6 +9,11 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Service
 import org.springframework.transaction.support.TransactionTemplate
 import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
+
+/** 사용자가 원본을 다시 확인한 결과. 금액은 원 단위이며 거래 유형에 맞는 항목만 받는다. */
+data class ListingConfirmation(val confirmedAt: String, val status: String, val askingPrice: Long?, val deposit: Long?, val monthlyRent: Long?)
 
 data class ListingFilters(val regionCode: String?, val propertyType: String?, val transactionType: String?,
     val status: String?, val budgetMax: Long?, val areaMin: Double?, val freshOnly: Boolean, val page: Int, val pageSize: Int)
@@ -137,6 +142,47 @@ class ListingService(private val jdbc: JdbcTemplate, private val json: ObjectMap
                 it["analyzed_at"]?.toString(), json.readTree(it["summary"].toString())) }
         return ListingMarketOverlay(json).build(listing, trades, analyses)
     }
+    /**
+     * 기존 매물의 확인 시각·거래 상태·가격만 다시 저장한다.
+     * CSV를 다시 올리면 주소·건축물 확인 서명을 다시 요구해 저장된 주소 근거가 빠질 수 있어 별도 경로를 둔다.
+     * 이름·주소·면적·동호는 바꾸지 않는다(물건이 바뀌면 새 매물로 등록). 이전 값은 변경 이력에 남는다.
+     */
+    fun confirm(owner: Long, id: Long, input: ListingConfirmation): JsonNode {
+        val confirmed = try { OffsetDateTime.parse(input.confirmedAt).toInstant() }
+            catch (error: DateTimeParseException) { throw ApiFailure(422, "확인 시각은 시간대를 포함한 ISO 형식이어야 합니다") }
+        if (confirmed.isAfter(Instant.now().plusSeconds(300))) throw ApiFailure(422, "미래 확인 시각은 사용할 수 없습니다")
+        if (input.status !in setOf("active", "withdrawn", "completed", "unknown")) throw ApiFailure(422, "거래 상태를 확인해주세요")
+        transaction.execute {
+            val existing = jdbc.queryForList("SELECT * FROM imported_listings WHERE id=? AND user_id=? FOR UPDATE", id, owner).firstOrNull()
+                ?: throw ApiFailure(404, "매물을 찾을 수 없습니다")
+            if (confirmed.epochSecond + confirmed.nano / 1e9 <= requireNotNull(number(existing, "confirmed_at")))
+                throw ApiFailure(409, "저장된 확인 시각보다 나중의 확인 시각을 입력해주세요")
+            val data = payload(existing)
+            // 가격 규칙은 CSV 검증(ListingInput.check_prices)과 같게 유지한다.
+            val type = data.path("transaction_type").asText()
+            fun amount(value: Long?, label: String, positive: Boolean, max: Long = 1_000_000_000_000_000L): Long {
+                if (value == null || value < 0 || (positive && value == 0L) || value > max) throw ApiFailure(422, "$label 금액을 확인해주세요")
+                return value
+            }
+            val price = when (type) {
+                "purchase" -> { if (input.deposit != null || input.monthlyRent != null) throw ApiFailure(422, "매매는 희망가만 입력해야 합니다")
+                    amount(input.askingPrice, "희망가", true).also { data.put("asking_price", it) } }
+                "lease" -> { if (input.askingPrice != null || input.monthlyRent != null) throw ApiFailure(422, "전세는 보증금만 입력해야 합니다")
+                    amount(input.deposit, "보증금", true).also { data.put("deposit", it) } }
+                "rent" -> { if (input.askingPrice != null) throw ApiFailure(422, "월세는 보증금과 월세만 입력해야 합니다")
+                    data.put("monthly_rent", amount(input.monthlyRent, "월세", true, 1_000_000_000_000L))
+                    amount(input.deposit, "보증금", false).also { data.put("deposit", it) } }
+                else -> throw ApiFailure(422, "거래 유형을 확인할 수 없는 매물입니다")
+            }
+            data.put("status", input.status).put("confirmed_at", confirmed.toString())
+            val content = json.writeValueAsString(data)
+            jdbc.update("UPDATE imported_listings SET status=?,price=?,confirmed_at=?,payload=?::json WHERE id=? AND user_id=?",
+                input.status, price, confirmed.epochSecond + confirmed.nano / 1e9, content, id, owner)
+            jdbc.update("INSERT INTO listing_revisions(listing_id,imported_at,payload) VALUES (?,?,?::json)", id, now(), content)
+        }
+        return get(owner, id)
+    }
+
     fun import(owner: Long, source: String, csv: String, commit: Boolean): JsonNode {
         if (source.isBlank() || source.length > 100 || source.contains('\u0000') || csv.isBlank() || csv.length > 1_000_000)
             throw ApiFailure(422, "출처와 CSV 입력을 확인해주세요")

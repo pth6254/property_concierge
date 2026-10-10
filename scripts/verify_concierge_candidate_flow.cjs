@@ -11,8 +11,8 @@ try{
  let result=await ask('서울특별시 강남구 역삼동 8억 이하 아파트 매매 단지 추천해줘');assert.equal(result.tool_used,'select_properties');
  const item=result.data.results[0];const card=page.getByRole('article',{name:`${item.complex_name} 후보 저장`});
  await card.getByRole('button',{name:'매물 링크 없이 후보 직접 입력'}).click();
- assert.equal(await card.getByLabel('확인한 희망가 (만원, 선택)').inputValue(),'');
- await card.getByLabel('실제 검토 전용면적 (㎡)').fill('49');await card.getByLabel('확인한 희망가 (만원, 선택)').fill('70000');
+ assert.equal(await card.getByLabel('확인한 희망가 (선택)',{exact:true}).inputValue(),'');
+ await card.getByLabel('실제 검토 전용면적 (㎡)').fill('49');await card.getByLabel('확인한 희망가 (선택)',{exact:true}).fill('7억');
  await card.getByRole('button',{name:'후보 저장·선택'}).click();await page.getByText(/후보를 저장하고 선택했습니다/).waitFor();
  const caseId=Number(await page.getByLabel('검토 케이스',{exact:true}).inputValue());const candidateId=Number(await page.getByLabel('분석할 후보',{exact:true}).inputValue());assert.ok(candidateId);
  let detail=await(await context.request.get(`/api/cases/${caseId}`)).json();assert.equal(detail.properties.length,1);assert.equal(detail.properties[0].asking_price,700000000);assert.equal(detail.properties[0].area_sqm,49);assert.equal(detail.properties[0].category,'apartment');
