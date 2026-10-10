@@ -37,7 +37,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     await page.getByLabel('가정 환원율 최소(%)', { exact: true }).fill('4');
     await page.getByLabel('가정 환원율 최대(%)', { exact: true }).fill('6');
     await page.getByRole('button', { name: '수익·가격 범위 계산', exact: true }).click();
-    await page.waitForURL(/\/report\/\d+$/, { timeout: 60000 });
+    await page.waitForURL(/\/report\/\d+(\?caseId=\d+&candidateId=\d+)?$/, { timeout: 60000 });
     await page.getByText('조건부 가격 범위: 1,600,000,000원 ~ 2,700,000,000원', { exact: true }).waitFor();
     await page.getByText('4.8% ~ 5.4%', { exact: true }).waitFor();
     check('실제 입력 → Kotlin 가격·수익률 범위 → 작업 결과 이력 연결');
@@ -79,7 +79,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     await page.getByText('100.5㎡', { exact: true }).waitFor(); await page.getByText('1,234,500원', { exact: true }).waitFor();
     check('주소 선택 → PNU 대조 → 토지대장·특성·공시지가·이용계획 자동 조회');
     await page.getByRole('button', { name: '토지 공개정보 결과 저장', exact: true }).click();
-    await page.waitForURL(/\/report\/\d+$/, { timeout: 60000 });
+    await page.waitForURL(/\/report\/\d+(\?caseId=\d+&candidateId=\d+)?$/, { timeout: 60000 });
     await page.reload(); await page.getByText('필지 공개정보 · 조회됨', { exact: true }).waitFor();
     await page.getByText(pnu, { exact: true }).waitFor();
     check('토지 결과·출처·기준연도 저장 및 새로고침 복원');
@@ -93,7 +93,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     assert.equal(added.status(), 201); const apartmentId = (await added.json()).id;
     await page.goto(`/appraisal?caseId=${caseId}&candidateId=${apartmentId}`);
     await page.getByRole('button', { name: '시세추정 시작', exact: true }).click();
-    await page.waitForURL(/\/report\/\d+$/, { timeout: 60000 });
+    await page.waitForURL(new RegExp(`/report/[0-9]+[?]caseId=${caseId}&candidateId=${apartmentId}$`), { timeout: 60000 });
+    await page.getByRole('region', { name: '분석 중인 케이스 후보' }).getByRole('link', { name: '후보로 돌아가기' }).waitFor();
     await page.getByRole('heading', { name: '평가 결과 · 추정 보류', exact: true }).waitFor();
     await page.reload(); await page.getByRole('heading', { name: '평가 결과 · 추정 보류', exact: true }).waitFor();
     const apartment = (await (await context.request.get(`/api/cases/${caseId}`)).json()).properties.find(p => p.id === apartmentId);

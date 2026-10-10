@@ -442,7 +442,7 @@ sh scripts/compose.sh local up -d --build   # 운영 (override 배제)
 - `test` — PostgreSQL·Redis 서비스 컨테이너 + `alembic -c services/intelligence/alembic.ini upgrade head` + `pytest` + 오프라인 평가.
 - `frontend` — `tsc --noEmit` + `npm run lint` + `npm run build`
 - `spring` — 먼저 Kotlin의 단위·전용 Testcontainers 저장/권한/롤백 검사를 실행한다. 이어서 별도 API·작업 실행기를
-  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 9종을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
+  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 10종을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
   주소 등록·선택 별칭·매물 변경 재검토를 포함하며 결과 JSON과 화면 이미지를 아티팩트로 보관한다.
 
 **동작·API 변경 후에는 양쪽을 모두 돌려볼 것.** 백엔드만 고쳤다고 프론트가 안전한 게 아니다
@@ -535,7 +535,7 @@ node scripts/verify_decision_assessment_browser.cjs
 새 사용자가 다른 작업을 지시하면 그 범위를 따르고, 위 목록을 이미 실행한 작업으로 설명하지 않는다.
 
 **코드 쪽**
-- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 9종이 있다.
+- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 10종이 있다.
 - 후보 → 자금 화면의 입력 전달·저장·새로고침과 판단 축 표시는 브라우저로 검증했다.
   홈 → `/appraisal`, 샘플 추천 → `/simulation`의 프리필은 별도 브라우저 검증이 필요하다.
 - 실제 AVM과 권리 PDF까지 연결한 전체 흐름의 품질 검증은 아직 별도 작업이다.

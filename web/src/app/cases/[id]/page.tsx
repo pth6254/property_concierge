@@ -5,7 +5,9 @@ import PropertyIdentityFields, { identityFromForm } from "@/components/PropertyI
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Circle, FileSearch, MapPinned, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Circle, FileSearch, MapPinned, Plus } from "lucide-react";
+import ConfirmDeleteButton from "@/components/ConfirmDeleteButton";
+import MoneyInput, { wonFromInput } from "@/components/MoneyInput";
 import { api } from "@/lib/api";
 import CandidateNextActions from "@/components/CandidateNextActions";
 import CaseBuyerProfile from "@/components/CaseBuyerProfile";
@@ -66,7 +68,13 @@ export default function CaseDetailPage() {
   const [category, setCategory] = useState("");
   const [historyId, setHistoryId] = useState("");
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const load = async () => setItem(await api.caseOne(caseId));
+  // 상태 변경·삭제가 실패해도 화면이 그대로 남아 성공처럼 보이지 않게 이유를 알린다.
+  const act = async (task: () => Promise<unknown>, failure: string) => {
+    setActionError("");
+    try { await task(); await load(); } catch (reason) { setActionError(reason instanceof Error && reason.message ? `${failure} (${reason.message})` : failure); }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -79,12 +87,24 @@ export default function CaseDetailPage() {
     return () => { cancelled = true; };
   }, [caseId]);
 
+  // 분석 화면의 "후보로 돌아가기"는 #candidate-ID로 돌아온다. 자료를 비동기로 읽어 처음엔 대상이 없으므로 불러온 뒤 스크롤한다.
+  // 클라이언트 이동에서 이전 해시가 앞에 남아 "#buyer-profile#candidate-1"처럼 붙는 경우가 있어 마지막 조각을 쓴다.
+  const loadedId = item?.id;
+  useEffect(() => {
+    if (loadedId == null) return;
+    const target = decodeURIComponent(window.location.hash.split("#").filter(Boolean).pop() ?? "");
+    if (target) requestAnimationFrame(() => document.getElementById(target)?.scrollIntoView({ block: "start" }));
+  }, [loadedId]);
+
   const addProperty = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault(); setError("");
+    let askingPrice: number | undefined;
+    try { askingPrice = wonFromInput(price, "매도 희망가"); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "매도 희망가를 확인해주세요."); return; }
     try {
       await api.addCaseProperty(caseId, {
         name: name.trim(), address: address.trim(),
-        asking_price: price ? Number(price) * 10_000 : undefined,
+        asking_price: askingPrice,
         area_sqm: area ? Number(area) : undefined,
         category,
         identity: identityFromForm(event.currentTarget),
@@ -106,8 +126,9 @@ export default function CaseDetailPage() {
     <Link href={`/cases/${caseId}/summary`} className="ml-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">매수 검토 요약</Link>
     <header className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
       <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Purchase workspace</p><h1 className="text-2xl font-bold text-slate-900">{item.title}</h1><p className="mt-1 text-sm text-slate-500">{item.target_regions.join(", ") || "선호 지역 미정"} · 최대 예산 {won(item.budget_max)}</p></div>
-      <div className="flex flex-wrap gap-2">{item.selected_property_id && <Link href={`/cases/${caseId}/execution`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">실행 계획</Link>}{properties.length >= 1 && <Link href={`/cases/${caseId}/comparison`} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">후보 검토·최종 선택</Link>}<select value={item.status} onChange={async (event) => { await api.updateCase(caseId, { status: event.target.value as PurchaseCaseStatus }); await load(); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{CASE_STATUS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
+      <div className="flex flex-wrap gap-2">{item.selected_property_id && <Link href={`/cases/${caseId}/execution`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">실행 계획</Link>}{properties.length >= 1 && <Link href={`/cases/${caseId}/comparison`} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">후보 검토·최종 선택</Link>}<select aria-label="케이스 진행 상태" value={item.status} onChange={(event) => { const status = event.target.value as PurchaseCaseStatus; void act(() => api.updateCase(caseId, { status }), "케이스 상태를 바꾸지 못했습니다."); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{CASE_STATUS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
     </header>
+    {actionError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
     <CaseProgressGuide item={item} />
     <div id="buyer-profile"><CaseBuyerProfile key={item.updated} caseId={caseId} profile={item.buyer_profile} budgetMax={item.budget_max} onSaving={()=>setProfileNotice("")} onSaved={async()=>{await load();setProfileNotice("매수 조건을 저장했습니다. 후보 시나리오와 추천에 적용됩니다.");}} /></div>
     {profileNotice && <p role="status" className="text-sm text-primary">{profileNotice}</p>}
@@ -120,14 +141,14 @@ export default function CaseDetailPage() {
       <div className="mt-3 flex gap-4 text-xs text-slate-600"><span>완료 {item.workspace?.checklist_done ?? 0}/{item.workspace?.checklist_total ?? 0}</span><span className="text-amber-700">주의 {item.workspace?.warning_count ?? 0}</span><span className="text-red-700">진행 불가 {item.workspace?.blocked_count ?? 0}</span></div>
     </section>
 
-    {(item.regions?.length ?? 0) > 0 && <section className="rounded-2xl border bg-white p-5 shadow-sm"><h2 className="font-bold">관심 지역</h2><div className="mt-3 grid gap-3 md:grid-cols-2">{item.regions?.map((region) => <article key={region.id} className="flex justify-between rounded-xl border p-4"><div><h3 className="flex items-center gap-2 text-sm font-semibold"><MapPinned size={15} className="text-primary" />{region.region_name}</h3><p className="mt-1 text-xs text-slate-500">중앙 거래가격 {won(region.stats_snapshot.median_price * 10_000)} · 표본 {region.stats_snapshot.sample_size.toLocaleString()}건</p></div><button onClick={async () => { await api.deleteCaseRegion(caseId, region.id); await load(); }} aria-label="관심 지역 삭제" className="text-slate-300 hover:text-red-500"><Trash2 size={15} /></button></article>)}</div></section>}
+    {(item.regions?.length ?? 0) > 0 && <section className="rounded-2xl border bg-white p-5 shadow-sm"><h2 className="font-bold">관심 지역</h2><div className="mt-3 grid gap-3 md:grid-cols-2">{item.regions?.map((region) => <article key={region.id} className="flex justify-between rounded-xl border p-4"><div><h3 className="flex items-center gap-2 text-sm font-semibold"><MapPinned size={15} className="text-primary" />{region.region_name}</h3><p className="mt-1 text-xs text-slate-500">중앙 거래가격 {won(region.stats_snapshot.median_price * 10_000)} · 표본 {region.stats_snapshot.sample_size.toLocaleString()}건</p></div><ConfirmDeleteButton label="관심 지역 삭제" message="이 관심 지역을 뺄까요?" onConfirm={async () => { setActionError(""); await api.deleteCaseRegion(caseId, region.id); await load(); }} onError={setActionError} /></article>)}</div></section>}
 
     <section className="rounded-2xl border bg-white shadow-sm">
       <div className="flex items-center justify-between border-b p-5"><div><h2 className="font-bold">후보 매물</h2><p className="mt-1 text-xs text-slate-500">분석 결과와 남은 검토 항목을 후보별로 관리합니다.</p></div><button onClick={() => setFormOpen((value) => !value)} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />후보 추가</button></div>
       {formOpen && <form onSubmit={addProperty} className="grid gap-3 border-b bg-slate-50 p-5 md:grid-cols-2">
         <div className="md:col-span-2"><PropertyIdentityFields /></div>
         <input required value={name} onChange={(event) => setName(event.target.value)} placeholder="후보명 또는 건물명" className="rounded-lg border px-3 py-2 text-sm" /><input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="주소" className="rounded-lg border px-3 py-2 text-sm" />
-        <input type="number" min="0" value={price} onChange={(event) => setPrice(event.target.value)} placeholder="매도 희망가(만원)" className="rounded-lg border px-3 py-2 text-sm" /><input type="number" min="0" step="0.01" value={area} onChange={(event) => setArea(event.target.value)} placeholder="면적(㎡)" className="rounded-lg border px-3 py-2 text-sm" />
+        <MoneyInput aria-label="매도 희망가" value={price} onChange={setPrice} smallWarningBelow={10_000_000} placeholder="매도 희망가 (예: 8억, 80000만)" className="w-full rounded-lg border px-3 py-2 text-sm" /><input type="number" min="0" step="0.01" value={area} onChange={(event) => setArea(event.target.value)} placeholder="면적(㎡)" className="rounded-lg border px-3 py-2 text-sm" />
         <select aria-label="후보 물건 종류" value={category} onChange={(event) => setCategory(event.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">물건 종류 선택</option>{["아파트", "오피스텔", "연립다세대", "단독다가구", "상가", "사무실", "공장", "창고", "토지"].map((value) => <option key={value}>{value}</option>)}</select>
         <select value={historyId} onChange={(event) => setHistoryId(event.target.value)} className="rounded-lg border px-3 py-2 text-sm md:col-span-2"><option value="">시세추정 이력 연결 안 함</option>{histories.map((history) => <option key={history.id} value={history.id}>#{history.id} {history.query} · {won(history.estimated_value)}</option>)}</select><button className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white md:col-span-2">후보 저장</button>
       </form>}
@@ -140,6 +161,12 @@ export default function CaseDetailPage() {
 function CandidateCard({ property, caseId, profile, reload }: { property: CaseProperty; caseId: number; profile: BuyerProfile; reload: () => Promise<void> }) {
   const [sourceBusy, setSourceBusy] = useState(false);
   const [sourceError, setSourceError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [checklistBusy, setChecklistBusy] = useState<number | null>(null);
+  const act = async (task: () => Promise<unknown>, failure: string) => {
+    setActionError("");
+    try { await task(); await reload(); } catch (reason) { setActionError(reason instanceof Error && reason.message ? `${failure} (${reason.message})` : failure); }
+  };
   const analyses = new Map(property.analyses.map((analysis) => [analysis.analysis_type, analysis]));
   const source = property.source_status;
   const sourceLabels: Record<string, string> = { name: "매물명", asking_price: "희망가", address: "주소", area_sqm: "면적", status: "거래 상태", legal_region_code: "법정동", property_type: "유형", identity: "동·호·층·면적 기준" };
@@ -155,8 +182,8 @@ function CandidateCard({ property, caseId, profile, reload }: { property: CasePr
     }
     return String(value ?? "미입력");
   };
-  return <article className={`rounded-xl border p-5 ${property.status === "rejected" ? "bg-slate-50 opacity-70" : "bg-white"}`}>
-    <div className="flex flex-col justify-between gap-3 md:flex-row"><div><div className="flex items-center gap-2"><h3 className="font-bold">{property.name}</h3><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">검토 {property.review_progress}%</span></div><p className="mt-1 text-sm text-slate-500">{property.address || "주소 미입력"}{property.area_sqm ? ` · ${property.area_sqm}㎡` : ""} · 희망가 {won(property.asking_price)}</p></div><div className="flex gap-2"><select disabled={property.status === "selected"} value={property.status} onChange={async (event) => { await api.updateCaseProperty(caseId, property.id, { status: event.target.value as CaseProperty["status"] }); await reload(); }} className="rounded-lg border px-2 py-1 text-xs">{PROPERTY_STATUS.map((status) => <option disabled={status.value === "selected"} key={status.value} value={status.value}>{status.label}</option>)}</select><button disabled={property.status === "selected"} title={property.status === "selected" ? "최종 선택을 변경한 뒤 삭제할 수 있습니다" : "후보 삭제"} onClick={async () => { await api.deleteCaseProperty(caseId, property.id); await reload(); }} aria-label="후보 삭제" className="text-slate-300 hover:text-red-500"><Trash2 size={16} /></button></div></div>
+  return <article id={`candidate-${property.id}`} className={`scroll-mt-24 rounded-xl border p-5 ${property.status === "rejected" ? "bg-slate-50 opacity-70" : "bg-white"}`}>
+    <div className="flex flex-col justify-between gap-3 md:flex-row"><div><div className="flex items-center gap-2"><h3 className="font-bold">{property.name}</h3><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs">검토 {property.review_progress}%</span></div><p className="mt-1 text-sm text-slate-500">{property.address || "주소 미입력"}{property.area_sqm ? ` · ${property.area_sqm}㎡` : ""} · 희망가 {won(property.asking_price)}</p></div><div className="flex gap-2"><select aria-label="후보 검토 상태" disabled={property.status === "selected"} value={property.status} onChange={(event) => { const status = event.target.value as CaseProperty["status"]; void act(() => api.updateCaseProperty(caseId, property.id, { status }), "후보 상태를 바꾸지 못했습니다."); }} className="rounded-lg border px-2 py-1 text-xs">{PROPERTY_STATUS.map((status) => <option disabled={status.value === "selected"} key={status.value} value={status.value}>{status.label}</option>)}</select><ConfirmDeleteButton label="후보 삭제" message="후보에 연결된 분석 결과와 체크리스트도 함께 삭제됩니다. 시세추정 이력은 남습니다." disabled={property.status === "selected"} title={property.status === "selected" ? "최종 선택을 변경한 뒤 삭제할 수 있습니다" : "후보 삭제"} onConfirm={async () => { setActionError(""); await api.deleteCaseProperty(caseId, property.id); await reload(); }} onError={setActionError} /></div></div>
     {property.alias && <p className="mt-2 break-words text-sm text-primary">별칭: {property.alias}</p>}
     {property.address_details && <p className="mt-1 break-words text-xs text-slate-500">도로명: {property.address_details.road_address || "제공 정보 없음"} · 지번: {property.address_details.jibun_address}</p>}
     <PropertyIdentityDetails identity={property.identity} />
@@ -184,6 +211,7 @@ function CandidateCard({ property, caseId, profile, reload }: { property: CasePr
           finally { setSourceBusy(false); }
         }} className="ml-3 rounded bg-amber-900 px-3 py-1.5 font-semibold text-white disabled:opacity-50">{sourceBusy ? "반영 중…" : "확인한 변경사항 반영"}</button>}
     </div>}
+    {actionError && <p role="alert" className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
     {sourceError && <p role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{sourceError}</p>}
     {property.source_reviews.length > 0 && <details className="mt-3 rounded-lg border p-3 text-xs text-slate-600">
       <summary className="cursor-pointer font-semibold">매물 변경·이전 판단 기록 {property.source_reviews.length}건</summary>
@@ -207,7 +235,7 @@ function CandidateCard({ property, caseId, profile, reload }: { property: CasePr
       return <Link key={type} href={href} onClick={prepare} className={`rounded-lg border p-3 text-xs hover:border-emerald-300 ${warning ? "border-amber-200 bg-amber-50" : ""}`}><div className="flex justify-between"><strong>{ANALYSIS_LABEL[type]} 분석</strong>{analysis ? warning ? <AlertTriangle size={15} className="text-amber-600" /> : <CheckCircle2 size={15} className="text-emerald-600" /> : <Circle size={15} className="text-slate-300" />}</div><p className="mt-1 truncate text-slate-500">{analysis ? `${analysis.status === "stale" ? "갱신 필요 · " : ""}${analysisSummary(analysis)}` : type === "rights" ? "서류 업로드 필요" : type === "simulation" ? "금융 조건 입력 필요" : "분석 필요"}</p></Link>;
     })}</div>
     <CandidateNextActions property={property} caseId={caseId} profile={profile} reload={reload} />
-    <div id={`candidate-checklist-${property.id}`} className="mt-4 flex scroll-mt-24 flex-wrap gap-2">{property.checklist.map((check) => <button key={check.id} title={check.evidence || undefined} onClick={async () => { await api.updateCandidateChecklist(caseId, property.id, check.id, { status: check.status === "done" ? "todo" : "done" }); await reload(); }} className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ${check.status === "done" ? "bg-emerald-100 text-emerald-700" : check.status === "warning" ? "bg-amber-100 text-amber-700" : check.status === "blocked" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}>{check.status === "done" ? <CheckCircle2 size={12} /> : check.status === "warning" || check.status === "blocked" ? <AlertTriangle size={12} /> : <Circle size={12} />}{check.title}</button>)}</div>
+    <div id={`candidate-checklist-${property.id}`} className="mt-4 flex scroll-mt-24 flex-wrap gap-2">{property.checklist.map((check) => <button key={check.id} title={check.evidence || undefined} aria-pressed={check.status === "done"} disabled={checklistBusy === check.id} onClick={async () => { setChecklistBusy(check.id); try { await act(() => api.updateCandidateChecklist(caseId, property.id, check.id, { status: check.status === "done" ? "todo" : "done" }), `'${check.title}' 확인 상태를 바꾸지 못했습니다.`); } finally { setChecklistBusy(null); } }} className={`flex disabled:opacity-50 items-center gap-1 rounded-full px-2.5 py-1 text-xs ${check.status === "done" ? "bg-emerald-100 text-emerald-700" : check.status === "warning" ? "bg-amber-100 text-amber-700" : check.status === "blocked" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"}`}>{check.status === "done" ? <CheckCircle2 size={12} /> : check.status === "warning" || check.status === "blocked" ? <AlertTriangle size={12} /> : <Circle size={12} />}{check.title}</button>)}</div>
     {property.history_id && <Link href={`/report/${property.history_id}`} className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"><FileSearch size={14} />시세추정 리포트 보기</Link>}
   </article>;
 }

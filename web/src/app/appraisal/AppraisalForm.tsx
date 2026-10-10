@@ -6,6 +6,7 @@ import IncomeValuationFields, { emptyIncomeDraft, incomeInput } from "@/componen
 import LandInformationLookup from "@/components/LandInformationDetails";
 import type { ValuationContext } from "@/lib/valuation";
 import { removeSessionValue, setSessionValue, useSessionValue } from "@/lib/sessionStore";
+import CaseContextBanner from "@/components/CaseContextBanner";
 
 const PROPERTY_TYPES = [
   { category: "주거용", detail: "아파트",     label: "아파트",          hasDong: true,  hasHo: true  },
@@ -191,7 +192,9 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
           setSessionValue("appraisalResult", JSON.stringify(job.result));
           setSessionValue("appraisalQuery", query);
         }
-        router.push(job.history_id ? `/report/${job.history_id}` : "/report");
+        // 후보에서 시작한 분석은 리포트에서도 케이스로 돌아갈 수 있게 후보 정보를 넘긴다.
+        const back = caseId && candidateId ? `?caseId=${caseId}&candidateId=${candidateId}` : "";
+        router.push(job.history_id ? `/report/${job.history_id}${back}` : "/report");
         return;
       }
       if (job.status === "error") {
@@ -201,7 +204,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
       }
     }
     setError("시세추정이 예상보다 오래 걸립니다. 새로고침하면 같은 작업을 다시 확인합니다.");
-  }, [router]);
+  }, [router, caseId, candidateId]);
 
   useEffect(() => {
     if (!pendingJob || resumingRef.current) return;
@@ -278,7 +281,8 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
       <h1 className="text-2xl font-bold mb-1">AI 시세추정</h1>
       {prefillLoading && <p role="status">후보 정보를 불러오는 중입니다.</p>}
       {prefillError && <p role="alert" className="text-red-600">{prefillError}</p>}
-      {caseId && candidateId && !prefillLoading && !prefillError && <p className="mb-3 text-sm text-primary">후보 정보를 채웠습니다. 주소·면적·물건 종류를 확인해주세요. <a href={`/cases/${caseId}`} className="underline">후보로 돌아가기</a></p>}
+      {caseId && candidateId && <CaseContextBanner caseId={caseId} candidateId={candidateId} analysis="appraisal" />}
+      {caseId && candidateId && !prefillLoading && !prefillError && <p className="mb-3 text-sm text-primary">후보 정보를 채웠습니다. 주소·면적·물건 종류를 확인해주세요.</p>}
       <p className="text-slate-500 mb-5 text-sm">아파트는 자료 조건을 확인한 뒤 실거래 기반 시세를 추정합니다. 상업·업무용은 입력 임대료 시나리오, 토지는 필지 공개정보를 제공합니다. 다른 유형은 평가 기준과 자료 보완이 필요합니다.</p>
 
       {/* 스텝 인디케이터 */}

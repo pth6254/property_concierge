@@ -180,6 +180,7 @@ jobs:
             evaluation-results/property-evidence-browser.json
             evaluation-results/building-register-browser.json
             evaluation-results/valuation-support-browser.json
+            evaluation-results/ux-safeguards-browser.json
             evaluation-results/building-register-*.png
             evaluation-results/*browser*.png
           if-no-files-found: ignore

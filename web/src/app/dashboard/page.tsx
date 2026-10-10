@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { api } from "@/lib/api";
 import type { HistoryItem } from "@/lib/types";
+import ConfirmDeleteButton from "@/components/ConfirmDeleteButton";
 
 const PAGE_SIZE = 20;
 const VERDICT_COLOR: Record<string, string> = {
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const [search, setSearch]       = useState("");
   const [loading, setLoading]     = useState(true);
   const [selected, setSelected]   = useState<HistoryItem | null>(null);
+  const [error, setError]         = useState("");
 
   const load = async (p = 0, kw = "") => {
     setLoading(true);
@@ -25,6 +27,8 @@ export default function DashboardPage() {
       const res = await api.history(PAGE_SIZE, p * PAGE_SIZE, kw);
       setItems(res.items as HistoryItem[]);
       setTotal(res.total);
+    } catch {
+      setError("이력을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setLoading(false);
     }
@@ -42,6 +46,9 @@ export default function DashboardPage() {
         if (cancelled) return;
         setItems(res.items as HistoryItem[]);
         setTotal(res.total);
+      } catch {
+        // 실패를 "이력 없음"으로 보이지 않게 따로 알린다.
+        if (!cancelled) setError("이력을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -51,10 +58,10 @@ export default function DashboardPage() {
 
   const doSearch = () => { setPage(0); load(0, search); setKeyword(search); };
 
-  const doDelete = async (id: number, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const doDelete = async (id: number) => {
+    setError("");
     await api.deleteHistory(id);
-    load(page, keyword);
+    await load(page, keyword);
   };
 
   // KPI
@@ -118,6 +125,8 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+
       {/* 검색 */}
       <div className="flex gap-2 mb-4">
         <input
@@ -171,7 +180,7 @@ export default function DashboardPage() {
                     >
                       리포트
                     </Link>
-                    <button onClick={e => doDelete(it.id, e)} className="text-red-400 hover:text-red-600 text-xs">삭제</button>
+                    <ConfirmDeleteButton label="시세추정 기록 삭제" message="이 기록을 삭제할까요? 되돌릴 수 없습니다." onConfirm={() => doDelete(it.id)} onError={setError}><span className="text-xs text-red-500">삭제</span></ConfirmDeleteButton>
                   </td>
                 </tr>
               ))}

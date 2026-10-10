@@ -1,0 +1,104 @@
+// 금액 입력 해석·삭제 확인·분석 화면의 케이스 복귀·보관함 저장 불가 사유와 패널 위치를 실제 화면에서 확인한다.
+// 임시 계정과 그 계정의 케이스·매물만 만들고 종료 시 계정을 삭제한다.
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const net = require('node:net');
+const {spawn, spawnSync} = require('node:child_process');
+const {chromium} = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_modules/playwright');
+
+(async () => {
+  const root=path.resolve(__dirname,'..'), output=path.join(root,'evaluation-results');
+  fs.mkdirSync(output,{recursive:true});
+  const report={status:'running',checks:[],boundaries:['임시 계정의 케이스·후보·가상 매물','실제 저장·화면 이동','AVM·권리 분석 실행 결과는 다루지 않음']};
+  const check=title=>{report.checks.push(title);console.log(`PASS ${title}`);};
+  let server,log,browser,context,page,registered=false;
+  try {
+    let baseURL=process.env.E2E_BASE_URL || (process.argv[2] ? undefined : 'http://localhost:3002');
+    if(!baseURL){
+      assert.ok(process.argv[2]?.startsWith('http://'),'격리 API 주소 또는 E2E_BASE_URL이 필요합니다');
+      const port=await new Promise(resolve=>{const s=net.createServer();s.listen(0,'127.0.0.1',()=>{const p=s.address().port;s.close(()=>resolve(p));});});
+      baseURL=`http://127.0.0.1:${port}`;log=fs.openSync(path.join(output,'ux-safeguards-next.log'),'w');
+      server=spawn(process.execPath,[path.join(root,'web/node_modules/next/dist/bin/next'),'dev','--webpack','--hostname','127.0.0.1','--port',String(port)],{cwd:path.join(root,'web'),env:{...process.env,NEXT_PUBLIC_API_URL:process.argv[2],NEXT_TELEMETRY_DISABLED:'1'},stdio:['ignore',log,log],windowsHide:true});
+    }
+    browser=await chromium.launch(process.env.E2E_BROWSER==='chromium'?{headless:true}:{channel:'chrome',headless:true});
+    context=await browser.newContext({baseURL,viewport:{width:1440,height:1000}});
+    for(let i=0;i<60;i++){if((await context.request.get('/api/auth/me').catch(()=>null))?.status()===401)break;await new Promise(resolve=>setTimeout(resolve,1000));}
+    const registration=await context.request.post('/api/auth/register',{data:{email:`ux-${Date.now()}@example.com`,password:'ux-safeguards-12345!',name:'화면 안전장치 임시 계정'}});
+    assert.equal(registration.status(),201);registered=true;
+    page=await context.newPage();page.setDefaultTimeout(45000);const errors=[];page.on('pageerror',error=>errors.push(error.message));
+
+    // 1) 케이스 예산: 해석 미리보기와 단위 경고, 저장 값
+    await page.goto('/cases');await page.getByRole('button',{name:'새 케이스'}).click();
+    await page.getByPlaceholder('예: 서초구 실거주 매수').fill('화면 안전장치 검증 케이스');
+    const budget=page.getByLabel('최대 예산',{exact:true});
+    await budget.fill('90000');await page.getByText('= 9만원 · 부동산 금액으로는 작습니다',{exact:false}).waitFor();
+    await budget.fill('9억');await page.getByText('= 9억원',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'생성',exact:true}).click();await page.waitForURL(/\/cases\/\d+/);
+    const caseId=Number(new URL(page.url()).pathname.split('/')[2]);
+    assert.equal((await(await context.request.get(`/api/cases/${caseId}`)).json()).budget_max,900000000);
+    check('금액 입력: 숫자만 입력하면 원으로 해석해 단위 경고, "9억" 저장 값 9억원');
+
+    // 2) 후보 추가 금액
+    await page.getByRole('button',{name:'후보 추가'}).click();
+    await page.getByPlaceholder('후보명 또는 건물명').fill('안전장치 검증 후보');await page.getByPlaceholder('주소',{exact:true}).fill('서울특별시 강남구 역삼동 123');
+    await page.getByLabel('매도 희망가',{exact:true}).fill('8억 5000만');await page.getByText('= 8억 5,000만원',{exact:true}).waitFor();
+    await page.getByPlaceholder('면적(㎡)').fill('84');await page.getByLabel('후보 물건 종류').selectOption('아파트');
+    await page.getByRole('button',{name:'후보 저장'}).click();await page.getByRole('heading',{name:'안전장치 검증 후보'}).waitFor();
+    const candidate=(await(await context.request.get(`/api/cases/${caseId}`)).json()).properties[0];
+    assert.equal(candidate.asking_price,850000000);check('후보 희망가 "8억 5000만" → 850,000,000원 저장');
+
+    // 3) 삭제는 확인 단계를 거치고 취소하면 유지
+    const card=page.locator(`#candidate-${candidate.id}`);
+    await card.getByRole('button',{name:'후보 삭제'}).click();const confirm=card.getByRole('group',{name:'후보 삭제 확인'});await confirm.waitFor();
+    await confirm.getByRole('button',{name:'취소'}).click();await card.getByRole('heading',{name:'안전장치 검증 후보'}).waitFor();
+    assert.equal((await(await context.request.get(`/api/cases/${caseId}`)).json()).properties.length,1);check('후보 삭제: 확인 단계 표시, 취소 시 삭제하지 않음');
+
+    // 4) 자금 분석 화면의 케이스 배너와 후보 복귀
+    await card.getByRole('link',{name:/자금 분석/}).click();await page.waitForURL(/\/simulation/);
+    const banner=page.getByRole('region',{name:'분석 중인 케이스 후보'});
+    await banner.getByText('화면 안전장치 검증 케이스 · 안전장치 검증 후보',{exact:true}).waitFor();
+    await banner.getByText('후보에 저장된 자금 분석이 아직 없습니다.',{exact:true}).waitFor();
+    await page.getByText('= 8억 5,000만원',{exact:true}).first().waitFor();
+    await banner.getByRole('link',{name:'후보로 돌아가기'}).click();await page.waitForURL(new RegExp(`/cases/${caseId}(#[^#]*)?#candidate-${candidate.id}$`));
+    await page.locator(`#candidate-${candidate.id}`).waitFor();
+    await page.waitForFunction(id=>{const box=document.getElementById(id)?.getBoundingClientRect();return Boolean(box&&box.top>=0&&box.top<innerHeight/2);},`candidate-${candidate.id}`);
+    check('자금 분석: 케이스·후보·저장 상태 배너, 후보 카드로 복귀');
+
+    // 5) 확인 후 실제 삭제
+    await page.locator(`#candidate-${candidate.id}`).getByRole('button',{name:'후보 삭제'}).click();
+    await page.getByRole('group',{name:'후보 삭제 확인'}).getByRole('button',{name:'삭제',exact:true}).click();
+    await page.getByText('검토할 부동산을 후보로 추가해보세요.',{exact:true}).waitFor();
+    assert.equal((await(await context.request.get(`/api/cases/${caseId}`)).json()).properties.length,0);check('후보 삭제: 확인 후 삭제 반영');
+
+    // 6) 권리점검의 복합 단위 금액(이전에는 "3억5천만"을 잘못 환산)
+    await page.goto('/rights');await page.getByLabel('시세',{exact:true}).fill('3억5천만');await page.getByText('= 3억 5,000만원',{exact:true}).waitFor();
+    await page.getByLabel('시세',{exact:true}).fill('1.5억');await page.getByText('= 1억 5,000만원',{exact:true}).waitFor();
+    check('권리점검: "3억5천만"·"1.5억"을 공통 규칙으로 해석');
+
+    // 7) 보관함: 저장 불가 사유와 카드 안 패널
+    const confirmed=new Date().toISOString();
+    const csv='external_id,name,property_type,transaction_type,address,legal_region_code,area_sqm,asking_price,confirmed_at,status\n'+
+      `ux-active,안전장치 거래 가능 매물,apartment,purchase,서울특별시 강남구 역삼동 123,1168010100,84,700000000,${confirmed},active\n`+
+      `ux-withdrawn,안전장치 철회 매물,apartment,purchase,서울특별시 강남구 역삼동 124,1168010100,84,710000000,${confirmed},withdrawn\n`;
+    const imported=await context.request.post('/api/listings/import',{data:{source_name:'화면 검증용 가상 출처',csv_text:csv,commit:true}});
+    assert.equal(imported.status(),200,await imported.text());
+    await page.goto('/listings');
+    const withdrawn=page.locator('article').filter({hasText:'안전장치 철회 매물'});const active=page.locator('article').filter({hasText:'안전장치 거래 가능 매물'});
+    await withdrawn.getByText("후보 저장 불가: 거래 상태가 '철회'라 저장할 수 없습니다.",{exact:false}).waitFor();
+    assert.equal(await withdrawn.getByRole('button',{name:'매수 후보 저장'}).isDisabled(),true);
+    assert.equal(await active.getByText('후보 저장 불가',{exact:false}).count(),0);
+    await active.getByRole('button',{name:'타임라인'}).click();await active.getByRole('region',{name:'매물 타임라인'}).waitFor();
+    await active.getByRole('button',{name:'변경 이력'}).click();await active.getByRole('heading',{name:'최근 변경 이력 (최대 100건)'}).waitFor();
+    check('보관함: 저장 불가 사유 표시, 타임라인·변경 이력을 누른 카드 안에 표시');
+
+    await page.screenshot({path:path.join(output,'ux-safeguards-browser.png'),fullPage:true});
+    await page.setViewportSize({width:390,height:844});await page.goto(`/cases/${caseId}`);await page.getByRole('heading',{name:'화면 안전장치 검증 케이스'}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    await page.goto('/listings');await page.locator('article').first().waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    assert.deepEqual(errors,[]);check('좁은 화면 가로 넘침 없음·화면 오류 없음');
+    report.status='passed';
+  }catch(error){report.status='failed';report.error=error.message;if(page)await page.screenshot({path:path.join(output,'ux-safeguards-browser-failure.png'),fullPage:true}).catch(()=>{});throw error;}
+  finally{try{if(registered)assert.equal((await context.request.delete('/api/auth/me')).status(),200);}finally{report.finished_at=new Date().toISOString();fs.writeFileSync(path.join(output,'ux-safeguards-browser.json'),JSON.stringify(report,null,2));if(browser)await browser.close();if(server?.pid){if(process.platform==='win32')spawnSync('taskkill',['/PID',String(server.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else server.kill('SIGTERM');}if(log!==undefined)fs.closeSync(log);}}
+})().catch(error=>{console.error(error.message);process.exitCode=1;});

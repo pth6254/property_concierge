@@ -12,10 +12,20 @@ import ListingTimelinePanel from "@/components/ListingTimelinePanel";
 import type { PurchaseCase } from "@/lib/types";
 import DecisionJourney from "@/components/DecisionJourney";
 import type { ListingEntryContext } from "@/lib/listingNavigation";
+import MoneyInput, { wonFromInput } from "@/components/MoneyInput";
 
 const TYPES = [["apartment","아파트"],["officetel","오피스텔"],["row_house","연립·다세대"],["detached","단독·다가구"],["non_residential","상업·업무"],["industrial","공장·창고"],["land","토지"]];
 const STATUS: Record<string,string> = {active:"거래 가능(제공자 표시)",withdrawn:"철회",completed:"거래 완료(제공자 표시)",unknown:"상태 미확인"};
 const money = (value: number | null) => value == null ? "—" : `${value.toLocaleString()}원`;
+
+/** 후보 저장이 막힌 이유와 해결 방법. 버튼만 회색으로 두면 사용자가 무엇을 고쳐야 하는지 알 수 없었다. */
+function saveBlockReason(item: ImportedListing): string {
+  if (item.transaction_type !== "purchase") return "매매 매물만 매수 후보로 저장할 수 있습니다.";
+  if (item.status !== "active") return `거래 상태가 '${STATUS[item.status] ?? item.status}'라 저장할 수 없습니다. 제공자에게 현재 상태를 확인한 뒤 다시 저장해주세요.`;
+  if (item.needs_confirmation) return "확인 후 7일이 지났거나 더 새로운 수집 기록이 있어 재확인이 필요합니다. 현재 상태를 확인한 뒤 확인 일시를 다시 저장하면 후보로 저장할 수 있습니다. 링크 매물은 같은 링크로 다시 등록하고, CSV는 같은 출처·원본 ID로 다시 올립니다. 직접 입력한 매물은 지금은 새로 등록해야 합니다.";
+  if (!item.region_linked) return "법정동이 연결되지 않았습니다. 주소 검색에서 법정동이 포함된 주소를 선택해 다시 등록해주세요.";
+  return "";
+}
 
 export default function ListingsWorkspace({ entry }: { entry: ListingEntryContext }) {
   const [source, setSource] = useState(""); const [csv, setCsv] = useState("");
@@ -31,6 +41,8 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
   const [casesLoading, setCasesLoading] = useState(true);
   const [focusedListing, setFocusedListing] = useState(entry.listingId ?? "");
   const [notice, setNotice] = useState(""); const [history, setHistory] = useState<string[]>([]); const [timeline, setTimeline] = useState<ListingTimeline | null>(null); const [overlay, setOverlay] = useState<ListingMarketOverlay | null>(null);
+  // 패널은 누른 카드 바로 아래에 연다. 목록 맨 아래에 열면 버튼을 눌러도 화면이 바뀌지 않아 동작하지 않는 것처럼 보였다.
+  const [timelineFor, setTimelineFor] = useState<number | null>(null); const [historyFor, setHistoryFor] = useState<number | null>(null); const [panelLoading, setPanelLoading] = useState<string>("");
   const sequence = useRef(0); const lock = useRef(false);
   const [applied, setApplied] = useState(""); const [refresh, setRefresh] = useState(0);
   useEffect(() => {
@@ -60,9 +72,12 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
     return ()=>{cancelled=true;};
   },[applied,page,refresh,focusedListing]);
   const apply=()=>{
+    let budgetWon: number | undefined;
+    try { budgetWon = wonFromInput(budget, "매매가·보증금 상한"); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "금액을 확인해주세요."); return; }
     const p=new URLSearchParams();if(dong||region)p.set("region_code",dong||region);
     if(type)p.set("property_type",type);if(transaction)p.set("transaction_type",transaction);
-    if(budget)p.set("budget_max",String(Math.round(Number(budget)*10000)));if(fresh)p.set("fresh_only","true");
+    if(budgetWon)p.set("budget_max",String(budgetWon));if(fresh)p.set("fresh_only","true");
     setLoading(true);setFocusedListing("");setPage(1);setApplied(p.toString());setRefresh(v=>v+1);setError("");
   };
   const upload=async(commit:boolean)=>{
@@ -112,7 +127,7 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
       <label className="text-sm">법정동<select aria-label="법정동" className="block max-w-full rounded-lg border border-slate-300 p-2" disabled={!region} value={dong} onChange={e=>setDong(e.target.value)}><option value="">전체 동</option>{dongs.map(r=><option key={r.code} value={r.code}>{r.name}</option>)}</select></label>
       <label className="text-sm">유형<select className="block max-w-full rounded-lg border border-slate-300 p-2" value={type} onChange={e=>setType(e.target.value)}><option value="">전체 유형</option>{TYPES.map(([v,n])=><option key={v} value={v}>{n}</option>)}</select></label>
       <label className="text-sm">거래<select className="block max-w-full rounded-lg border border-slate-300 p-2" value={transaction} onChange={e=>setTransaction(e.target.value)}><option value="">전체 거래</option><option value="purchase">매매</option><option value="lease">전세</option><option value="rent">월세</option></select></label>
-      <label className="text-sm">매매가·보증금 상한 (만원)<input className="block w-40 rounded border p-2" type="number" min="0" value={budget} onChange={e=>setBudget(e.target.value)} /></label>
+      <label className="text-sm">매매가·보증금 상한<span className="block w-48"><MoneyInput aria-label="매매가·보증금 상한" placeholder="예: 10억" className="block w-full rounded border p-2" value={budget} onChange={setBudget} /></span></label>
       <label className="text-sm"><input type="checkbox" checked={fresh} onChange={e=>setFresh(e.target.checked)} /> 최근 7일·거래 가능만</label>
       <button className="rounded bg-primary px-4 py-2 text-white" onClick={apply}>검색</button>
     </section>
@@ -121,7 +136,7 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
     <div id="saved-listings" className="flex scroll-mt-5 flex-wrap items-center justify-between gap-2"><h2 className="font-bold">{focusedListing ? "케이스에 연결된 원본 매물" : "내가 등록한 매물"} · 총 {total}건</h2>{focusedListing && <button className="text-sm text-primary underline" onClick={()=>{setLoading(true);setFocusedListing("");}}>전체 매물 보기</button>}</div>
     <p className="text-xs text-slate-500">본인이 등록한 자료만 표시합니다. 확인일이 오래된 매물은 제공자에게 상태를 다시 확인하세요.</p>
     {loading && <p role="status" className="p-6 text-center text-slate-500">매물을 불러오는 중입니다.</p>}
-    <div className="grid gap-3 md:grid-cols-2">{!loading && items.map(item=><article className="space-y-2 rounded-xl border border-slate-200 bg-white p-4" key={item.id}>
+    <div className="grid gap-3 md:grid-cols-2">{!loading && items.map(item=>{const blocked=saveBlockReason(item);const panelOpen=timelineFor===item.id||historyFor===item.id;return <article className={`space-y-2 rounded-xl border border-slate-200 bg-white p-4 ${panelOpen?"md:col-span-2":""}`} key={item.id}>
       <h2 className="break-words font-bold">{item.name}</h2>
       {item.alias && <p className="break-words text-sm text-primary">별칭: {item.alias}</p>}
       {item.address_details ? <div className="space-y-1 text-sm"><p>도로명: {item.address_details.road_address || "제공 정보 없음"}</p><p>지번: {item.address_details.jibun_address}</p><p className="text-xs text-slate-500">{item.address_details.building_name ? `조회 이름 · ${item.address_details.name_source === "building_register" ? "건축물대장" : "카카오 주소 검색"}` : "건물명 미확인 · 주소로 등록"} · 조회일 {new Date(item.address_details.checked_at).toLocaleDateString("ko-KR")}</p></div> : <p className="text-sm">{item.address} · 주소 조회 미확인</p>}
@@ -133,11 +148,12 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
       <p className="text-xs">출처 {item.source_name} / {item.external_id} · 확인 {new Date(item.confirmed_at).toLocaleString("ko-KR")}</p>
       {item.last_collection_at&&<p className="text-xs text-slate-600">최근 수집 시도 {new Date(item.last_collection_at*1000).toLocaleString("ko-KR")} · {COLLECTION_LABELS[item.last_collection_outcome||""]} · 마지막 원문 확인 {item.last_seen_at?new Date(item.last_seen_at*1000).toLocaleString("ko-KR"):"없음"}</p>}
       {item.source_url&&<a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline">원문 확인</a>}
-      <div className="flex gap-3"><button disabled={busy||casesLoading||item.needs_confirmation||item.status!=="active"||!item.region_linked||item.transaction_type!=="purchase"} onClick={()=>save(item)} className="rounded border px-3 py-1 text-sm disabled:opacity-40">매수 후보 저장</button><button className="text-sm underline" onClick={async()=>{try{setOverlay(null);const [t,o]=await Promise.all([listingApi.timeline(item.id),listingApi.marketOverlay(item.id).catch(()=>null)]);setTimeline(t);setOverlay(o);}catch{setError("타임라인을 불러오지 못했습니다.");}}}>타임라인</button><button className="text-sm underline" onClick={async()=>{try{const r=await listingApi.history(item.id);setHistory(r.items.map(h=>`${h.confirmed_at} · ${STATUS[h.status]} · 희망가 ${money(h.asking_price)} · 보증금 ${money(h.deposit)} · 월세 ${money(h.monthly_rent)}`));}catch{setError("이력을 불러오지 못했습니다.");}}}>변경 이력</button></div>
-    </article>)}</div>
+      <div className="flex flex-wrap gap-3"><button aria-describedby={blocked?`save-block-${item.id}`:undefined} disabled={busy||casesLoading||Boolean(blocked)} onClick={()=>save(item)} className="rounded border px-3 py-1 text-sm disabled:opacity-40">매수 후보 저장</button><button className="text-sm underline disabled:opacity-50" aria-expanded={timelineFor===item.id} disabled={panelLoading===`t${item.id}`} onClick={async()=>{if(timelineFor===item.id){setTimelineFor(null);setTimeline(null);setOverlay(null);return;}setPanelLoading(`t${item.id}`);try{setOverlay(null);const [t,o]=await Promise.all([listingApi.timeline(item.id),listingApi.marketOverlay(item.id).catch(()=>null)]);setTimeline(t);setOverlay(o);setTimelineFor(item.id);}catch{setError("타임라인을 불러오지 못했습니다.");}finally{setPanelLoading("");}}}>{panelLoading===`t${item.id}`?"타임라인 불러오는 중…":"타임라인"}</button><button className="text-sm underline disabled:opacity-50" aria-expanded={historyFor===item.id} disabled={panelLoading===`h${item.id}`} onClick={async()=>{if(historyFor===item.id){setHistoryFor(null);setHistory([]);return;}setPanelLoading(`h${item.id}`);try{const r=await listingApi.history(item.id);setHistory(r.items.map(h=>`${h.confirmed_at} · ${STATUS[h.status]} · 희망가 ${money(h.asking_price)} · 보증금 ${money(h.deposit)} · 월세 ${money(h.monthly_rent)}`));setHistoryFor(item.id);}catch{setError("이력을 불러오지 못했습니다.");}finally{setPanelLoading("");}}}>{panelLoading===`h${item.id}`?"변경 이력 불러오는 중…":"변경 이력"}</button></div>
+      {blocked&&<p id={`save-block-${item.id}`} className="text-xs text-amber-800">후보 저장 불가: {blocked}</p>}
+      {timeline&&timelineFor===item.id&&<ListingTimelinePanel value={timeline} overlay={overlay} onClose={()=>{setTimelineFor(null);setTimeline(null);setOverlay(null);}} />}
+      {historyFor===item.id&&<section className="rounded border bg-slate-50 p-4"><h2 className="font-bold">최근 변경 이력 (최대 100건)</h2>{history.length?history.map((h,i)=><p key={i} className="text-sm">{h}</p>):<p className="text-sm text-slate-600">저장된 변경 이력이 없습니다.</p>}<button className="text-sm underline" onClick={()=>{setHistoryFor(null);setHistory([]);}}>닫기</button></section>}
+    </article>;})}</div>
     {!loading&&!items.length&&<div className="rounded-xl border border-dashed border-slate-300 p-8 text-center"><p className="text-slate-600">등록된 매물이 없거나 검색 조건에 맞는 자료가 없습니다.</p><a href="#register-listing" onClick={()=>setRegistrationOpen(true)} className="mt-3 inline-block font-semibold text-primary underline">매물 등록 시작하기</a><Link href="/explore" className="ml-4 text-sm text-primary underline">동네부터 찾아보기</Link></div>}
     {total>20&&!focusedListing&&<div className="flex items-center justify-center gap-3"><button className="rounded-lg border px-3 py-2 disabled:opacity-40" disabled={page===1||loading} onClick={()=>{setLoading(true);setPage(v=>v-1);}}>이전</button><span>{page}페이지</span><button className="rounded-lg border px-3 py-2 disabled:opacity-40" disabled={page*20>=total||loading} onClick={()=>{setLoading(true);setPage(v=>v+1);}}>다음</button></div>}
-    {timeline&&<ListingTimelinePanel value={timeline} overlay={overlay} onClose={()=>{setTimeline(null);setOverlay(null);}} />}
-    {!!history.length&&<section className="rounded border bg-white p-4"><h2 className="font-bold">최근 변경 이력 (최대 100건)</h2>{history.map((h,i)=><p key={i} className="text-sm">{h}</p>)}<button className="text-sm underline" onClick={()=>setHistory([])}>닫기</button></section>}
   </div>;
 }

@@ -2,18 +2,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { removeSessionValue, useSessionValue } from "@/lib/sessionStore";
+import CaseContextBanner from "@/components/CaseContextBanner";
+import MoneyInput from "@/components/MoneyInput";
+import { parseWon } from "@/lib/moneyInput";
 
 type RightsResult = Awaited<ReturnType<typeof api.rightsAnalyze>>;
 
+// 이전 변환은 단위를 0 문자열로 바꿔 이어 붙여 "3억5천만"·"1.5억"을 엉뚱한 값으로 만들었다. 공통 변환을 쓴다.
 function parsePrice(s: string): number {
-  if (!s.trim()) return 0;
-  const n = s
-    .replace(/억/g, "00000000")
-    .replace(/천만/g, "0000000")
-    .replace(/천/g, "0000")
-    .replace(/만/g, "0000")
-    .replace(/[^0-9]/g, "");
-  return n ? parseInt(n) : 0;
+  const value = parseWon(s);
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error("금액 형식을 확인해주세요. 예: 3억 5000만");
+  return value;
 }
 
 function fmt(n?: number) { return n != null ? n.toLocaleString("ko-KR") + "원" : "—"; }
@@ -54,11 +53,15 @@ function RightsForm({ rawSeed }: { rawSeed: string | null }) {
   const [depositStr, setDepositStr] = useState("");
   const [priceStr, setPriceStr] = useState(seed.market_price ? String(Math.round(seed.market_price / 10_000)) + "만" : "");
   const [result, setResult] = useState<RightsResult | null>(null);
+  const [runCount, setRunCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleSubmit = async () => {
     if (!registryFile && !buildingFile) { setError("등기부등본 또는 건축물대장 PDF를 업로드해주세요."); return; }
+    let deposit: number, price: number;
+    try { deposit = parsePrice(depositStr); price = parsePrice(priceStr); }
+    catch (e: unknown) { setError(e instanceof Error ? e.message : "금액 형식을 확인해주세요."); return; }
     setError("");
     setLoading(true);
     setResult(null);
@@ -68,11 +71,12 @@ function RightsForm({ rawSeed }: { rawSeed: string | null }) {
         candidate_id: seed.candidate_id,
         registry_pdf_b64: registryFile ? await fileToB64(registryFile) : undefined,
         building_pdf_b64: buildingFile ? await fileToB64(buildingFile) : undefined,
-        my_deposit: parsePrice(depositStr),
-        market_price: parsePrice(priceStr),
+        my_deposit: deposit,
+        market_price: price,
       });
       if (res.error) throw new Error(res.error);
       setResult(res);
+      setRunCount(count => count + 1);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "분석 실패");
     } finally {
@@ -82,6 +86,7 @@ function RightsForm({ rawSeed }: { rawSeed: string | null }) {
 
   return (
     <div className="max-w-3xl mx-auto">
+      {seed.case_id && <CaseContextBanner caseId={seed.case_id} candidateId={seed.candidate_id} analysis="rights" refreshKey={runCount} />}
       {seed.address && <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">검토 후보: {seed.address} · 문서를 업로드해야 분석 결과가 연결됩니다.</div>}
       <h1 className="text-2xl font-bold mb-1">권리관계 위험 점검</h1>
       <p className="text-slate-500 text-sm mb-2">
@@ -114,15 +119,15 @@ function RightsForm({ rawSeed }: { rawSeed: string | null }) {
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">내 보증금 (전세·월세 보증금)</label>
-            <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 3억"
-              value={depositStr} onChange={e => setDepositStr(e.target.value)} />
+            <MoneyInput aria-label="내 보증금" placeholder="예: 3억"
+              value={depositStr} onChange={setDepositStr} />
           </div>
           <div>
             <label className="block text-xs text-slate-500 mb-1">
               시세 <span className="text-slate-400">(AI 시세추정 결과 또는 직접 입력)</span>
             </label>
-            <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 8억"
-              value={priceStr} onChange={e => setPriceStr(e.target.value)} />
+            <MoneyInput aria-label="시세" placeholder="예: 8억"
+              value={priceStr} onChange={setPriceStr} smallWarningBelow={10_000_000} />
           </div>
         </div>
         <button onClick={handleSubmit} disabled={loading}

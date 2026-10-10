@@ -42,8 +42,18 @@ Spring 공개 API는 8002, Python은 내부 전용이다. 인증 쿠키·화면 
 | [sessionStore.ts](src/lib/sessionStore.ts) | 세션 값 읽기·쓰기·구독과 프리필 상태 |
 | [listingNavigation.ts](src/lib/listingNavigation.ts) | 탐색 정보·케이스·원본 매물의 화면 이동 |
 | [ListingAddressFields.tsx](src/components/ListingAddressFields.tsx) · [ListingLinkForm.tsx](src/components/ListingLinkForm.tsx) | 주소 선택과 직접 입력 전환, 조회 이름과 선택 별칭의 분리 저장 |
+| [MoneyInput.tsx](src/components/MoneyInput.tsx) · [moneyInput.ts](src/lib/moneyInput.ts) | 모든 화면 금액 칸의 공통 해석과 입력 중 해석 결과 표시 |
+| [ConfirmDeleteButton.tsx](src/components/ConfirmDeleteButton.tsx) | 되돌릴 수 없는 삭제의 같은 자리 확인과 실패 안내 |
+| [CaseContextBanner.tsx](src/components/CaseContextBanner.tsx) | 후보에서 연 시세·자금·권리 화면의 케이스·후보 표시, 저장 상태 확인, 후보 복귀 |
 
 요약과 비교의 검토 상태는 서버의 같은 판단 결과를 표시한다. 프론트엔드에서 별도 완료 기준을 계산하거나 미확인·만료 금액을 0으로 바꾸지 않는다. `등록 자료 확인`은 거래 안전 인증이 아니며, 미확인 상태에서도 사용자가 선택하면 보완 필요 표시를 유지한다.
+
+화면 공통 규칙:
+
+- **금액 입력**은 `MoneyInput`을 쓴다. 숫자만 입력하면 원이며 `7억 5000만`·`75000만`·`1.5억`을 허용한다. 화면별 만원 숫자 칸이나 단위 문자열을 이어 붙이는 변환을 새로 만들지 않는다. 입력하는 동안 해석한 금액을 보여주고, 부동산 가격 칸은 1천만원 미만이면 단위 확인을 안내한다(저장은 막지 않는다). CSV는 파일 형식상 원 단위다.
+- **삭제**는 `ConfirmDeleteButton`으로 같은 자리에서 확인한다. `window.confirm`은 화면과 자동 브라우저 검증을 멈추므로 새로 쓰지 않는다. 상태 변경·체크리스트 토글처럼 즉시 저장하는 동작도 실패를 화면에 알린다.
+- **분석 화면의 케이스 맥락**은 `CaseContextBanner`가 케이스를 다시 읽어 후보에 연결된 분석으로 저장 여부를 표시한다. 화면 상태만으로 "저장됨"이라고 표시하지 않는다. 후보에서 시작한 시세추정은 `/report/{id}?caseId=&candidateId=`로 이동해 복귀 경로를 유지한다.
+- **매물 보관함**은 후보 저장이 막힌 이유와 해결 방법을 카드에 표시하고, 타임라인·변경 이력은 누른 카드 안에서 연다.
 
 자금 화면의 주택 수는 취득 후 기준이다. 후보별 저장 조건을 우선 복원하고 공통 조건 적용은 사용자 선택으로 제공한다. 비상자금을 재차 차감하지 않는다. 세부 기준은 [자금 입력 문서](../docs/features/decision.md#funding-input)를 따른다.
 
@@ -75,8 +85,9 @@ npm run build
 node scripts/verify_candidate_funding_browser.cjs
 node scripts/verify_decision_assessment_browser.cjs
 node scripts/verify_listing_address_browser.cjs
+node scripts/verify_ux_safeguards_browser.cjs
 ```
 
-기본 모드는 실행 중인 Docker 서비스를 사용한다. API 주소를 인자로 주면 개발 프론트엔드를 별도로 띄우는 모드다. 연결한 API에 임시 계정을 만들고 종료 시 삭제하므로 pytest의 격리 DB 검사와 구분한다. CI에는 매물 등록·화면 이동·서비스 품질·자금·다섯 판단 축·주소 등록의 브라우저 검증과 아티팩트 보관이 있다. 주소 검사의 가상 응답과 실제 주소 조회의 확인 범위는 [주소 기반 등록](../docs/features/listings.md#address-registration)을 따른다.
+기본 모드는 실행 중인 Docker 서비스를 사용한다. API 주소를 인자로 주면 개발 프론트엔드를 별도로 띄우는 모드다. 연결한 API에 임시 계정을 만들고 종료 시 삭제하므로 pytest의 격리 DB 검사와 구분한다. CI에는 매물 등록·화면 이동·서비스 품질·자금·다섯 판단 축·주소 등록·금액 입력/삭제 확인/케이스 복귀의 브라우저 검증과 아티팩트 보관이 있다. 주소 검사의 가상 응답과 실제 주소 조회의 확인 범위는 [주소 기반 등록](../docs/features/listings.md#address-registration)을 따른다.
 
 프론트엔드 단위 테스트는 아직 없다. 390px 화면 검증은 반응형 웹 검사이며 모바일 앱 검증이 아니다. 최신 통과 결과와 실제 AVM·법률·매물 정보의 미검증 범위는 [검증 기록](../docs/features/decision.md#decision-assessment-검증-범위)을 확인한다.

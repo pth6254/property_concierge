@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BriefcaseBusiness, ChevronRight, Plus } from "lucide-react";
 import { api } from "@/lib/api";
+import MoneyInput, { wonFromInput } from "@/components/MoneyInput";
+import { formatWonKorean } from "@/lib/moneyInput";
 import type { PurchaseCase } from "@/lib/types";
 
 const STATUS: Record<string, string> = {
@@ -38,10 +40,13 @@ export default function CasesPage() {
   const create = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    let budgetMax: number | undefined;
+    try { budgetMax = wonFromInput(budget, "최대 예산"); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "최대 예산을 확인해주세요."); return; }
     try {
       const created=await api.createCase({
         title: title.trim(),
-        budget_max: budget ? Number(budget) * 10_000 : undefined,
+        budget_max: budgetMax,
         target_regions: region.trim() ? [region.trim()] : [],
       });
       setTitle(""); setRegion(""); setBudget(""); setOpen(false);
@@ -69,8 +74,8 @@ export default function CasesPage() {
         <form onSubmit={create} className="mb-6 grid gap-3 rounded-xl border border-emerald-100 bg-white p-5 shadow-sm md:grid-cols-3">
           <input required maxLength={150} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 서초구 실거주 매수" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="선호 지역" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
-          <div className="flex gap-2">
-            <input min="0" type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="최대 예산(만원)" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+          <div className="flex items-start gap-2">
+            <span className="min-w-0 flex-1"><MoneyInput aria-label="최대 예산" value={budget} onChange={setBudget} smallWarningBelow={10_000_000} placeholder="최대 예산 (예: 9억)" /></span>
             <button className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white">생성</button>
           </div>
         </form>
@@ -96,7 +101,7 @@ export default function CasesPage() {
               <p className="mt-2 text-sm text-slate-500">{item.target_regions.join(", ") || "지역 미정"}</p>
               <div className="mt-5 flex justify-between border-t border-slate-100 pt-4 text-sm">
                 <span className="text-slate-500">후보 {item.property_count}개</span>
-                <span className="font-semibold text-slate-700">{item.budget_max ? `${Math.round(item.budget_max / 10_000).toLocaleString()}만원` : "예산 미정"}</span>
+                <span className="font-semibold text-slate-700">{item.budget_max ? formatWonKorean(item.budget_max) : "예산 미정"}</span>
               </div>
             </Link>
           ))}

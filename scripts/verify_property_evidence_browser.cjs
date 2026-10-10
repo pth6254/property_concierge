@@ -48,7 +48,7 @@ function textPdf(pages) {
     page=await context.newPage();page.setDefaultTimeout(45000);const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.goto(`/cases/${caseId}`);await page.getByRole('button',{name:'후보 추가'}).click();
     await page.getByPlaceholder('후보명 또는 건물명').fill('개별 호 검증 후보');await page.getByPlaceholder('주소',{exact:true}).fill('서울특별시 강남구 역삼동 123');
-    await page.getByPlaceholder('매도 희망가(만원)').fill('80000');await page.getByPlaceholder('면적(㎡)').fill('84');await page.getByLabel('후보 물건 종류').selectOption('아파트');
+    await page.getByLabel('매도 희망가', { exact: true }).fill('8억');await page.getByPlaceholder('면적(㎡)').fill('84');await page.getByLabel('후보 물건 종류').selectOption('아파트');
     await page.getByLabel('건물 동 (선택)').fill('101');await page.getByLabel('호수 (선택)').fill('501');await page.getByLabel('층 (선택)').fill('5');await page.getByLabel('면적 기준',{exact:true}).selectOption('exclusive');
     const createdPromise=page.waitForResponse(r=>r.url().endsWith(`/cases/${caseId}/properties`)&&r.request().method()==='POST');await page.getByRole('button',{name:'후보 저장',exact:true}).click();
     const created=await createdPromise;assert.equal(created.status(),201);const candidateId=(await created.json()).id;

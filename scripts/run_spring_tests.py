@@ -136,7 +136,8 @@ def main():
             browser_env["WSLENV"] = ":".join(filter(None, (browser_env.get("WSLENV"), names)))
         browser_scripts = ("verify_listing_import_browser.cjs", "verify_navigation_browser.cjs", "verify_service_quality_browser.cjs",
                        "verify_candidate_funding_browser.cjs", "verify_decision_assessment_browser.cjs", "verify_listing_address_browser.cjs",
-                       "verify_property_evidence_browser.cjs", "verify_building_register_browser.cjs", "verify_valuation_support_browser.cjs")
+                       "verify_property_evidence_browser.cjs", "verify_building_register_browser.cjs", "verify_valuation_support_browser.cjs",
+                       "verify_ux_safeguards_browser.cjs")
         if "--browser-script" in sys.argv:
             selected = sys.argv[sys.argv.index("--browser-script") + 1:]
             if not selected or selected[0] not in browser_scripts:

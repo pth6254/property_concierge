@@ -4,6 +4,9 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { removeSessionValue, useSessionValue } from "@/lib/sessionStore";
 import type { SimulationResult, SimulationRequest, ScenarioResult } from "@/lib/types";
+import CaseContextBanner from "@/components/CaseContextBanner";
+import MoneyInput from "@/components/MoneyInput";
+import { parseWon } from "@/lib/moneyInput";
 
 const PROP_TYPES   = ["아파트", "연립다세대", "단독다가구", "오피스텔", "상가", "사무실", "오피스", "공장", "창고", "토지"];
 const REPAY_TYPES  = [
@@ -13,15 +16,8 @@ const REPAY_TYPES  = [
 ];
 const RENTAL_MODES = ["없음", "전세", "월세", "임차인 승계"];
 
-function parsePrice(s: string): number {
-  if (!s.trim()) return 0;
-  const value = s.replace(/[\s,]/g, "").replace(/원$/, "");
-  if (/^\d+$/.test(value)) return Number(value);
-  const match = /^(?:(\d+(?:\.\d+)?)억)?(?:(\d+(?:\.\d+)?)천만)?(?:(\d+(?:\.\d+)?)만)?$/.exec(value);
-  if (!match || !match[0]) return NaN;
-  const total = Number(match[1] ?? 0) * 100000000 + Number(match[2] ?? 0) * 10000000 + Number(match[3] ?? 0) * 10000;
-  return Number.isSafeInteger(total) ? total : NaN;
-}
+// 모든 금액 칸이 같은 해석을 쓰도록 공통 변환을 사용한다(MoneyInput 미리보기와 동일).
+const parsePrice = parseWon;
 
 function fmt(n?: number) { return n != null ? n.toLocaleString("ko-KR") + "원" : "—"; }
 function fmtPct(n?: number, deci = 2) { return n != null ? (n >= 0 ? "+" : "") + n.toFixed(deci) + "%" : "—"; }
@@ -118,6 +114,8 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
   const [rateSource, setRateSource] = useState("");             // ECOS 금리 출처
 
   const [result, setResult] = useState<SimulationResult | null>(null);
+  // 계산할 때마다 배너가 후보에 저장된 결과를 다시 읽도록 실행 횟수를 둔다.
+  const [runCount, setRunCount] = useState(0);
   const [report, setReport] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError]   = useState("");
@@ -198,6 +196,7 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
       const res = await api.simulation(params) as { result?: SimulationResult; report?: string; error?: string };
       if (res.error) throw new Error(res.error);
       setResult(res.result || null);
+      setRunCount(count => count + 1);
       setReport(res.report || "");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "시뮬레이션 실패");
@@ -216,6 +215,7 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
 
   return (
     <div className="max-w-5xl mx-auto">
+      {seed.case_id && <CaseContextBanner caseId={seed.case_id} candidateId={seed.candidate_id} analysis="simulation" refreshKey={runCount} />}
       <h1 className="text-2xl font-bold mb-1">투자 시뮬레이션</h1>
       <p className="text-slate-500 text-sm mb-5">부동산 투자 조건을 입력하면 수익성을 계산합니다.</p>
       <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg mb-5">
@@ -235,8 +235,8 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">매수가 *</label>
-                <input aria-label="매수가 (원)" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 7억 5000만, 75000만"
-                  value={purchasePriceStr} onChange={e => setPurchasePriceStr(e.target.value)} />
+                <MoneyInput aria-label="매수가 (원)" placeholder="예: 7억 5000만, 75000만" smallWarningBelow={10_000_000}
+                  value={purchasePriceStr} onChange={setPurchasePriceStr} />
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">매물 유형</label>
@@ -268,8 +268,8 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">연소득 (선택 — DSR 검증)</label>
-                <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 8000만"
-                  value={annualIncomeStr} onChange={e => setAnnualIncomeStr(e.target.value)} />
+                <MoneyInput aria-label="연소득" placeholder="예: 8000만"
+                  value={annualIncomeStr} onChange={setAnnualIncomeStr} />
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1">대출 기간: {loanYears}년</label>
@@ -316,15 +316,15 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
               {rentalMode === "전세" && (
                 <div>
                   <label className="block text-xs text-slate-500 mb-1">전세 보증금</label>
-                  <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 3억"
-                    value={depositStr} onChange={e => setDepositStr(e.target.value)} />
+                  <MoneyInput aria-label="전세 보증금" placeholder="예: 3억"
+                    value={depositStr} onChange={setDepositStr} />
                 </div>
               )}
               {rentalMode === "임차인 승계" && (
                 <div>
                   <label className="block text-xs text-slate-500 mb-1">승계할 임차 보증금</label>
-                  <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 4억"
-                    value={assumedStr} onChange={e => setAssumedStr(e.target.value)} />
+                  <MoneyInput aria-label="승계할 임차 보증금" placeholder="예: 4억"
+                    value={assumedStr} onChange={setAssumedStr} />
                   <p className="mt-1 text-xs text-slate-500">잔금에서 이 금액을 뺀 대신, 임대차 종료 때 임차인에게 돌려줄 의무를 넘겨받습니다. 임차인이 있는 주택의 대출 가능 여부·한도 규정은 계산에 반영하지 않았으니 금융기관에 확인하세요.</p>
                 </div>
               )}
@@ -355,8 +355,8 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">공시가격 (보유세 산정 — 미입력 시 시세로 추정)</label>
-                <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 5억"
-                  value={officialPriceStr} onChange={e => setOfficialPriceStr(e.target.value)} />
+                <MoneyInput aria-label="공시가격" placeholder="예: 5억"
+                  value={officialPriceStr} onChange={setOfficialPriceStr} />
               </div>
               <label className="flex items-center gap-2 text-sm text-slate-600">
                 <input type="checkbox" checked={adjustedArea} onChange={e => setAdjustedArea(e.target.checked)} />
@@ -372,8 +372,8 @@ function SimulationForm({ rawSeed }: { rawSeed: string | null }) {
               { label: "월 대출 상환 한도 (원)", value: paymentLimitStr, set: setPaymentLimitStr },
               { label: "기존 대출 연간 상환액 (원)", value: existingPaymentStr, set: setExistingPaymentStr },
             ].map(field => <label key={field.label} className="block text-xs text-slate-500">
-              {field.label}<input aria-label={field.label} value={field.value} onChange={e => field.set(e.target.value)}
-                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 1000000" />
+              {field.label}<MoneyInput aria-label={field.label} value={field.value} onChange={field.set}
+                className="mt-1 w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" placeholder="예: 300만, 3000000" />
             </label>)}
             <p className="text-xs text-slate-500">보유 현금은 취득비용을 포함해 비교합니다. 월 한도는 첫 달 대출 상환액 기준이며 생활비·관리비는 별도입니다.</p>
           </div>
