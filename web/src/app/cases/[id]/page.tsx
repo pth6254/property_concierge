@@ -12,7 +12,6 @@ import { api } from "@/lib/api";
 import CandidateNextActions from "@/components/CandidateNextActions";
 import CaseBuyerProfile from "@/components/CaseBuyerProfile";
 import CaseProgressGuide from "@/components/CaseProgressGuide";
-import DecisionJourney from "@/components/DecisionJourney";
 import { listingEntryHref } from "@/lib/listingNavigation";
 import { setSessionValue } from "@/lib/sessionStore";
 import { candidateSimulationSeed } from "@/lib/candidateSimulationSeed";
@@ -120,31 +119,25 @@ export default function CaseDetailPage() {
   if (!item) return <div className="py-20 text-center text-slate-500">케이스를 찾을 수 없습니다.</div>;
   const properties = item.properties ?? [];
 
+  // 배치: 머리글 → 진행 안내(다음 단계 하나) → 후보 목록 → 공통 매수 조건 → 관심 지역.
+  // 핵심 작업인 후보가 진행 표시와 조건 폼 아래에 묻혀 있어 위로 올렸다.
   return <div className="mx-auto max-w-6xl space-y-5">
-    <DecisionJourney current="cases" caseId={String(caseId)} />
     <Link href="/cases" className="text-sm font-medium text-primary hover:underline">← 매수 검토 목록</Link>
-    <Link href={`/cases/${caseId}/summary`} className="ml-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">매수 검토 요약</Link>
     <header className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-      <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">Purchase workspace</p><h1 className="text-2xl font-bold text-slate-900">{item.title}</h1><p className="mt-1 text-sm text-slate-500">{item.target_regions.join(", ") || "선호 지역 미정"} · 최대 예산 {won(item.budget_max)}</p></div>
-      <div className="flex flex-wrap gap-2">{item.selected_property_id && <Link href={`/cases/${caseId}/execution`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">실행 계획</Link>}{properties.length >= 1 && <Link href={`/cases/${caseId}/comparison`} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">후보 검토·최종 선택</Link>}<select aria-label="케이스 진행 상태" value={item.status} onChange={(event) => { const status = event.target.value as PurchaseCaseStatus; void act(() => api.updateCase(caseId, { status }), "케이스 상태를 바꾸지 못했습니다."); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{CASE_STATUS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select></div>
+      <div className="min-w-0"><h1 className="break-words text-2xl font-bold text-slate-900">{item.title}</h1><p className="mt-1 text-sm text-slate-500">{item.target_regions.join(", ") || "선호 지역 미정"} · 최대 예산 {won(item.budget_max)}</p></div>
+      <div className="flex flex-wrap items-center gap-2">
+        <select aria-label="케이스 진행 상태" value={item.status} onChange={(event) => { const status = event.target.value as PurchaseCaseStatus; void act(() => api.updateCase(caseId, { status }), "케이스 상태를 바꾸지 못했습니다."); }} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm">{CASE_STATUS.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}</select>
+        <Link href={`/cases/${caseId}/summary`} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:border-primary hover:text-primary">매수 검토 요약</Link>
+        {properties.length >= 1 && <Link href={`/cases/${caseId}/comparison`} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">후보 검토·최종 선택</Link>}
+        {item.selected_property_id && <Link href={`/cases/${caseId}/execution`} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white">실행 계획</Link>}
+      </div>
     </header>
     {actionError && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
     <CaseProgressGuide item={item} />
-    <div id="buyer-profile"><CaseBuyerProfile key={item.updated} caseId={caseId} profile={item.buyer_profile} budgetMax={item.budget_max} onSaving={()=>setProfileNotice("")} onSaved={async()=>{await load();setProfileNotice("매수 조건을 저장했습니다. 후보 시나리오와 추천에 적용됩니다.");}} /></div>
-    {profileNotice && <p role="status" className="text-sm text-primary">{profileNotice}</p>}
-    <div id="candidates" />
-    <Link href={`/listings?case_id=${caseId}#saved-listings`} className="inline-flex rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-primary hover:bg-emerald-50">보관함에서 후보 가져오기 →</Link>
 
-    <section className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
-      <div className="flex items-center justify-between text-sm"><strong>전체 검토 진행률</strong><strong className="text-primary">{item.workspace?.progress_percent ?? 0}%</strong></div>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white"><div className="h-full rounded-full bg-primary" style={{ width: `${item.workspace?.progress_percent ?? 0}%` }} /></div>
-      <div className="mt-3 flex gap-4 text-xs text-slate-600"><span>완료 {item.workspace?.checklist_done ?? 0}/{item.workspace?.checklist_total ?? 0}</span><span className="text-amber-700">주의 {item.workspace?.warning_count ?? 0}</span><span className="text-red-700">진행 불가 {item.workspace?.blocked_count ?? 0}</span></div>
-    </section>
-
-    {(item.regions?.length ?? 0) > 0 && <section className="rounded-2xl border bg-white p-5 shadow-sm"><h2 className="font-bold">관심 지역</h2><div className="mt-3 grid gap-3 md:grid-cols-2">{item.regions?.map((region) => <article key={region.id} className="flex justify-between rounded-xl border p-4"><div><h3 className="flex items-center gap-2 text-sm font-semibold"><MapPinned size={15} className="text-primary" />{region.region_name}</h3><p className="mt-1 text-xs text-slate-500">중앙 거래가격 {won(region.stats_snapshot.median_price * 10_000)} · 표본 {region.stats_snapshot.sample_size.toLocaleString()}건</p></div><ConfirmDeleteButton label="관심 지역 삭제" message="이 관심 지역을 뺄까요?" onConfirm={async () => { setActionError(""); await api.deleteCaseRegion(caseId, region.id); await load(); }} onError={setActionError} /></article>)}</div></section>}
-
-    <section className="rounded-2xl border bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b p-5"><div><h2 className="font-bold">후보 매물</h2><p className="mt-1 text-xs text-slate-500">분석 결과와 남은 검토 항목을 후보별로 관리합니다.</p></div><button onClick={() => setFormOpen((value) => !value)} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />후보 추가</button></div>
+    <section id="candidates" aria-label="후보 매물" className="scroll-mt-24 rounded-2xl border bg-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5"><div><h2 className="font-bold">후보 매물 {properties.length > 0 && <span className="text-sm font-normal text-slate-500">{properties.length}개</span>}</h2><p className="mt-1 text-xs text-slate-500">분석 결과와 남은 검토 항목을 후보별로 관리합니다.</p></div>
+        <div className="flex flex-wrap gap-2"><Link href={`/listings?case_id=${caseId}#saved-listings`} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm font-semibold text-primary hover:bg-emerald-50">보관함에서 후보 가져오기 →</Link><button onClick={() => setFormOpen((value) => !value)} aria-expanded={formOpen} className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white"><Plus size={15} className="mr-1 inline" />후보 추가</button></div></div>
       {formOpen && <form onSubmit={addProperty} className="grid gap-3 border-b bg-slate-50 p-5 md:grid-cols-2">
         <div className="md:col-span-2"><PropertyIdentityFields /></div>
         <input required value={name} onChange={(event) => setName(event.target.value)} placeholder="후보명 또는 건물명" className="rounded-lg border px-3 py-2 text-sm" /><input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="주소" className="rounded-lg border px-3 py-2 text-sm" />
@@ -155,6 +148,11 @@ export default function CaseDetailPage() {
       {error && <p className="m-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
       {properties.length === 0 ? <div className="py-16 text-center text-sm text-slate-400">검토할 부동산을 후보로 추가해보세요.</div> : <div className="space-y-4 p-4">{properties.map((property) => <CandidateCard key={property.id} property={property} caseId={caseId} profile={item.buyer_profile} reload={load} />)}</div>}
     </section>
+
+    <div id="buyer-profile" className="scroll-mt-24"><CaseBuyerProfile key={item.updated} caseId={caseId} profile={item.buyer_profile} budgetMax={item.budget_max} onSaving={()=>setProfileNotice("")} onSaved={async()=>{await load();setProfileNotice("매수 조건을 저장했습니다. 후보 시나리오와 추천에 적용됩니다.");}} /></div>
+    {profileNotice && <p role="status" className="text-sm text-primary">{profileNotice}</p>}
+
+    {(item.regions?.length ?? 0) > 0 && <section className="rounded-2xl border bg-white p-5 shadow-sm"><h2 className="font-bold">관심 지역</h2><div className="mt-3 grid gap-3 md:grid-cols-2">{item.regions?.map((region) => <article key={region.id} className="flex justify-between rounded-xl border p-4"><div><h3 className="flex items-center gap-2 text-sm font-semibold"><MapPinned size={15} className="text-primary" />{region.region_name}</h3><p className="mt-1 text-xs text-slate-500">중앙 거래가격 {won(region.stats_snapshot.median_price * 10_000)} · 표본 {region.stats_snapshot.sample_size.toLocaleString()}건</p></div><ConfirmDeleteButton label="관심 지역 삭제" message="이 관심 지역을 뺄까요?" onConfirm={async () => { setActionError(""); await api.deleteCaseRegion(caseId, region.id); await load(); }} onError={setActionError} /></article>)}</div></section>}
   </div>;
 }
 

@@ -48,11 +48,31 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_mo
     const candidate=(await(await context.request.get(`/api/cases/${caseId}`)).json()).properties[0];
     assert.equal(candidate.asking_price,850000000);check('후보 희망가 "8억 5000만" → 850,000,000원 저장');
 
+    // 2-1) 케이스 화면 배치: 진행 안내 하나 → 후보 목록 → 공통 매수 조건 순서
+    const order=await page.evaluate(()=>['[aria-label="매수 검토 진행 안내"]','#candidates','#buyer-profile'].map(selector=>document.querySelector(selector)?.getBoundingClientRect().top??-1));
+    assert.ok(order.every(value=>value>=0)&&order[0]<order[1]&&order[1]<order[2],`배치 순서 ${order}`);
+    assert.equal(await page.getByRole('navigation',{name:'매수 검토 단계'}).count(),0);
+    const guide=page.getByRole('region',{name:'매수 검토 진행 안내'});
+    await guide.getByRole('heading',{name:'다음 단계: 매수 조건 입력'}).waitFor();
+    assert.equal(await guide.getByRole('link',{name:/이어서 하기/}).getAttribute('href'),`/cases/${caseId}#buyer-profile`);
+    await page.getByText('공통 매수 조건',{exact:true}).waitFor();
+    await page.getByText(/예산 9억원 · 보유 현금 미입력/).waitFor();
+    await page.screenshot({path:path.join(output,'ux-safeguards-case.png'),fullPage:true});
+    check('케이스 화면: 진행 안내 하나와 이어서 하기, 후보 목록이 공통 조건보다 위, 조건 요약 표시');
+
     // 3) 삭제는 확인 단계를 거치고 취소하면 유지
     const card=page.locator(`#candidate-${candidate.id}`);
     await card.getByRole('button',{name:'후보 삭제'}).click();const confirm=card.getByRole('group',{name:'후보 삭제 확인'});await confirm.waitFor();
     await confirm.getByRole('button',{name:'취소'}).click();await card.getByRole('heading',{name:'안전장치 검증 후보'}).waitFor();
     assert.equal((await(await context.request.get(`/api/cases/${caseId}`)).json()).properties.length,1);check('후보 삭제: 확인 단계 표시, 취소 시 삭제하지 않음');
+
+    // 3-1) 공통 매수 조건 금액 칸도 같은 해석을 쓴다
+    await page.getByLabel('보유 현금',{exact:true}).fill('3억 5000만');await page.getByText('= 3억 5,000만원',{exact:true}).waitFor();
+    await page.getByLabel('월 상환 한도',{exact:true}).fill('200만');
+    await page.getByRole('button',{name:'매수 조건 저장',exact:true}).click();await page.getByRole('status').filter({hasText:'매수 조건을 저장했습니다'}).waitFor();
+    const savedProfile=(await(await context.request.get(`/api/cases/${caseId}`)).json()).buyer_profile;
+    assert.equal(savedProfile.cash_available,350000000);assert.equal(savedProfile.monthly_payment_limit,2000000);
+    check('공통 매수 조건: "3억 5000만"·"200만"을 원으로 저장');
 
     // 4) 자금 분석 화면의 케이스 배너와 후보 복귀
     await card.getByRole('link',{name:/자금 분석/}).click();await page.waitForURL(/\/simulation/);
@@ -65,11 +85,44 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_mo
     await page.waitForFunction(id=>{const box=document.getElementById(id)?.getBoundingClientRect();return Boolean(box&&box.top>=0&&box.top<innerHeight/2);},`candidate-${candidate.id}`);
     check('자금 분석: 케이스·후보·저장 상태 배너, 후보 카드로 복귀');
 
+    // 4-1) 후보 비교표: 묶음 제목·값이 다른 항목만 보기·미확인 흐림
+    const second=await context.request.post(`/api/cases/${caseId}/properties`,{data:{name:'비교용 두 번째 후보',address:'서울특별시 강남구 역삼동 125',asking_price:900000000,area_sqm:84,category:'아파트',source:'manual'}});
+    assert.ok(second.ok(),await second.text());
+    await page.goto(`/cases/${caseId}/comparison`);const table=page.getByRole('region',{name:'후보 비교표'});
+    for(const title of ['물건·가격','자금','권리·검토 상태'])await table.getByText(title,{exact:true}).waitFor();
+    await table.getByRole('rowheader',{name:'적용 금리',exact:true}).waitFor();
+    const unknownCell=table.getByRole('row').filter({has:page.getByRole('rowheader',{name:'적용 금리',exact:true})}).getByRole('cell').first();
+    assert.match(await unknownCell.getAttribute('class'),/text-slate-400/);
+    await table.getByLabel('후보 간 값이 다른 항목만 보기').check();
+    await table.getByRole('rowheader',{name:'희망가',exact:true}).waitFor();
+    assert.equal(await table.getByRole('rowheader',{name:'적용 금리',exact:true}).count(),0);
+    await page.screenshot({path:path.join(output,'ux-safeguards-comparison.png'),fullPage:true});
+    check('후보 비교표: 묶음 제목, 값이 다른 항목만 보기, 미확인 값 흐림');
+    await page.goto(`/cases/${caseId}`);
+    const secondId=(await second.json()).id;
+    await page.locator(`#candidate-${secondId}`).getByRole('button',{name:'후보 삭제'}).click();
+    await page.locator(`#candidate-${secondId}`).getByRole('group',{name:'후보 삭제 확인'}).getByRole('button',{name:'삭제',exact:true}).click();
+    await page.locator(`#candidate-${secondId}`).waitFor({state:'detached'});
+
     // 5) 확인 후 실제 삭제
     await page.locator(`#candidate-${candidate.id}`).getByRole('button',{name:'후보 삭제'}).click();
     await page.getByRole('group',{name:'후보 삭제 확인'}).getByRole('button',{name:'삭제',exact:true}).click();
     await page.getByText('검토할 부동산을 후보로 추가해보세요.',{exact:true}).waitFor();
     assert.equal((await(await context.request.get(`/api/cases/${caseId}`)).json()).properties.length,0);check('후보 삭제: 확인 후 삭제 반영');
+
+    // 5-1) 홈: 진행 중 케이스와 다음 단계, 사이드바 접힘 그룹과 계정 관리
+    await page.goto('/');const activeCases=page.getByRole('region',{name:'진행 중인 매수 검토'});
+    const caseCard=activeCases.getByRole('article').filter({hasText:'화면 안전장치 검증 케이스'});
+    await caseCard.getByText('다음 단계:',{exact:false}).waitFor();
+    assert.equal(await caseCard.getByRole('link',{name:/이어서 하기/}).getAttribute('href'),`/cases/${caseId}#buyer-profile`);
+    await page.screenshot({path:path.join(output,'ux-safeguards-home.png'),fullPage:true});
+    const sidebar=page.locator('aside');
+    assert.equal(await sidebar.getByRole('link',{name:'샘플 매물 비교',exact:true}).isVisible(),false);
+    assert.equal(await sidebar.getByRole('button',{name:'회원 탈퇴'}).isVisible(),false);
+    await sidebar.locator('summary',{hasText:'샘플 도구'}).click();await sidebar.getByRole('link',{name:'샘플 매물 비교',exact:true}).waitFor();
+    await page.getByLabel('단지명 또는 주소',{exact:true}).fill('검증단지');await page.getByRole('button',{name:'매물로 등록',exact:true}).click();
+    await page.waitForURL(url=>url.pathname==='/listings'&&url.searchParams.get('name')==='검증단지');
+    check('홈: 진행 중 케이스의 다음 단계, 샘플 도구·회원 탈퇴는 접힘, 검색은 매물 등록으로 연결');
 
     // 6) 권리점검의 복합 단위 금액(이전에는 "3억5천만"을 잘못 환산)
     await page.goto('/rights');await page.getByLabel('시세',{exact:true}).fill('3억5천만');await page.getByText('= 3억 5,000만원',{exact:true}).waitFor();

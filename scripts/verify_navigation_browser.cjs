@@ -129,8 +129,10 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     await page.waitForURL(url=>url.pathname===`/cases/${target.id}` && url.hash.startsWith('#candidate-checklist-'));
     check('검토 요약에서 실제 후보 체크리스트로 이동');
     await page.goto('/');
-    assert.equal(await page.locator('main').getByRole('link').filter({hasText:'동네 탐색'}).first().getAttribute('href'),'/explore');
-    assert.equal(await page.locator('main').getByRole('link').filter({hasText:'후보 검토·비교'}).first().getAttribute('href'),'/cases');
+    // 홈 위쪽의 진행 중 케이스 카드는 케이스별 링크를 가지므로 서비스 단계 영역 안에서 확인한다.
+    const journey=page.getByRole('region',{name:'매수 여정'});
+    assert.equal(await journey.getByRole('link').filter({hasText:'동네 탐색'}).first().getAttribute('href'),'/explore');
+    assert.equal(await journey.getByRole('link').filter({hasText:'후보 검토·비교'}).first().getAttribute('href'),'/cases');
     await page.setViewportSize({width:390,height:844});
     await page.getByRole('button',{name:'메뉴 열기'}).click();
     await page.getByRole('link',{name:'매물 보관함',exact:true}).filter({visible:true}).click();

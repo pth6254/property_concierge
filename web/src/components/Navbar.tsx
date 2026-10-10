@@ -10,7 +10,9 @@ import {
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: LucideIcon; exact?: boolean };
-type NavGroup = { label: string | null; items: NavItem[] };
+// collapsible 그룹은 기본으로 접고, 그 안의 화면에 있을 때만 펼친다.
+// 핵심 흐름(의사결정·분석·안전)과 샘플·기록 도구가 같은 무게로 보이지 않게 하기 위함이다.
+type NavGroup = { label: string | null; items: NavItem[]; collapsible?: boolean };
 
 const GROUPS: NavGroup[] = [
   {
@@ -40,7 +42,8 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
-    label: "추가 도구",
+    label: "샘플 도구",
+    collapsible: true,
     items: [
       { href: "/recommendation", label: "단지 추천·샘플", icon: MapPin },
       { href: "/comparison", label: "샘플 매물 비교", icon: Columns2 },
@@ -48,6 +51,7 @@ const GROUPS: NavGroup[] = [
   },
   {
     label: "내 기록",
+    collapsible: true,
     items: [
       { href: "/report",    label: "결과 리포트",     icon: FileText },
       { href: "/dashboard", label: "이력 대시보드",   icon: History },
@@ -68,43 +72,55 @@ function Wordmark() {
   );
 }
 
+const isActive = (path: string, { href, exact }: NavItem) =>
+  exact ? path === href : path === href || path.startsWith(href + "/");
+
 function NavList({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
   return (
     <nav className="flex-1 overflow-y-auto px-2.5 py-3">
-      {GROUPS.map((group, gi) => (
-        <div key={gi} className="mb-4">
-          {group.label && (
-            <div className="mb-1.5 px-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/40">
-              {group.label}
-            </div>
-          )}
-          {group.items.map(({ href, label, icon: Icon, exact }) => {
-            const active = exact
-              ? path === href
-              : path === href || path.startsWith(href + "/");
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? "page" : undefined}
-                onClick={onNavigate}
-                className={`relative mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
-                  active
-                    ? "bg-white/10 font-semibold text-white"
-                    : "text-white/60 hover:bg-white/5 hover:text-white"
-                }`}
-              >
-                {active && (
-                  <span className="absolute -left-2.5 top-1.5 bottom-1.5 w-[3px] rounded bg-accent" />
-                )}
-                <Icon size={16} className="shrink-0 opacity-85" />
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+      {GROUPS.map((group, gi) => {
+        const links = group.items.map(item => <NavLink key={item.href} item={item} active={isActive(path, item)} onNavigate={onNavigate} />);
+        if (group.collapsible) return (
+          <details key={gi} open={group.items.some(item => isActive(path, item))} className="group mb-4">
+            <summary className="mb-1.5 flex cursor-pointer list-none items-center justify-between rounded px-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/40 hover:text-white/70">
+              {group.label}<span aria-hidden="true" className="transition-transform group-open:rotate-90">›</span>
+            </summary>
+            {links}
+          </details>
+        );
+        return (
+          <div key={gi} className="mb-4">
+            {group.label && (
+              <div className="mb-1.5 px-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/40">
+                {group.label}
+              </div>
+            )}
+            {links}
+          </div>
+        );
+      })}
     </nav>
+  );
+}
+
+function NavLink({ item: { href, label, icon: Icon }, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      onClick={onNavigate}
+      className={`relative mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] transition-colors ${
+        active
+          ? "bg-white/10 font-semibold text-white"
+          : "text-white/60 hover:bg-white/5 hover:text-white"
+      }`}
+    >
+      {active && (
+        <span className="absolute -left-2.5 top-1.5 bottom-1.5 w-[3px] rounded bg-accent" />
+      )}
+      <Icon size={16} className="shrink-0 opacity-85" />
+      {label}
+    </Link>
   );
 }
 
@@ -129,20 +145,23 @@ function UserFooter() {
           </div>
           <div className="truncate text-xs text-white/40">{user.email}</div>
           {user.is_operator && <Link href="/operations" className="block py-2 text-sm text-white underline">운영 관리</Link>}
-          <div className="flex gap-1.5">
-            <button
-              onClick={logout}
-              className="rounded-md border border-white/20 px-2.5 py-1 text-[11.5px] text-white/60 transition-colors hover:border-white/40 hover:text-white"
-            >
-              로그아웃
-            </button>
+          <button
+            onClick={logout}
+            className="rounded-md border border-white/20 px-2.5 py-1 text-[11.5px] text-white/60 transition-colors hover:border-white/40 hover:text-white"
+          >
+            로그아웃
+          </button>
+          {/* 되돌릴 수 없는 탈퇴를 로그아웃 바로 옆에 두면 잘못 누르기 쉬워 한 단계 안쪽으로 옮겼다. */}
+          <details className="text-[11px] text-white/40">
+            <summary className="cursor-pointer hover:text-white/70">계정 관리</summary>
+            <p className="mt-1 text-white/40">탈퇴하면 계정과 모든 이용 기록이 즉시 삭제되며 복구할 수 없습니다.</p>
             <button
               onClick={handleWithdraw}
-              className="rounded-md px-2 py-1 text-[11.5px] text-white/30 transition-colors hover:text-rose-300"
+              className="mt-1 rounded-md border border-rose-300/40 px-2 py-1 text-rose-200 transition-colors hover:bg-rose-500/10"
             >
               회원 탈퇴
             </button>
-          </div>
+          </details>
         </>
       )}
       <div className="flex gap-2 text-[11px]">
