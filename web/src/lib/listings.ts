@@ -72,6 +72,16 @@ export type ListingTimeline = {
       observed_asking_price?: number; observed_deposit?: number; observed_monthly_rent?: number }[] };
   limitations: string[];
 };
+export type ListingMarketOverlay = {
+  listing_id: number; applicable: boolean; reason: string;
+  asking: { price_won: number | null; per_sqm_won: number | null; confirmed_at: string };
+  trades: null | { available: boolean; reason?: string; complex_name?: string; match?: string; data_through?: string; window_months?: number; area_tolerance_pct?: number;
+    trades: { deal_date: string; floor: string; area_sqm: number; price_won: number; price_per_sqm_won: number }[] };
+  summary: { recent_window_months: number; recent_count: number; status: "ok" | "insufficient" | "no_trades" | "no_asking";
+    recent_median_per_sqm_won: number | null; asking_vs_recent_median_pct: number | null };
+  avm: { property_id: number; case_id: number; status: string; analyzed_at: string; shown: boolean; estimated_value_won: number | null; note: string }[];
+  limitations: string[];
+};
 export const listingApi = {
   addresses: (query: string) => request<{items:ListingAddressChoice[]}>(`/address/search?${new URLSearchParams({query})}`, undefined, 25000),
   building: (input: {address_token: string; building_id?: string; building_dong?: string; unit_number?: string; property_type: string}) =>
@@ -82,6 +92,7 @@ export const listingApi = {
   observations: (source_url: string) => request<{items:ListingObservation[]}>(`/collection/history?${new URLSearchParams({source_url})}`),
   import: (source_name: string, csv_text: string, commit = false) => request<ListingImportResult>("/import", {source_name, csv_text, commit}),
   search: (params: URLSearchParams) => request<{items: ImportedListing[]; total: number}>(`?${params}`),
+  marketOverlay: (id: number) => request<ListingMarketOverlay>(`/${id}/market-overlay`, undefined, 30000),
   timeline: (id: number) => request<ListingTimeline>(`/${id}/timeline`),
   history: (id: number) => request<{items: (ImportedListing & {imported_at: string})[]}>(`/${id}/history`),
   saveCandidate: (id: number, case_id: number) => request<{id:number}>(`/${id}/candidate`, {case_id}),

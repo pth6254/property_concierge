@@ -54,6 +54,19 @@ def district_market_summary(
         budget_max_won=budget_max * 10_000 if budget_max else None,
     )
 
+class ListingTradeRequest(BaseModel):
+    legal_region_code: str = Field(min_length=10, max_length=10, pattern=r"^\d{10}$")
+    name: str = Field(min_length=1, max_length=150)
+    area_sqm: float = Field(gt=0, le=100000)
+
+
+@router.post("/listing-trades")
+def listing_trades(body: ListingTradeRequest):
+    """저장된 동일 단지 실거래만 반환한다. 외부 API·LLM·작업을 실행하지 않는다."""
+    from backend.services.listing_trade_overlay import find_trades
+    return find_trades(legal_region_code=body.legal_region_code, name=body.name, area_sqm=body.area_sqm)
+
+
 @router.post("/mortgage-rate")
 def mortgage_rate():
     from backend.bok_rates import get_mortgage_rate

@@ -50,6 +50,7 @@ abstract class PlatformIntegrationSupport {
     @MockitoBean lateinit var python: PythonClient
     @MockitoBean lateinit var mail: PasswordResetMail
     protected var validatedRows: List<JsonNode> = emptyList()
+    protected var tradesFailure = false
     protected var duringReport: (() -> Unit)? = null
 
     @BeforeEach
@@ -67,7 +68,7 @@ abstract class PlatformIntegrationSupport {
             factory.hostName == redisAddress.host && factory.port == redisAddress.port)
         jdbc.execute("TRUNCATE users,legal_regions RESTART IDENTITY CASCADE")
         factory.connection.use { it.serverCommands().flushDb() }
-        validatedRows = emptyList(); duringReport = null
+        validatedRows = emptyList(); duringReport = null; tradesFailure = false
         // 모의하는 것은 외부 분석 경계뿐이다. 회원·저장·권한·수식·트랜잭션은 실제 Spring이다.
         doAnswer { invocation ->
             check(!TransactionSynchronizationManager.isActualTransactionActive()) { "분석 호출은 DB 트랜잭션 밖이어야 합니다" }
@@ -80,6 +81,12 @@ abstract class PlatformIntegrationSupport {
                         "warnings" to emptyList<String>(), "preview" to validatedRows.map { it.path("payload") })))
                 "decision/decorate" -> data.path("snapshot").path("case").deepCopy<com.fasterxml.jackson.databind.node.ObjectNode>().apply {
                     set<JsonNode>("properties", json.valueToTree(data.path("snapshot").path("properties").map { it.path("property") }))
+                }
+                "data/listing-trades" -> {
+                    if (tradesFailure) throw kr.propertyconcierge.core.ApiFailure(503, "분석 서비스에 연결하지 못했습니다")
+                    json.valueToTree<JsonNode>(mapOf("available" to true, "echo" to data, "complex_name" to "확인 후보", "match" to "exact",
+                        "trades" to listOf(mapOf("deal_date" to Instant.now().minusSeconds(86400L * 20).toString().take(10), "floor" to "5",
+                            "area_sqm" to 84.9, "price_won" to 1_000_000_000L, "price_per_sqm_won" to 11_778_563L))))
                 }
                 "simulation/report" -> { duringReport?.invoke(); json.readTree("""{"report":"표현 경계 대역","report_output":{}}""") }
                 else -> throw AssertionError("등록하지 않은 외부 분석 경계: $path")

@@ -49,6 +49,29 @@ class ListingPersistenceIT : PlatformIntegrationSupport() {
         request("GET", "/api/listings?region_code=bad", cookie=cookie, expected=422)
         request("GET", "/api/listings?page=0", cookie=cookie, expected=422)
     }
+    @Test fun `시장 겹쳐 보기는 저장 실거래와 본인 후보의 저장 AVM만 읽고 조회 실패에도 호가 이력을 유지한다`() {
+        val (_, cookie) = register(); import(cookie, listOf(row()))
+        val id = body(request("GET", "/api/listings", cookie=cookie)).path("items").single().path("id").asLong()
+        val first = body(request("GET", "/api/listings/$id/market-overlay", cookie=cookie))
+        assertTrue(first.path("applicable").asBoolean()); assertEquals("1168010100", first.path("trades").path("echo").path("legal_region_code").asText())
+        assertEquals("확인 후보", first.path("trades").path("echo").path("name").asText()); assertEquals(84.9, first.path("trades").path("echo").path("area_sqm").asDouble())
+        assertEquals(0, first.path("avm").size())
+        // 같은 사용자의 후보에 저장된 AVM. 시장가격 비교 기준을 통과한 값만 가격을 보여준다.
+        val case = case(cookie); val property = candidate(cookie, case)
+        jdbc.update("UPDATE case_properties SET source_listing_id=? WHERE id=?", id, property)
+        jdbc.update("""INSERT INTO candidate_analyses(case_id,property_id,analysis_type,status,summary,analyzed_at,created,updated)
+            VALUES (?,?,'appraisal','completed',?::json,'2026-10-01 10:00:00','2026-10-01 10:00:00','2026-10-01 10:00:00')""", case, property,
+            """{"estimated_value":780000000,"result_kind":"market_reference","valuation":{"comparison_eligible":true,"result_kind":"market_reference"}}""")
+        val withAvm = body(request("GET", "/api/listings/$id/market-overlay", cookie=cookie)).path("avm").single()
+        assertTrue(withAvm.path("shown").asBoolean()); assertEquals(780_000_000L, withAvm.path("estimated_value_won").asLong())
+        val before = count("listing_revisions")
+        tradesFailure = true
+        val degraded = body(request("GET", "/api/listings/$id/market-overlay", cookie=cookie))
+        assertFalse(degraded.path("trades").path("available").asBoolean()); assertEquals(1, degraded.path("avm").size())
+        assertEquals(before, count("listing_revisions"))  // 조회는 저장 상태를 바꾸지 않는다
+        val (_, other) = register()
+        request("GET", "/api/listings/$id/market-overlay", cookie=other, expected=404)
+    }
     @Test fun `타인의 매물 이력과 후보 저장은 모두 404이다`() {
         val (_, cookie) = register(); import(cookie, listOf(row()))
         val id = body(request("GET", "/api/listings", cookie=cookie)).path("items").single().path("id").asLong()

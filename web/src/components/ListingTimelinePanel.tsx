@@ -1,5 +1,6 @@
 "use client";
-import type { ListingTimeline } from "@/lib/listings";
+import type { ListingMarketOverlay, ListingTimeline } from "@/lib/listings";
+import ListingMarketChart from "@/components/ListingMarketChart";
 
 const STATUS: Record<string, string> = { active: "거래 가능(제공자 표시)", withdrawn: "철회", completed: "거래 완료(제공자 표시)", unknown: "상태 미확인" };
 const OUTCOME: Record<string, string> = { observed: "원문 읽음", blocked: "접근 제한", unavailable: "원문 확인 불가", failed: "조회 실패", parse_error: "판독 실패" };
@@ -18,7 +19,7 @@ function Spark({ values }: { values: number[] }) {
     {values.map((v, i) => <circle key={i} cx={x(i)} cy={y(v)} r="2.5" fill="currentColor" />)}</svg>;
 }
 
-export default function ListingTimelinePanel({ value, onClose }: { value: ListingTimeline; onClose: () => void }) {
+export default function ListingTimelinePanel({ value, overlay, onClose }: { value: ListingTimeline; overlay?: ListingMarketOverlay | null; onClose: () => void }) {
   const primary = value.metrics[0];
   const primaryValues = primary ? value.points.map(p => p[primary.key as "asking_price" | "deposit" | "monthly_rent"]).filter((v): v is number => v != null) : [];
   return <section aria-label="매물 타임라인" className="space-y-3 rounded border bg-white p-4 text-sm break-words">
@@ -29,7 +30,7 @@ export default function ListingTimelinePanel({ value, onClose }: { value: Listin
         <p className="font-semibold">{m.label}: {won(m.initial)} → {won(m.current)}{m.cumulative_change_pct != null && ` (${m.cumulative_change_pct > 0 ? "+" : ""}${m.cumulative_change_pct}%)`}</p>
         <p className="text-xs text-slate-600">저장한 값이 바뀐 횟수 {m.change_count}회 · 최저 {won(m.lowest)} · 최고 {won(m.highest)}</p>
       </div>)}
-      {primary && <Spark values={primaryValues} />}
+      {overlay ? <ListingMarketChart overlay={overlay} timeline={value} /> : primary && <Spark values={primaryValues} />}
       {value.status_changes.length > 0 && <div><h3 className="font-semibold">저장한 상태 변경</h3><ul className="list-inside list-disc">{value.status_changes.map(c => <li key={c.at}>{day(c.at)} · {STATUS[c.from] ?? c.from} → {STATUS[c.to] ?? c.to}</li>)}</ul></div>}
     </>}
     <div><h3 className="font-semibold">원문 수집 시도</h3>

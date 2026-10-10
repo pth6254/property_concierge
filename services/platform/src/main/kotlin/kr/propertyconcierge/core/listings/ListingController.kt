@@ -27,6 +27,8 @@ class ListingController(private val listings: ListingService, private val sessio
     fun history(@PathVariable id: Long, request: HttpServletRequest) = listings.history(sessions.required(request).id, id)
     @GetMapping("/{id:[0-9]+}/timeline")
     fun timeline(@PathVariable id: Long, request: HttpServletRequest) = listings.timeline(sessions.required(request).id, id)
+    @GetMapping("/{id:[0-9]+}/market-overlay")
+    fun marketOverlay(@PathVariable id: Long, request: HttpServletRequest) = listings.marketOverlay(sessions.required(request).id, id)
     @PostMapping("/import")
     fun import(@Valid @RequestBody body: ImportInput, request: HttpServletRequest) =
         listings.import(sessions.required(request).id, body.sourceName, body.csvText, body.commit)

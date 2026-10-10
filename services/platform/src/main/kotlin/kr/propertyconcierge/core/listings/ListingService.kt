@@ -118,6 +118,25 @@ class ListingService(private val jdbc: JdbcTemplate, private val json: ObjectMap
                 .map { Triple((it["fetched_at"] as Number).toDouble(), it["outcome"].toString(), json.readTree(it["payload"].toString()) as JsonNode) }
         return ListingTimeline(json).build(id, revisions, observations, current.path("needs_confirmation").asBoolean(false))
     }
+    /** 호가 이력에 겹쳐 볼 저장 실거래와 저장된 AVM 결과. 조회에서 분석 실행·저장·후보 상태 변경은 하지 않는다. */
+    fun marketOverlay(owner: Long, id: Long): JsonNode {
+        val listing = get(owner, id)
+        val applicable = listing.path("transaction_type").asText() == "purchase" && listing.path("property_type").asText() == "apartment" &&
+            listing.path("area_basis").asText() == "exclusive" && listing.path("legal_region_code").asText("").length == 10
+        // 외부 분석 호출은 DB 조회 밖에서 끝낸다. 실패해도 AVM 저장값과 호가 이력은 계속 보여준다.
+        val trades = if (!applicable) null else try {
+            python.analyze("data/listing-trades", mapOf("legal_region_code" to listing.path("legal_region_code").asText(),
+                "name" to listing.path("name").asText(), "area_sqm" to listing.path("area_sqm").asDouble()))
+        } catch (_: ApiFailure) {
+            json.createObjectNode().put("available", false).put("reason", "실거래 조회 서비스에 연결하지 못했습니다").also { it.putArray("trades") }
+        }
+        val analyses = jdbc.queryForList("""SELECT a.property_id,a.case_id,a.status,a.analyzed_at,a.summary FROM candidate_analyses a
+            JOIN case_properties p ON p.id=a.property_id JOIN purchase_cases c ON c.id=p.case_id
+            WHERE c.user_id=? AND p.source_listing_id=? AND a.analysis_type='appraisal' ORDER BY a.analyzed_at DESC NULLS LAST LIMIT 5""", owner, id)
+            .map { OverlayAnalysis((it["property_id"] as Number).toLong(), (it["case_id"] as Number).toLong(), it["status"].toString(),
+                it["analyzed_at"]?.toString(), json.readTree(it["summary"].toString())) }
+        return ListingMarketOverlay(json).build(listing, trades, analyses)
+    }
     fun import(owner: Long, source: String, csv: String, commit: Boolean): JsonNode {
         if (source.isBlank() || source.length > 100 || source.contains('\u0000') || csv.isBlank() || csv.length > 1_000_000)
             throw ApiFailure(422, "출처와 CSV 입력을 확인해주세요")

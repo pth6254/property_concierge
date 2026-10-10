@@ -198,6 +198,7 @@ Docker의 Spring·AI API·작업 실행기·웹에 반영한 뒤 실제 카카�
 - `GET /api/listings`: 페이지당 기본 20건(최대 100건). region_code, property_type, transaction_type, status, budget_max(원), area_min(㎡), fresh_only, page, page_size 필터.
 - `GET /api/listings/{id}/history`: 본인 매물 이력. 타 사용자 자료는 404.
 - `GET /api/listings/{id}/timeline`: 저장한 확인값 이력과 원문 수집 시도를 나눈 요약(아래 매물 타임라인). 본인 자료만, 타인은 404.
+- `GET /api/listings/{id}/market-overlay`: 타임라인에 겹쳐 볼 동일 단지 실거래와 저장된 AVM(아래 실거래·AVM 겹쳐 보기). 본인 자료만, 타인은 404.
 - `POST /api/listings/{id}/candidate`: `{case_id}`. 본인 매물과 본인 케이스를 검증하고 서버의 매물 값을 후보로 저장. 전세·월세는 현재 매수 케이스로 변환하지 않음.
 
 실제 환경 적용 전에 `alembic -c services/intelligence/alembic.ini upgrade head`를 실행한다. 신규 리비전은 `k0b1d2e3f456`. 새 테이블 2개만 추가하며 기존 실거래·RAG 테이블을 변경하지 않는다. 운영 Docker의 기존 Alembic 선행 기동 순서를 유지한다.
@@ -276,6 +277,21 @@ CSV에는 `building_dong`, `unit_number`, `area_basis`를 추가할 수 있으�
 - 가격 인하 이력은 협상 근거 준비용 참고이며 협상 가능성이나 매도인 사정을 확정하지 않는다. 같은 화면에 실거래·AVM 비교를 겹치는 일은 아직 하지 않았다.
 
 검증: Kotlin 단위 3건(`ListingTimelineTest`)과 실제 Spring·PostgreSQL 통합(`ListingPersistenceIT`의 타임라인·타인 404). 화면은 타입·린트만 통과했으며 브라우저 흐름 검증은 아직 없다.
+
+#### 실거래·AVM 겹쳐 보기 (2026-10-10)
+
+타임라인 패널의 그래프에 저장한 호가 계단선, 같은 단지 실거래 점, 저장된 AVM 마름모를 한 시간축에 겹친다. 조회 중 외부 API·LLM·분석 작업·후보 상태 변경은 없다.
+
+- **대상:** 전용면적 기준(`area_basis=exclusive`)이 확인된 법정동 있는 **아파트 매매**만 연결한다. 그 밖에는 이유를 표시한다.
+  공급면적이나 면적 기준 미확인 값을 전용면적처럼 실거래와 맞추지 않는다.
+- **실거래:** Spring이 내부 `POST /internal/v1/data/listing-trades`를 호출한다. Python은 이미 저장된 국토부 신고(`transactions`)에서 같은 시군구·같은 법정동(코드가 있는 행)·
+  단지명이 일치하는 거래를 최근 24개월·전용면적 ±10%로 고르고 해제·중복·미래 거래를 뺀다. 이름이 여러 단지에 걸리면 연결하지 않고, 부분 일치는 유일할 때만 `partial_unique`로 표시한다.
+  저장된 마지막 거래월(`data_through`)을 함께 보여 신고 지연으로 최근 거래가 빠질 수 있음을 알린다.
+- **호가 대비:** 최근 6개월 거래가 3건 이상이고 호가·면적이 있을 때만 ㎡당 중앙값 대비 호가 차이(%)를 계산한다. 시점수정·층·향·동 보정은 없으며 적정가격 판단이 아니다.
+- **AVM:** 같은 사용자의 후보 중 이 매물에서 만든 후보의 저장된 가격 분석만 읽는다. `market_reference`이고 `comparison_eligible`인 분석만 가격을 표시하고(오래된 분석은 속이 빈 마름모),
+  보류·참고용·이전 기록은 가격을 숨기고 건수만 알린다. 실거래 조회 서비스가 실패해도 호가 이력과 저장된 AVM은 계속 보인다.
+- 검증: Kotlin 단위 3건(`ListingMarketOverlayTest`), 통합 1건(AVM 표시 기준·조회 실패 후 유지·조회가 저장 상태를 바꾸지 않음·타인 404), Python 3건(`test_listing_trade_overlay.py`),
+  실제 저장 거래로 메이플자이(서초 19건)·아남(6건) 연결과 미존재 단지 미연결을 확인했다. 브라우저 화면 검증은 아직 없다.
 
 `/listings`의 ‘매물 원문 불러오기 · 시점 이력’에서 네이버 개별 매물 링크를 조회한다. Playwright Chromium을 백그라운드 작업으로 실행하며 작업 상태는 기존 Redis 작업 관리자에 저장한다. 사용자당 요청 간격은 1분, 브라우저 작업 제한은 45초다.
 

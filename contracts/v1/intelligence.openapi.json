@@ -1020,6 +1020,36 @@
         "title": "IncomeValuationInput",
         "type": "object"
       },
+      "ListingTradeRequest": {
+        "properties": {
+          "area_sqm": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100000.0,
+            "title": "Area Sqm",
+            "type": "number"
+          },
+          "legal_region_code": {
+            "maxLength": 10,
+            "minLength": 10,
+            "pattern": "^\\d{10}$",
+            "title": "Legal Region Code",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 150,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "legal_region_code",
+          "name",
+          "area_sqm"
+        ],
+        "title": "ListingTradeRequest",
+        "type": "object"
+      },
       "LoanSummary": {
         "description": "대출 요약",
         "properties": {
@@ -2932,6 +2962,64 @@
           }
         },
         "summary": "Retry Input",
+        "tags": [
+          "data-analysis"
+        ]
+      }
+    },
+    "/internal/v1/data/listing-trades": {
+      "post": {
+        "description": "저장된 동일 단지 실거래만 반환한다. 외부 API·LLM·작업을 실행하지 않는다.",
+        "operationId": "listing_trades_internal_v1_data_listing_trades_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListingTradeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listing Trades",
         "tags": [
           "data-analysis"
         ]
