@@ -69,7 +69,7 @@ export type JeonseContext = {
   leases: { deal_date: string; area_sqm: number; deposit_won: number; deposit_per_sqm_won: number; renewal: boolean }[];
 };
 export type ValuationAssessment = {
-  schema_version: string; policy_version: string; input_fingerprint: string;
+  schema_version: string; policy_version: string; input_fingerprint: string; segment?: string | null;
   subject: ValuationContext & { category: string; subtype: string; address: string; building_name: string; area_sqm: number | null; as_of_date: string; purpose: string; identity_level: string };
   result_kind: "market_reference" | "conditional_scenario" | "public_reference" | "partial_reference" | "withheld" | "unsupported";
   comparison_eligible: boolean; model_status: string; interval_basis: string;

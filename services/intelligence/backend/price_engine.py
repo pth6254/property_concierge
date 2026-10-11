@@ -423,8 +423,10 @@ def _parse_items(items, category: str, property_detail: str = "", lawd_code: str
             "bjdong_code": bjdong_code,
             "property_detail": property_detail,
             "building_area_sqm": _float("buildingAr"),
-            "land_area_sqm": _float("plottageAr"),
-            "building_use": item.findtext("buildingUse", ""),
+            # 단독·상업 원천은 plottageAr(대지면적), 연립다세대 원천은 landAr(대지권면적)를 준다.
+            "land_area_sqm": _float("plottageAr") if item.findtext("plottageAr", "").strip() else _float("landAr"),
+            # 연립다세대 원천은 용도 대신 houseType(연립/다세대)을 준다. 같은 원천 안의 구분이므로 용도 칸에 보존한다.
+            "building_use": item.findtext("buildingUse", "").strip() or item.findtext("houseType", "").strip(),
             "jimok": item.findtext("jimok", ""),
             "transaction_type": item.findtext("dealingGbn", ""),
             "cancellation_date": cancellation_date,

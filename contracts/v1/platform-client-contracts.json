@@ -1133,6 +1133,18 @@
         "title": "Schema Version",
         "type": "string"
       },
+      "segment": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Segment"
+      },
       "subject": {
         "$ref": "#/$defs/ValuationSubject"
       }

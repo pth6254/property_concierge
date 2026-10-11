@@ -96,6 +96,16 @@ def main(argv=None):
     avm_compare.add_argument("--seed", type=int, default=42)
     avm_compare.add_argument("--min-improvement", type=float, default=.05)
     avm_compare.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
+    avm_segment = sub.add_parser("avm-segment", help="세그먼트 AVM(현재 R-RH 연립·다세대) 비교사례·ML·혼합형 오프라인 평가")
+    avm_segment.add_argument("--segment", choices=["row_house"], default="row_house")
+    avm_segment.add_argument("--regions", nargs="+", default=["11500", "11620", "11680"])
+    avm_segment.add_argument("--train-start", required=True, help="학습 시작 월 YYYYMM")
+    avm_segment.add_argument("--validation-start", required=True, help="검증 시작 월 YYYYMM")
+    avm_segment.add_argument("--test-start", required=True, help="최종 평가 시작 월 YYYYMM")
+    avm_segment.add_argument("--test-end", required=True, help="최종 평가 마지막 월 YYYYMM")
+    avm_segment.add_argument("--iterations", type=positive_int, default=800)
+    avm_segment.add_argument("--seed", type=int, default=42)
+    avm_segment.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     avm_service = sub.add_parser("avm-service", help="저장 실거래로 실제 주거용 에이전트 가격 계산 재생")
     avm_service.add_argument("--regions", nargs="+", default=["11650", "11680", "11350"])
     avm_service.add_argument("--max-cases", type=positive_int, default=30)
@@ -134,6 +144,12 @@ def main(argv=None):
     review.add_argument("reviews", type=Path)
     args = parser.parse_args(argv)
     try:
+        if args.command == "avm-segment":
+            import re
+            if not all(re.fullmatch(r"\d{5}", code) for code in args.regions) or len(set(args.regions)) != len(args.regions):
+                raise ValueError("서로 다른 5자리 시군구 코드를 지정해주세요")
+            from evaluation.segment_avm import run as run_segment
+            return run_segment(args)
         if args.command == "avm-compare":
             from evaluation.catboost_avm import run as run_avm_comparison
             return run_avm_comparison(args)

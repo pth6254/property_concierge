@@ -94,6 +94,8 @@ class ValuationAssessment(BaseModel):
     schema_version: Literal["valuation-assessment-1.0"] = "valuation-assessment-1.0"
     policy_version: Literal["PC-AVM-1.0-runtime-1"] = "PC-AVM-1.0-runtime-1"
     subject: ValuationSubject
+    # 용도×거래 단위 세그먼트(backend/valuation/segments). 기록만 하며 이 값으로 공개 여부를 바꾸지 않는다.
+    segment: str | None = None
     input_fingerprint: str
     result_kind: ResultKind
     comparison_eligible: bool = False

@@ -7,6 +7,7 @@ import json
 import math
 
 from schemas.valuation import ValuationAssessment, ValuationContext, ValuationSubject
+from backend.valuation.segments import resolve as resolve_segment
 
 KINDS_WITHOUT_MARKET_PRICE = {"conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"}
 DETAILS = {"아파트": "apartment", "오피스텔": "officetel", "연립다세대": "row_house", "빌라": "row_house",
@@ -56,7 +57,8 @@ def plan(state):
     raw = state.get("raw_inputs") or {}
     fingerprint = hashlib.sha256(json.dumps({"subject": target.model_dump(), "income": raw.get("income_valuation")},
         sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-    out = {"subject": target.model_dump(), "input_fingerprint": fingerprint, "result_kind": "withheld",
+    segment = resolve_segment(target.subtype, target.scope)
+    out = {"subject": target.model_dump(), "segment": segment.id if segment else None, "input_fingerprint": fingerprint, "result_kind": "withheld",
            "comparison_eligible": False, "checks": [], "methods": [], "next_actions": [],
            "limitations": ["사용자 입력 동·호는 개별 호실 확인을 의미하지 않습니다."]}
     def check(code, ok, message, status="missing"):
