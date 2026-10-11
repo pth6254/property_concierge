@@ -46,7 +46,7 @@ python -m pip install -r services/intelligence/requirements-ml.txt
 python -m evaluation avm-compare --regions 11650 11680 11350 --test-start 202607 --test-end 202608 --max-cases 300
 
 # 세그먼트 AVM(R-RH 연립·다세대): 비교사례만·CatBoost만·혼합형을 같은 시간 분할로 비교 (별도 ML 의존성 필요)
-python -m evaluation avm-segment --segment row_house --regions 11500 11620 11680 --train-start 202410 --validation-start 202605 --test-start 202607 --test-end 202609
+python -m evaluation avm-segment --segment row_house --regions 11500 11620 11680 --train-start 202410 --validation-start 202605 --test-start 202607 --test-end 202609 --models catboost,catboost@base,ridge,comparables
 
 # 실제 챗봇 1개 대화부터 확인 (각 사례는 여러 턴)
 python -m evaluation run --suite chat --live --max-cases 1 --timeout 300
@@ -169,6 +169,16 @@ PostgreSQL `DATABASE_URL`을 환경 또는 비공개 `.env`에 명시해야 한�
 |---|---|---|---|---|---|---|
 | 평가 2026-07~09 (검증 05~06) | 1,269 | 15.7% / 10.8% / 47.6% | 17.8% | 19.1% | 80.3% / 77.7% | 15.4% (10.7~21.3%) |
 | 평가 2026-04~06 (검증 02~03) | 1,789 | 16.5% / 11.3% / 45.6% | 19.8% | 20.2% | 76.5% / 72.3% | 15.8% (11.5~21.2%) |
+
+**가격 모델 교체 구조 (2026-10-11):** 가격 모델은 `backend/valuation/models`의 등록표에서 이름으로 고른다. 평가·보정 코드는
+`PriceModel` 인터페이스(`fit`·`predict`·`predict_probe`·`save_artifact`·`load_artifact`)만 쓰고, `models.save`가 모델 이름·설정·변수 목록·학습 정보·파일
+SHA-256을 `model.json`(manifest)에 남긴다. `models.load`는 manifest의 이름으로 구현을 찾고 파일 해시가 다르면 거부한다. 내장 구현은
+`catboost`(기본), `ridge`(numpy 릿지 기준선), `comparables`(ML 없는 비교사례→블록→지수 대체 기준선)이며, 라이브러리는 각 구현 안에서 지연 import 한다.
+`avm-segment --models a,b,c`는 같은 분할·같은 보정 규칙으로 모델을 비교하고 **검증 MAPE로만** 챔피언을 고른다(`이름@base`는 비교사례 변수 제외).
+`--save-model DIR`은 챔피언을 보정값과 함께 저장하지만 `deployment: evaluation_only`이며 운영 연결은 별도 승인 사항이다.
+같은 2026-07~09 분할의 4개 모델 비교(검증 MAPE → 평가 MAPE): catboost 16.4% → 15.7%, ridge 18.3% → 17.4%, comparables 20.3% → 18.0%(근거 없는 거래도 대체값으로 포함),
+catboost@base 20.5% → 19.1%. 교체 구조 도입 전 catboost 결과(15.73%)와 같다. 새 모델은 `PriceModel` 상속 + `@register("이름")` + `_load_builtin` import로 추가하며,
+`tests/test_price_models.py`가 테스트 안에서 등록한 임의 모델이 평가 파이프라인을 수정 없이 통과하는지 확인한다.
 
 근거 단계별 혼합형 MAPE는 L1 12.9~13.8%, L2 19.7~20.1%다. L3는 평가 표본이 26~59건이라 단계 판단에 쓰지 않는다.
 첫 실행 후 평가 구간의 오차 큰 사례를 본 뒤 번지 블록 변수·학습 이상치 제외·손실 선택을 추가했다. 이 조정은 검증 구간 지표로

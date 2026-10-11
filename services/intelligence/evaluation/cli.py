@@ -103,6 +103,9 @@ def main(argv=None):
     avm_segment.add_argument("--validation-start", required=True, help="검증 시작 월 YYYYMM")
     avm_segment.add_argument("--test-start", required=True, help="최종 평가 시작 월 YYYYMM")
     avm_segment.add_argument("--test-end", required=True, help="최종 평가 마지막 월 YYYYMM")
+    avm_segment.add_argument("--models", default="catboost,catboost@base,comparables",
+                             help="쉼표로 구분한 가격 모델. 이름@base는 비교사례 변수 제외. 등록 모델: catboost, ridge, comparables")
+    avm_segment.add_argument("--save-model", help="검증 MAPE로 고른 챔피언 모델을 manifest와 함께 저장할 폴더")
     avm_segment.add_argument("--iterations", type=positive_int, default=800)
     avm_segment.add_argument("--seed", type=int, default=42)
     avm_segment.add_argument("--output", type=Path, default=ROOT / "evaluation-results")

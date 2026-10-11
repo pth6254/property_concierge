@@ -285,7 +285,7 @@ NOI 운영비에 섞지 않는다. 대수선 등 자본지출은 가정과 포�
 **세그먼트 등록표 (2026-10-11):** 용도×거래 단위로 `R-APT`·`R-RH`·`R-OFF`·`R-DET`·`C-UNIT`·`C-BLDG`·`L-LAND`·`I-IND`를
 `backend/valuation/segments/__init__.py` 한 곳에 두고 주된 방법·검토용 방법·공개 상태를 기록한다. `plan()`은 판정한 세그먼트를
 `valuation.segment`에 남기지만 결과 종류·공개 여부는 기존 규칙 그대로다. 세그먼트 공개 상태는 각 세그먼트의 홀드아웃 검증을 통과해야 바뀌며,
-거래가 부족하다고 다른 세그먼트의 거래·모델로 대체하지 않는다. `R-RH`(연립·다세대)의 오프라인 평가 결과는
+거래가 부족하다고 다른 세그먼트의 거래·모델로 대체하지 않는다. 가격 모델은 `backend/valuation/models` 등록표의 이름과 저장된 manifest로 고르는 교체 가능한 구조이며(현재 오프라인 평가 전용), `R-RH`(연립·다세대)의 오프라인 평가 결과는
 [평가 도구 문서](../../services/intelligence/evaluation/README.md)에 있고 현재 공개 상태는 `withheld`다.
 
 **보류 시 참고 거래 (2026-10-08):** 아파트가 비교사례 5건 미만으로 보류되면 `valuation.reference_context`에
