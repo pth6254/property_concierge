@@ -66,6 +66,37 @@ def _rows(lawd: str, start: str, end: str) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+CHAIN_HISTORY_MONTHS = 24
+
+
+@lru_cache(maxsize=64)
+def _chain(lawd: str, as_of_iso: str):
+    """기준일 달 이전 완결 월로 만든 단지·면적대 고정효과 지수. 같은 날 같은 구 요청은 재사용한다."""
+    from backend.valuation.time_index import ChainIndex, month_index
+    as_of = date.fromisoformat(as_of_iso)
+    start = as_of.year * 12 + as_of.month - 1 - CHAIN_HISTORY_MONTHS
+    trades = apt.normalize(_rows(lawd, f"{start // 12:04d}{start % 12 + 1:02d}", _ym(as_of)))
+    return ChainIndex(trades, cutoff_month=month_index(as_of))
+
+
+def chain_factors(lawd: str, days: list[date], as_of: date) -> list[float] | None:
+    """비교사례 거래일 → 기준일 시점 보정 계수(V4: 고정효과 지수 + 최근 3개월 추세 연장).
+
+    2026-10-12 시점 보정 비교(evaluation avm-time-index)에서 운영 방식(부동산원 지수 + 월 0.3%)보다 MAPE 5.2% 낮고
+    편향이 −1.8%→−0.3%로 줄어 사전 기준을 통과했다. 지수를 만들 수 없으면 None — 호출측은 기존 방식으로 처리한다.
+    """
+    if not lawd:
+        return None
+    try:
+        index = _chain(lawd, as_of.isoformat())
+    except Exception as exc:
+        print(f"[apartment-avm] 시점 보정 지수 생략: {type(exc).__name__}")
+        return None
+    if lawd not in index.level:
+        return None
+    return [math.exp(index.adjust(lawd, day, as_of, extrapolate=True)) for day in days]
+
+
 def _resolve_complex(comps: apt.ComparableIndex, lawd: str, dong: str, names: list[str]) -> str | None:
     """국토부 단지명과 사용자 입력 이름을 같은 법정동 안에서만 맞춘다. 여러 단지가 걸리면 정하지 않는다."""
     for name in names:
@@ -90,7 +121,8 @@ def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | N
     if loaded is None or not lawd or not dong or not area or area <= 0:
         return None
     model, manifest = loaded
-    history = int(manifest.get("history_months", 12)) + 4  # 근거 12개월 + 시점 지수 창(3개월) 여유
+    # 근거 12개월 + 시점 보정 지수(단지 고정효과, 24개월) 여유
+    history = max(int(manifest.get("history_months", 12)) + 4, CHAIN_HISTORY_MONTHS)
     start_index = as_of.year * 12 + as_of.month - 1 - history
     try:
         rows = _rows(lawd, f"{start_index // 12:04d}{start_index % 12 + 1:02d}", _ym(as_of))
@@ -100,8 +132,9 @@ def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | N
     trades = [t for t in apt.normalize(rows) if t.day <= as_of]
     if not trades:
         return None
-    index = MarketIndex(trades)
-    comps = apt.ComparableIndex(trades, index)
+    from backend.valuation.time_index import MonthlyChain
+    index = MarketIndex(trades)                       # 변수 index_level용 (평가와 같음)
+    comps = apt.ComparableIndex(trades, MonthlyChain(trades))  # 비교사례 시점 보정: 평가·운영 A1 규칙과 같은 V4 지수
     key = _resolve_complex(comps, lawd, dong, [n for n in names if n])
     if key is None:
         return {"level": "A4", "basis": "같은 법정동에서 단지를 하나로 확인하지 못했습니다", "model": manifest["model"]}

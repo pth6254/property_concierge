@@ -49,10 +49,10 @@ def shift(ym: str, months: int) -> str:
     return f"{index // 12:04d}{index % 12 + 1:02d}"
 
 
-def _rule_rows(test) -> list[dict]:
-    produced = test[test.service_rule.notna()] if "service_rule" in test else test.iloc[0:0]
-    return [{"id": int(r.id), "ym": r.ym, "level": r.level, "lawd": r.lawd, "actual": int(r.price), "estimate": float(r.service_rule),
-             "error": r.service_rule / r.price - 1} for r in produced.itertuples()]
+def _rule_rows(test, column: str = "service_rule") -> list[dict]:
+    produced = test[test[column].notna()] if column in test else test.iloc[0:0]
+    return [{"id": int(r.id), "ym": r.ym, "level": r.level, "lawd": r.lawd, "actual": int(r.price), "estimate": float(getattr(r, column)),
+             "error": getattr(r, column) / r.price - 1} for r in produced.itertuples()]
 
 
 def _price_quintile(rows: list[dict], edges: list[float]) -> dict:
@@ -131,12 +131,12 @@ def judge(summary: dict, months: list[str], levels: list[str]) -> dict:
 
 
 def evaluate(rows: list[dict], segment: str, test_months: list[str], train_start: str, models: tuple[str, ...],
-             base: SegmentConfig, progress=print) -> dict:
+             base: SegmentConfig, progress=print, reb: dict | None = None) -> dict:
     spec_segment = SEGMENTS[segment]
     levels = [lv for lv in spec_segment.levels if lv not in spec_segment.withheld_levels]
-    trades, frame = build_frame(rows, segment, train_start)
+    trades, frame = build_frame(rows, segment, train_start, reb=reb)
     per_model = {spec: [] for spec in models}
-    rules, monthly = [], []
+    rules, rules_reb, monthly = [], [], []
     for ym in test_months:
         config = replace(base, segment=segment, train_start=train_start, validation_start=shift(ym, -2), test_start=ym, test_end=ym,
                          keep_rows=True)
@@ -145,6 +145,7 @@ def evaluate(rows: list[dict], segment: str, test_months: list[str], train_start
         gap = (train.target - train.comp_estimate).abs()
         train = train[~(gap > config.train_outlier_log)].reset_index(drop=True)
         rules += _rule_rows(parts["test"])
+        rules_reb += _rule_rows(parts["test"], "service_rule_reb")
         for spec in models:
             result, _, _ = assess(spec, train, parts["validation"], parts["test"], config)
             per_model[spec] += result["rows"]
@@ -161,7 +162,9 @@ def evaluate(rows: list[dict], segment: str, test_months: list[str], train_start
         report["models"][spec] = {"summary": summary, "verdict": judge(summary, test_months, levels),
                                   "produced_rate": round(len(per_model[spec]) / max(sum(m["test_rows"] for m in monthly if m["model"] == spec), 1), 4)}
     report["rule_produced_rate"] = round(len(rules) / max(sum(m["test_rows"] for m in monthly if m["model"] == models[0]), 1), 4)
-    report["rows"] = {"rule": rules, **per_model}
+    # 비교 기준선은 현재 운영 규칙(V4 지수)이다. 이전 운영(부동산원 지수 + 월 0.3%) 성적은 참고로만 남긴다.
+    report["rule_reb_reference"] = {"all": _metrics([r["error"] for r in rules_reb])} if rules_reb else None
+    report["rows"] = {"rule": rules, "rule_reb": rules_reb, **per_model}
     return report
 
 
@@ -180,7 +183,15 @@ def run(args) -> int:
                          models=models, iterations=args.iterations, seed=args.seed, segment=args.segment, interval=args.interval)
     start_month = shift(args.train_start, -segment.history_months)
     rows = load_rows(base.regions, start_month, args.to_month, segment.endpoint)
-    report = evaluate(rows, args.segment, test_months, args.train_start, models, base)
+    reb = None
+    try:
+        import reb_index
+        if reb_index.is_enabled():
+            from evaluation.time_index_eval import reb_levels
+            reb = reb_levels(set(base.regions), months_between(start_month, args.to_month))
+    except Exception as exc:  # 참고 기준선만 빠진다. 판정은 현재 운영 규칙으로 한다.
+        print(f"부동산원 지수 참고 기준선 생략: {type(exc).__name__}")
+    report = evaluate(rows, args.segment, test_months, args.train_start, models, base, reb=reb)
     directory = Path(args.output) / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + f"-avm-rolling-{args.segment}")
     directory.mkdir(parents=True, exist_ok=True)
     rows_out = report.pop("rows")

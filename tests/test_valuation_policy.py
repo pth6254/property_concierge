@@ -237,3 +237,22 @@ def test_price_engine_returns_thirteen_month_same_complex_pool(monkeypatch):
     assert {r["apt_name"] for r in pool} == {"반포자이"} and {r["dong"] for r in pool} == {"반포동"}
     assert all(r["price"] == 500_000 for r in pool)  # 시점수정 전 원자료
     assert all(s["price"] == 1_000_000 for s in data["samples"])  # 표시용 표본은 기존대로 시점수정
+
+
+def test_apartment_comparables_use_chain_index_before_reb_fallback(monkeypatch):
+    """시점 보정 비교에서 사전 기준을 통과한 단지 고정효과 지수를 먼저 쓴다. 만들 수 없으면 기존 부동산원 방식이다."""
+    import backend.price_engine as engine
+    from backend.valuation import apartment_avm
+    monkeypatch.setattr(engine, "_apply_time_adjustment", lambda rows, *args: ([{**r, "original_price": r["price"], "price": r["price"] + 1} for r in rows], 0.0))
+    value, data = state(), prices()
+    data["comparable_pool"] = list(data["samples"])
+    monkeypatch.setattr(apartment_avm, "chain_factors", lambda lawd, days, as_of: [1.1] * len(days))
+    result = eligible_comparables(value, data)
+    assert all(r["price"] == 88_000 and r["time_adj_source"] == "chain_index" for r in result["samples"])
+    assert value["valuation_plan"]["evidence_window"]["time_adjustment_method"] == "chain_index"
+    value, data = state(), prices()
+    data["comparable_pool"] = list(data["samples"])
+    monkeypatch.setattr(apartment_avm, "chain_factors", lambda *args: None)
+    result = eligible_comparables(value, data)
+    assert all(r["price"] == 80_001 for r in result["samples"])
+    assert value["valuation_plan"]["evidence_window"]["time_adjustment_method"] == "reb_index"

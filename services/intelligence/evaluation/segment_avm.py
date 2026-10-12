@@ -65,23 +65,29 @@ def _rh_features(trade, evidence, index, origin, direct=None) -> dict:
     }
 
 
-def _apt_prepare(rows):
+def _apt_prepare(rows, reb: dict | None = None):
+    from backend.valuation.time_index import MonthlyChain
     trades = apt.normalize(rows)
-    index = rh.MarketIndex(trades)
-    comps = apt.ComparableIndex(trades, index)
+    index = rh.MarketIndex(trades)          # 변수 index_level(시장 수준)용
+    chain = MonthlyChain(trades)            # 비교사례 시점 보정: 운영 A1 규칙과 같은 V4 지수
+    comps = apt.ComparableIndex(trades, chain)
     origin = trades[0].day.year * 12 + trades[0].day.month - 1
     def record(trade, direct):
         subject = apt.Subject(trade.lawd, trade.dong, trade.complex, trade.area, trade.floor, trade.year_built, trade.day, trade.id)
         evidence = comps.evidence(subject)
         values = apt.features(subject, evidence, index, origin, direct=trade.direct if direct is None else direct,
                               year_built=comps.complex_year(trade.complex))
-        # 현재 서비스 규칙 재현용: A1 사례의 시점 보정 ㎡당 가격 산술평균 × 면적 (calc_estimated_value와 같은 방식)
+        # 운영 A1 규칙 재현: A1 사례의 시점 보정 ㎡당 가격 산술평균 × 면적 (calc_estimated_value와 같은 방식).
+        # service_rule은 현재 운영(V4 지수), service_rule_reb는 이전 운영(부동산원 지수 + 월 0.3%) 참고값이다.
         extra = {}
         if evidence.level == "A1":
             cutoff = trade.day
             a1 = [t for t in comps.by_complex[trade.complex] if t.id != trade.id and cutoff.toordinal() - apt.A1_DAYS <= t.day.toordinal() < cutoff.toordinal()
                   and abs(t.area / trade.area - 1) <= apt.A1_AREA + 1e-6]
-            extra["service_rule"] = mean(math.exp(t.log_per_sqm + index.adjust(t.lawd, t.day, cutoff)) for t in a1) * trade.area
+            extra["service_rule"] = mean(math.exp(t.log_per_sqm + chain.adjust(t.lawd, t.day, cutoff)) for t in a1) * trade.area
+            if reb is not None:
+                from evaluation.time_index_eval import _reb_factor
+                extra["service_rule_reb"] = mean(t.price / t.area * _reb_factor(reb.get(t.lawd, {}), t.day, cutoff, False) for t in a1) * trade.area
         return evidence, values, extra
     return trades, record
 
@@ -160,10 +166,11 @@ def _metrics(errors: list[float]) -> dict:
             "p90_ape": round(ape[int(.9 * (len(ape) - 1))], 4)}
 
 
-def build_frame(rows: list[dict], segment_name: str, start: str = "000000"):
+def build_frame(rows: list[dict], segment_name: str, start: str = "000000", reb: dict | None = None):
     """모든 거래의 근거·변수를 한 번만 계산한다. 근거는 각 거래일 이전 거래만 쓰므로 기간 분할과 무관하다."""
     import pandas as pd
-    trades, record_for = SEGMENTS[segment_name].prepare(rows)
+    prepare = SEGMENTS[segment_name].prepare
+    trades, record_for = prepare(rows, reb=reb) if reb is not None else prepare(rows)
     records = []
     for trade in trades:
         ym = _ym(trade.day)

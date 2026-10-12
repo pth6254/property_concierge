@@ -83,3 +83,23 @@ class ChainIndex:
     def adjust(self, lawd: str, from_day: date, to_day: date, extrapolate: bool = False) -> float:
         a, b = self.at(lawd, from_day, extrapolate), self.at(lawd, to_day, extrapolate)
         return 0.0 if a is None or b is None else b - a
+
+
+class MonthlyChain:
+    """기준일 달마다 그 이전 완결 월로 만든 ChainIndex를 쓰는 시점 보정기(V4: 추세 연장 포함).
+
+    비교사례 근거(segments.apartment.ComparableIndex)가 index.adjust(lawd, from_day, to_day)로 부른다.
+    평가에서는 거래일마다 그 달 이전 자료만, 운영에서는 기준일 기준 자료만 쓴다.
+    """
+
+    def __init__(self, trades):
+        self.trades = trades
+        self._cache: dict[int, ChainIndex] = {}
+
+    def index(self, cutoff_month: int) -> ChainIndex:
+        if cutoff_month not in self._cache:
+            self._cache[cutoff_month] = ChainIndex(self.trades, cutoff_month)
+        return self._cache[cutoff_month]
+
+    def adjust(self, lawd: str, from_day: date, to_day: date) -> float:
+        return self.index(month_index(to_day)).adjust(lawd, from_day, to_day, extrapolate=True)

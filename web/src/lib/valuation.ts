@@ -85,6 +85,7 @@ export type ValuationAssessment = {
 export type EvidenceWindow = {
   source: "comparables" | "model"; trade_count: number; first_deal_date: string; last_deal_date: string;
   days_since_last: number; time_adjustment_pct: number | null;
+  time_adjustment_method?: "chain_index" | "reb_index" | null;
 };
 /** 아파트 혼합 AVM의 근거 단계와 추정(원). 구간은 검증 구간 잔차 분위수로 정한 참고 구간이다. */
 export type ModelContext = {

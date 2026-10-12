@@ -124,6 +124,8 @@ class EvidenceWindow(BaseModel):
     days_since_last: int
     # 시점 보정으로 바뀐 가격의 평균 비율(%). 모델 추정은 단일 보정률이 없어 None이다.
     time_adjustment_pct: float | None = None
+    # chain_index: 단지·면적대 고정효과 지수 + 최근 추세 연장 / reb_index: 부동산원 월간 지수 + 미공표 구간 월 0.3%
+    time_adjustment_method: Literal["chain_index", "reb_index"] | None = None
 
 
 class ValuationAssessment(BaseModel):

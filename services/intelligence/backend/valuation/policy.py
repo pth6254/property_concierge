@@ -146,17 +146,30 @@ def eligible_comparables(state, price_data):
     ok = len(selected) >= 5
     if not ok:
         assessment["reference_context"] = reference_context(price_data, target, as_of)
+    method = None
     if ok and pool:
-        # 고정 기간 원자료는 시점수정 전 가격이다. 기존 비교 엔진과 같은 시점수정을 선택된 사례에만 적용한다.
-        from backend.price_engine import _apply_time_adjustment
+        # 고정 기간 원자료는 시점수정 전 가격이다. 시점수정은 선택된 사례에만 적용한다.
+        # 아파트는 단지 고정효과 지수(V4)를 먼저 쓰고, 만들 수 없으면 기존 부동산원 지수 + 월 0.3%로 처리한다.
         selected.sort(key=lambda r: (int(r["deal_year"]), int(r["deal_month"]), int(r["deal_day"])), reverse=True)
-        selected, _ = _apply_time_adjustment([dict(r) for r in selected], "주거용", as_of.strftime("%Y%m%d"), price_data.get("used_region", ""))
+        factors = None
+        if target.get("subtype") == "apartment":
+            from backend.valuation.apartment_avm import chain_factors
+            factors = chain_factors(price_data.get("target_sigungu_code", ""),
+                                    [date(int(r["deal_year"]), int(r["deal_month"]), int(r["deal_day"])) for r in selected], as_of)
+        if factors:
+            selected = [dict(r, original_price=r["price"], price=round(r["price"] * f), time_adj_factor=round(f, 6), time_adj_source="chain_index")
+                        for r, f in zip(selected, factors)]
+            method = "chain_index"
+        else:
+            from backend.price_engine import _apply_time_adjustment
+            selected, _ = _apply_time_adjustment([dict(r) for r in selected], "주거용", as_of.strftime("%Y%m%d"), price_data.get("used_region", ""))
+            method = "reb_index"
     if ok:
         days = [date(int(r["deal_year"]), int(r["deal_month"]), int(r["deal_day"])) for r in selected]
         ratios = [r["price"] / r["original_price"] - 1 for r in selected if _positive(r.get("original_price"))]
         assessment["evidence_window"] = {"source": "comparables", "trade_count": len(selected), "first_deal_date": min(days).isoformat(),
             "last_deal_date": max(days).isoformat(), "days_since_last": (as_of - max(days)).days,
-            "time_adjustment_pct": round(sum(ratios) / len(ratios) * 100, 2) if ratios else None}
+            "time_adjustment_pct": round(sum(ratios) / len(ratios) * 100, 2) if ratios else None, "time_adjustment_method": method}
     assessment["checks"].append({"code": "comparables", "status": "available" if ok else "missing", "source": "official_data",
         "message": f"최근 6개월·동일 단지·전용면적 ±10%의 중복 제외 비교사례 {len(selected)}건 / 산출 기준 5건",
         "reference_date": target["as_of_date"], "observed_at": None})

@@ -98,7 +98,7 @@ export function PastTradeNotice({ window, asOf }: { window?: EvidenceWindow | nu
         <p className="font-semibold">
           근거 거래 {window.trade_count}건 · {window.first_deal_date} ~ {window.last_deal_date} · 가장 최근 거래는 기준일{asOf ? `(${asOf})` : ""}보다 {window.days_since_last}일 전
           {window.source === "comparables"
-            ? ` · 시점 보정 ${adjustment == null ? "없음" : `평균 ${adjustment > 0 ? "+" : ""}${adjustment.toFixed(2)}%`}`
+            ? ` · 시점 보정 ${adjustment == null ? "없음" : `평균 ${adjustment > 0 ? "+" : ""}${adjustment.toFixed(2)}%`}${window.time_adjustment_method === "chain_index" ? " (같은 단지 가격 변화 지수·최근 추세)" : window.time_adjustment_method === "reb_index" ? " (부동산원 지수·월 0.3%)" : ""}`
             : " · 모델이 시점·층·면적 차이를 보정"}
         </p>
       ) : <p className="font-semibold">근거 거래 기간을 확인하지 못한 이전 분석입니다.</p>}
