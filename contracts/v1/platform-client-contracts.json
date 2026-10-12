@@ -610,6 +610,22 @@
             "title": "Source",
             "type": "string"
           },
+          "time_adjustment_method": {
+            "anyOf": [
+              {
+                "enum": [
+                  "chain_index",
+                  "reb_index"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Adjustment Method"
+          },
           "time_adjustment_pct": {
             "anyOf": [
               {
