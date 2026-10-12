@@ -1,9 +1,9 @@
 "use client";
-import Link from "next/link";
 import ValuationSupportReport from "@/components/ValuationSupportReport";
 import type { ValuationSupportResult } from "@/lib/valuation";
 import type { ValuationAssessment } from "@/lib/valuation";
 import ValuationAssessmentCard from "@/components/ValuationAssessmentCard";
+import { InfoTable, ReportShell, SectionTitle, type InfoRow } from "@/components/ReportDocument";
 
 /*
  * AppraisalReport — AI 시세추정 리포트 문서 렌더러 (공용)
@@ -133,49 +133,6 @@ function extractFromReport(report: string, sectionName: string, key: string): st
   return "";
 }
 
-function SectionTitle({ number, title }: { number: string; title: string }) {
-  return (
-    <div className="flex items-baseline gap-3 mb-3 pb-1.5 border-b-2 border-gray-700">
-      <span className="text-[11px] font-medium text-gray-500 tracking-wide shrink-0">{number}</span>
-      <h2 className="text-sm font-bold text-gray-900 tracking-wide">{title}</h2>
-    </div>
-  );
-}
-
-type InfoRow = [string, string] | { divider: string };
-
-function InfoTable({ rows }: { rows: InfoRow[] }) {
-  return (
-    <table className="w-full border-collapse text-xs">
-      <tbody>
-        {rows.map((row, i) => {
-          if ("divider" in row) {
-            return (
-              <tr key={i}>
-                <td
-                  colSpan={2}
-                  className="border border-gray-400 bg-gray-700 text-white px-4 py-1.5 text-center text-[10px] font-semibold tracking-[0.25em]"
-                >
-                  {row.divider}
-                </td>
-              </tr>
-            );
-          }
-          const [label, value] = row;
-          return (
-            <tr key={i}>
-              <td className="border border-gray-400 bg-gray-50 px-4 py-2 font-medium text-gray-600 w-[28%] whitespace-nowrap">
-                {label}
-              </td>
-              <td className="border border-gray-400 px-4 py-2 text-gray-800">{value || "—"}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
-
 export default function AppraisalReport({
   result,
   query = "",
@@ -208,7 +165,6 @@ export default function AppraisalReport({
     ap.appraisal_date ||
     extractFromReport(report, "대상물 정보", "기준시점") ||
     new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
-  const today = new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
 
   const buildYear   = ar.build_year   || ap.build_year;
   const landUseZone = ar.land_use_zone || ap.land_use_zone;
@@ -321,58 +277,8 @@ export default function AppraisalReport({
       : [];
 
   return (
-    <div className="report-wrapper min-h-screen bg-slate-300 py-6 px-4">
-      <div className="mx-auto mb-4 max-w-[880px]"><ValuationAssessmentCard value={ar.valuation} /></div>
-
-      {/* ── 상단 툴바 (인쇄 시 숨김) ── */}
-      <div className="no-print max-w-[880px] mx-auto mb-4 flex justify-between items-center">
-        <Link href="/appraisal" className="text-sm text-primary-strong hover:underline font-medium">
-          ← 새 시세추정
-        </Link>
-        <button
-          onClick={() => window.print()}
-          className="px-4 py-2 bg-gray-800 text-white text-sm rounded hover:bg-gray-900 transition-colors"
-        >
-          인쇄 / PDF 저장
-        </button>
-      </div>
-
-      {/* ─────────────────── 문서 본체 ─────────────────── */}
-      <div
-        id="appraisal-doc"
-        className="max-w-[880px] mx-auto bg-white shadow-2xl"
-        style={{ fontFamily: "'Malgun Gothic', 'Apple SD Gothic Neo', '맑은 고딕', sans-serif" }}
-      >
-
-        {/* ── 표지 헤더 ── */}
-        <div className="border-b-4 border-double border-gray-800 px-14 pt-12 pb-8 text-center">
-          <p className="text-[10px] tracking-[0.5em] text-gray-400 mb-2 uppercase">
-            AI Automated Valuation Report
-          </p>
-          <h1 className="text-[28px] font-bold tracking-[0.15em] text-gray-900 mb-2">
-            부동산 AI 시세추정 리포트
-          </h1>
-          <p className="text-[11px] text-gray-400 mb-5">
-            본 리포트는 자동가치산정(AVM) 기반 시세 추정 자료이며, 「감정평가 및 감정평가사에 관한 법률」에 따른 감정평가서가 아닙니다.
-          </p>
-          <div className="inline-flex gap-10 border border-gray-300 bg-gray-50 px-8 py-3 text-xs text-gray-600">
-            <div className="flex gap-2">
-              <span className="text-gray-400">기 준 시 점</span>
-              <span className="font-semibold text-gray-800">{appraisalDate}</span>
-            </div>
-            <div className="flex gap-2">
-              <span className="text-gray-400">발 행 일 자</span>
-              <span className="font-semibold text-gray-800">{today}</span>
-            </div>
-          </div>
-          {query && (
-            <p className="mt-4 text-xs text-gray-400">조회 내용: {query}</p>
-          )}
-        </div>
-
-        {/* ── 본문 ── */}
-        <div className="px-14 py-10 space-y-9">
-
+    <ReportShell appraisalDate={appraisalDate} query={query} dataSource={ap.data_source}
+      before={<div className="mx-auto mb-4 max-w-[880px]"><ValuationAssessmentCard value={ar.valuation} /></div>}>
           {/* ── 제 1 절: 대상물건 표시 및 내역 ── */}
           {propRows.length > 0 && (
             <section>
@@ -617,31 +523,6 @@ export default function AppraisalReport({
             </div>
           )}
 
-          {/* ── 하단 고지사항 ── */}
-          <div className="border-t-2 border-gray-800 pt-6 mt-4">
-            <div className="text-[10px] text-gray-400 leading-[1.8]">
-              <p className="font-semibold text-gray-500 mb-1.5">【 고 지 사 항 】</p>
-              <p>
-                1. 본 리포트는 공개 데이터 기반 자동가치산정 모형(AVM, Automated Valuation Model)이
-                산출한 <span className="font-semibold text-gray-500">참고용 시세 추정 자료</span>이며,
-                「감정평가 및 감정평가사에 관한 법률」에 따른 감정평가가 아니고 법적 효력이 없습니다.
-              </p>
-              <p>
-                2. 담보 설정·소송·과세 등 법적 효력이 필요한 가치 판단은 국가자격을 보유한
-                감정평가사에게 의뢰하시기 바랍니다.
-              </p>
-              <p>
-                3. 추정 시세는 데이터 상황에 따라 실제 거래 가능 가격과 차이가 있을 수 있으며,
-                본 리포트를 근거로 한 의사결정의 책임은 이용자에게 있습니다.
-              </p>
-              {ap.data_source && ap.data_source.length > 0 && (
-                <p className="mt-2">데이터 출처: {ap.data_source.join(" · ")}</p>
-              )}
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </div>
+    </ReportShell>
   );
 }
