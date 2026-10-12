@@ -78,6 +78,10 @@ def _dict_to_appraisal_result(
         source      = result.get("source", "") or "",
     )
     confidence = conf["score"]
+    # 혼합 AVM을 적용했으면 시간 분할 검증에서 보정한 단계별 ±10% 적중률을 신뢰도로 쓴다. 규칙 기반 점수와 섞지 않는다.
+    model_context = (result.get("valuation") or {}).get("model_context") or {}
+    if model_context.get("applied") and model_context.get("confidence") is not None:
+        confidence = float(model_context["confidence"])
 
     # 공시가격 대비 비율
     official_land_price = result.get("official_land_price", 0) or 0

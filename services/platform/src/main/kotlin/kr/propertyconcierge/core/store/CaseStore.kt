@@ -17,7 +17,7 @@ import java.time.format.DateTimeFormatter
 class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, private val tx: TransactionTemplate,
     private val listings: ListingService, private val python: PythonClient, private val execution: ExecutionStore) {
     private fun limitedValuation(summary: JsonNode): Boolean =
-        summary.path("result_kind").asText() in setOf("conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported") ||
+        summary.path("result_kind").asText() in setOf("model_estimate", "conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported") ||
             (summary.hasNonNull("valuation") && !summary.path("valuation").path("comparison_eligible").asBoolean(false))
     private val jsonFields = setOf("buyer_profile", "target_regions", "source_snapshot", "summary", "stats_snapshot", "result",
         "previous_snapshot", "applied_snapshot", "previous_decision", "invalidated_analyses", "previous_analyses", "previous_execution")

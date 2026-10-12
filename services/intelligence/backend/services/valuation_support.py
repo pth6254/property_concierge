@@ -51,6 +51,11 @@ def support_report(state: dict) -> dict:
         lines += [f"- 현재 월세 연 환산: {scenario['annual_rent_won']:,}원", "", "| 가정 환원율 | 가격 하한 | 가격 상한 |", "|---|---|---|"]
         for row in scenario["scenarios"]:
             lines.append(f"| {row['cap_rate_pct']}% | {row['low_price_won']:,}원 | {row['high_price_won']:,}원 |")
+    context = (result.get("valuation") or {}).get("model_context") or {}
+    if result.get("result_kind") == "model_estimate" and context.get("estimated_value"):
+        # 시장가격이 아닌 ML 참고 추정이다. 구조화 결과의 estimated_price(시장가격 칸)에는 넣지 않는다.
+        lines += [f"- ML 참고 추정: {context['estimated_value']:,}원 (참고 구간 {context['value_min']:,}원 ~ {context['value_max']:,}원, "
+                  f"신뢰도 {round((context.get('confidence') or 0) * 100)}%)", f"- 근거: {context['basis']}"]
     land = result.get("land_information")
     if land:
         lines += [f"- 필지: {land['pnu']}", f"- 공시지가 기준연도: {land.get('official_price_year') or '미확인'}"]

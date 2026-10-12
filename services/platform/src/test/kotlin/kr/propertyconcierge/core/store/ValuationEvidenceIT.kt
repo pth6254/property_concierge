@@ -19,7 +19,7 @@ class ValuationEvidenceIT : PlatformIntegrationSupport() {
             val input = json.valueToTree<JsonNode>(invocation.getArgument<Any>(1))
             input.path("result").path("analysis_result")
         }.`when`(python).analyze(eq("appraisal/summary") ?: "", any(Any::class.java) ?: Any())
-        for (kind in listOf("conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported")) {
+        for (kind in listOf("model_estimate", "conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported")) {
             val property = candidate(cookie, id)
             val result = mapOf("analysis_result" to mapOf("result_kind" to kind, "estimated_value" to null,
                 "valuation" to mapOf("policy_version" to "PC-AVM-1.0-runtime-1", "comparison_eligible" to false,

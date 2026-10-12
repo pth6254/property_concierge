@@ -37,6 +37,8 @@ backups/
 data/*
 !data/sample_listings.csv
 !data/avm_calibration.json
+# 시간 분할 평가를 통과해 서비스에 쓰는 가격 모델 산출물(manifest·해시 포함)
+!data/models
 
 # Node
 web/node_modules

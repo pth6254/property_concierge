@@ -96,8 +96,8 @@ def main(argv=None):
     avm_compare.add_argument("--seed", type=int, default=42)
     avm_compare.add_argument("--min-improvement", type=float, default=.05)
     avm_compare.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
-    avm_segment = sub.add_parser("avm-segment", help="세그먼트 AVM(현재 R-RH 연립·다세대) 비교사례·ML·혼합형 오프라인 평가")
-    avm_segment.add_argument("--segment", choices=["row_house"], default="row_house")
+    avm_segment = sub.add_parser("avm-segment", help="세그먼트 AVM(R-RH 연립·다세대, R-APT 아파트) 비교사례·ML·혼합형 오프라인 평가")
+    avm_segment.add_argument("--segment", choices=["row_house", "apartment"], default="row_house")
     avm_segment.add_argument("--regions", nargs="+", default=["11500", "11620", "11680"])
     avm_segment.add_argument("--train-start", required=True, help="학습 시작 월 YYYYMM")
     avm_segment.add_argument("--validation-start", required=True, help="검증 시작 월 YYYYMM")
@@ -106,7 +106,13 @@ def main(argv=None):
     avm_segment.add_argument("--models", default="catboost,catboost@base,comparables",
                              help="쉼표로 구분한 가격 모델. 이름@base는 비교사례 변수 제외. 등록 모델: catboost, ridge, comparables")
     avm_segment.add_argument("--save-model", help="검증 MAPE로 고른 챔피언 모델을 manifest와 함께 저장할 폴더")
+    avm_segment.add_argument("--final", action="store_true",
+                             help="서비스용 최종 학습: 평가 구간 없이 validation_start~test_end로 보정해 --save-model에 저장 (시간 분할 평가를 먼저 통과해야 함)")
+    avm_segment.add_argument("--evaluation-report", help="--final 산출물에 기록할 시간 분할 평가 결과 경로")
+    avm_segment.add_argument("--approve-a1-hybrid", action="store_true",
+                             help="공개 기준 충족(A1)에도 혼합 추정을 적용 (두 기간 평가에서 기존 규칙보다 일관되게 나을 때만)")
     avm_segment.add_argument("--iterations", type=positive_int, default=800)
+    avm_segment.add_argument("--interval", type=float, default=.80, help="가격 구간의 명목 적중률 (0.5~0.99)")
     avm_segment.add_argument("--seed", type=int, default=42)
     avm_segment.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     avm_service = sub.add_parser("avm-service", help="저장 실거래로 실제 주거용 에이전트 가격 계산 재생")

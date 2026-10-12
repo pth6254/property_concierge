@@ -125,7 +125,7 @@ def _price(candidate, analysis):
     state = _analysis_status(analysis)
     asking = _number(candidate.get("asking_price"), minimum=1)
     valuation = summary.get("valuation") or {}
-    limited = summary.get("result_kind") in {"conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"} or bool(valuation and not valuation.get("comparison_eligible"))
+    limited = summary.get("result_kind") in {"model_estimate", "conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"} or bool(valuation and not valuation.get("comparison_eligible"))
     estimate = None if limited else _number(summary.get("estimated_value"), minimum=1)
     confidence = _number(summary.get("confidence"))
     count = _number(summary.get("comparable_count"), minimum=1)

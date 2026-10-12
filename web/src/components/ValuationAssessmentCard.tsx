@@ -1,6 +1,6 @@
 import type { ValuationAssessment } from "@/lib/valuation";
 
-const kinds = { market_reference: "시장가격 참고", conditional_scenario: "조건부 시나리오", public_reference: "공개자료 참고", partial_reference: "구성 부분 참고", withheld: "추정 보류", unsupported: "지원 범위 밖" };
+const kinds = { market_reference: "시장가격 참고", model_estimate: "ML 참고 추정", conditional_scenario: "조건부 시나리오", public_reference: "공개자료 참고", partial_reference: "구성 부분 참고", withheld: "추정 보류", unsupported: "지원 범위 밖" };
 const scopes: Record<string, string> = { single_unit: "개별 호실", whole_building: "건물 전체", land_and_building: "토지와 건물", single_parcel: "단일 필지", unknown: "미확인" };
 const areas: Record<string, string> = { exclusive: "전용면적", supply: "공급면적", gross: "연면적", land: "토지면적", unknown: "면적 기준 미확인" };
 const methods: Record<string, string> = { sales_comparison: "실거래 비교", income_scenario: "임대료 수익 시나리오", land_public_data: "토지 공개정보", catboost: "CatBoost 가격 모델" };
@@ -40,7 +40,7 @@ export default function ValuationAssessmentCard({ value }: { value?: ValuationAs
     {value.next_actions.length > 0 && <div className="rounded bg-amber-50 p-3 text-amber-900"><h3 className="font-semibold">다음 확인 항목</h3><ul className="mt-2 list-inside list-disc space-y-1">{value.next_actions.map(text => <li key={text}>{text}</li>)}</ul></div>}
     {value.jeonse_context && <JeonseRatio value={value.jeonse_context} />}
     {value.reference_context && value.reference_context.trade_count > 0 && <ReferenceTrades value={value.reference_context} />}
-    <details><summary className="cursor-pointer font-semibold">자료 점검과 기준 버전</summary><ul className="mt-2 space-y-2">{value.checks.map(check => <li key={check.code}>{check.status === "available" ? "확인" : "보완 필요"} · {check.message}<span className="block text-xs text-slate-500">{sources[check.source] || check.source} · 자료 기준 {check.reference_date || "미확인"} · 관측 {check.observed_at || "별도 기록 없음"}</span></li>)}</ul><p className="mt-2 text-xs">{value.policy_version} · ML 미사용</p></details>
+    <details><summary className="cursor-pointer font-semibold">자료 점검과 기준 버전</summary><ul className="mt-2 space-y-2">{value.checks.map(check => <li key={check.code}>{check.status === "available" ? "확인" : "보완 필요"} · {check.message}<span className="block text-xs text-slate-500">{sources[check.source] || check.source} · 자료 기준 {check.reference_date || "미확인"} · 관측 {check.observed_at || "별도 기록 없음"}</span></li>)}</ul><p className="mt-2 text-xs">{value.policy_version} · {value.model_status === "used" ? `ML 사용 (${value.model_context?.model ?? "모델"} · 학습 ${value.model_context?.trained_through ?? "미상"})` : "ML 미사용"}</p></details>
     {value.limitations.map(text => <p key={text} className="text-xs text-slate-600">{text}</p>)}
   </section>;
 }

@@ -14,12 +14,13 @@ const money = (value: number | null | undefined) => value == null ? "미산출" 
 const pct = (value: number | null) => value == null ? "미산출" : `${value.toLocaleString("ko-KR", { maximumFractionDigits: 4 })}%`;
 const perSqm = (value: number | null | undefined) => value == null ? "—" : `${Math.round(value / 10_000).toLocaleString("ko-KR")}만원/㎡`;
 
-const KINDS: Record<ValuationAssessment["result_kind"], string> = { market_reference: "시장가격 참고", conditional_scenario: "조건부 시나리오", public_reference: "공개자료 참고", partial_reference: "구성 부분 참고", withheld: "추정 보류", unsupported: "지원 범위 밖" };
+const KINDS: Record<ValuationAssessment["result_kind"], string> = { market_reference: "시장가격 참고", model_estimate: "ML 참고 추정", conditional_scenario: "조건부 시나리오", public_reference: "공개자료 참고", partial_reference: "구성 부분 참고", withheld: "추정 보류", unsupported: "지원 범위 밖" };
 const SCOPES: Record<string, string> = { single_unit: "개별 호실", whole_building: "건물 전체", land_and_building: "토지와 건물 전체", single_parcel: "단일 필지", unknown: "미확인" };
 const AREAS: Record<string, string> = { exclusive: "전용면적", supply: "공급면적", gross: "연면적", land: "토지면적", unknown: "면적 기준 미확인" };
 const SUBTYPES: Record<string, string> = { apartment: "아파트", officetel: "오피스텔", row_house: "연립다세대", detached: "단독·다가구", commercial: "상가", office: "사무실", factory: "공장", warehouse: "창고", land: "토지" };
 const TRADES: Record<string, string> = { sale: "매매", jeonse: "전세", rent: "월세", unknown: "미확인" };
 const METHODS: Record<string, string> = { sales_comparison: "실거래 비교", income_scenario: "임대료 수익 시나리오", land_public_data: "토지 공개정보", catboost: "CatBoost 가격 모델" };
+const LEVELS: Record<string, string> = { A1: "같은 단지 최근 6개월 5건 이상", A2: "같은 단지 최근 12개월 1~4건", A3: "같은 단지 다른 면적 또는 같은 동 유사 단지", A4: "근거 없음" };
 const SOURCES: Record<string, string> = { user_input: "사용자 입력", official_data: "공식자료", analysis: "분석 결과", policy: "서비스 기준" };
 
 function ResultBox({ result }: { result: ValuationSupportResult }) {
@@ -33,7 +34,11 @@ function ResultBox({ result }: { result: ValuationSupportResult }) {
         <h2 className="text-[13px] tracking-[0.2em]">평가 결과 · {kind}</h2>
       </div>
       <div className="py-6 px-4 text-center">
-        {scenario && scenario.scenarios.length > 0 ? <>
+        {valuation?.result_kind === "model_estimate" && valuation.model_context?.estimated_value != null ? <>
+          <p className="text-[26px] sm:text-[32px] font-bold text-gray-900 tracking-tight">₩ {valuation.model_context.estimated_value.toLocaleString("ko-KR")} 원</p>
+          <p className="text-xs text-gray-600 mt-2">참고 구간 {money(valuation.model_context.value_min)} ~ {money(valuation.model_context.value_max)} · 신뢰도 {valuation.model_context.confidence != null ? `${Math.round(valuation.model_context.confidence * 100)}%` : "미산출"}</p>
+          <p className="mt-3 border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">공개 기준(같은 단지 최근 6개월 5건)에 미달한 근거로 낸 ML 참고 추정입니다. 시장가격 비교·가격 체크리스트 완료에 쓰지 않습니다.</p>
+        </> : scenario && scenario.scenarios.length > 0 ? <>
           <p className="text-[22px] sm:text-[26px] font-bold text-gray-900">{money(scenario.low_price_won)} ~ {money(scenario.high_price_won)}</p>
           <p className="text-[11px] text-gray-500 mt-2">입력 임대료·운영비·환원율 가정에 따른 조건부 범위이며 시장가격이나 통계적 예측구간이 아닙니다.</p>
         </> : valuation?.result_kind === "public_reference" ? <>
@@ -77,7 +82,8 @@ export default function ValuationSupportReport({ result }: { result: ValuationSu
   const resultRows: InfoRow[] = valuation ? [
     ["결과 종류", KINDS[valuation.result_kind]],
     ["시장가격 비교", valuation.comparison_eligible ? "비교 근거로 제공 — 유효기간·신뢰도 추가 확인" : "시장가격 차이 계산에서 제외"],
-    ["ML 모델", "미사용 (오프라인 후보 모델은 운영 기준을 통과하지 않음)"],
+    ["ML 모델", valuation.model_status === "used" ? `사용 · ${valuation.model_context?.model ?? ""} (학습 자료 ${valuation.model_context?.trained_through ?? "미상"}까지)` : "미사용"],
+    ...(valuation.model_context ? [["근거 단계", `${valuation.model_context.level} · ${LEVELS[valuation.model_context.level] ?? ""}`] as InfoRow, ["근거 내용", valuation.model_context.basis] as InfoRow] : []),
     ["평가 기준", `${valuation.policy_version} · ${valuation.schema_version}`],
   ] : [["평가 기준", "이전 분석 — 공통 평가 기준 적용 여부 미확인. 새 분석으로 현재 자료 조건을 확인해주세요."]];
 

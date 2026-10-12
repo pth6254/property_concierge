@@ -303,6 +303,7 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
 | 유형 | 현재 결과와 실행 조건 |
 |---|---|
 | 아파트 | 개별 호실 범위·전용면적·단지명·주소·기준일 입력 조건 확인 후, 최근 6개월·동일 단지·면적 ±10% 유효 거래 5건 이상이면 기존 비교 엔진 실행. `market_reference` 또는 `withheld` |
+| 아파트 5건 미만 (2026-10-12) | 같은 단지 12개월(A2)·같은 단지 다른 면적 또는 같은 동 유사 단지(A3) 근거로 혼합 AVM의 `model_estimate`(ML 참고 추정). `comparison_eligible=false`. 근거 없음(A4)은 `withheld` |
 | 오피스텔·연립다세대·단독/다가구 | 별도 기준·자료 검증 전 `withheld`. 아파트 모델로 대체하지 않음 |
 | 상가·업무용 | 현재 월세·운영비·환원율 가정에 따른 `conditional_scenario` 또는 `withheld`. Kotlin `IncomeValuationCalculator`가 계산 |
 | 토지 | 주소→PNU→VWorld 4종 자료를 Spring `LandInformationService`가 대조. 공개자료 참고와 누락을 표시하고 시장가격은 산출하지 않음 |
@@ -325,7 +326,13 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
   토지대장의 현재 면적과 특성 기준연도의 면적을 섞지 않는다. 동일 연도 특성 면적×공시지가는 **공시 참고 총액**이다.
   제거한 고정 임대료·운영비 15%·상업/업무 건물 30/40% 가산·토지 배수·개발 키워드 가산을 복구하지 않는다.
 - 가격 범위는 기존 규칙의 참고 구간, 수익 범위는 가정별 시나리오다. 보정된 통계적 예측구간이라고 표시하지 않는다.
-  LLM은 입력 해석·설명에 사용하고 근거 없는 가격을 만들게 하지 않는다. CatBoost/DL을 운영에 연결하거나 자료 부족의 폴백으로 쓰지 않는다.
+  LLM은 입력 해석·설명에 사용하고 근거 없는 가격을 만들게 하지 않는다.
+- **ML(CatBoost)은 아파트 혼합 AVM(R-APT)에만 쓴다** (2026-10-12 사용자 결정으로 이전 "운영 연결 금지" 규칙을 바꿈).
+  `backend/valuation/apartment_avm.py`는 시간 분할 평가 후 `avm-segment --final`로 만든 `data/models/r-apt`
+  (manifest `deployment=service`, 파일 해시 검증)만 읽고, 없거나 실패하면 기존 규칙으로 처리한다. 다른 유형·A4의 대체로 쓰지 않는다.
+  A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 현재 산출물은 두 기간 평가에서 기존 규칙보다
+  일관되게 낫지 않아 `false`다. `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
+  혼합 AVM 구간은 검증 구간 잔차의 분위수로 정한 참고 구간이다(`interval_basis=calibrated_holdout_quantiles`). 재학습·교체 시 같은 평가를 다시 통과한다.
 
 화면의 `ValuationAssessmentCard`·`ValuationSupportReport`·`DecisionAxisCard`는 이 저장 계약을 표시한다.
 API 변경 시 `web/src/lib/valuation.ts`·`api.ts`·`types.ts`와 `contracts/v1/`를 함께 갱신한다.
@@ -494,7 +501,9 @@ node scripts/verify_decision_assessment_browser.cjs
   ±10% 적중률 69~84%지만 **동일동·구 매칭은 8~33%** 다.
   신뢰도는 이 실측치를 블렌딩해 하향 보정된다(`services/intelligence/backend/confidence.py`).
   이 과거 기록을 현재 `PC-AVM-1.0-runtime-1`의 정확도나 전국 성능으로 인용하지 않는다.
-- **CatBoost는 오프라인 후보 모델이다.** `evaluation avm-compare`는 시간 분리한 아파트 거래에서 기존
+- **아파트 혼합 AVM(R-APT)의 현재 평가 기록**은 `services/intelligence/evaluation/README.md`의 R-APT 절이다. A1 혼합은 미승인,
+  A2·A3 ML 참고 추정만 서비스에 쓴다. 아래 `avm-compare` 기록은 그 이전의 단독 CatBoost 비교다.
+- **CatBoost 단독 모델은 오프라인 후보 모델이다.** `evaluation avm-compare`는 시간 분리한 아파트 거래에서 기존
   `residential_agent` 재생과 비교한다. 정답 가격·단가를 특성에 넣거나 최종 평가를 early stopping에 사용하지 않는다.
   서비스 기준선을 자동 교체하지 않는다. 첫 비교는 기준 미달이며 결과를 보고 튜닝하면 이후 기간으로 다시 검증한다.
   학습용 `requirements-ml.txt`는 평가/CI에 설치하고 모델·거래별 보고서는 `evaluation-results/`에 보관한다.
@@ -528,6 +537,7 @@ node scripts/verify_decision_assessment_browser.cjs
    보류를 정답·0원으로 처리하거나 산출 성공 건만으로 전체 품질을 높게 보고하지 않는다.
 2. 오차·보류 원인을 단지 식별·주소·면적·거래 신선도·표본 부족으로 나눠 데이터와 비교 기준을 개선한다.
    CatBoost는 기존 기준선을 넘는 별도 검증을 통과한 뒤 적용 범위를 결정한다. 평가를 보고 튜닝했으면 이후 기간으로 다시 확인한다.
+   (2026-10-12: A2·A3 ML 참고 추정 연결. A1 혼합은 2026-10 이후 완료월로 다시 평가해 통과하면 `--approve-a1-hybrid`로 켠다.)
 3. 대표 아파트의 등록 → 실제 AVM → 자금 → 비교 → 선택 → 변경 재검토 → 복원을 연결하고,
    연결 성공과 시장가격 정확도를 별도로 평가한다. 비아파트는 유형별 자료·정답셋·평가 기준을 확보한 순서로 확대한다.
 

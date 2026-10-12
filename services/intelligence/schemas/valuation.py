@@ -3,7 +3,8 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
-ResultKind = Literal["market_reference", "conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"]
+# model_estimate: 공개 기준(같은 단지 6개월 5건) 미달 근거로 낸 ML 참고 추정. 시장가격 비교·체크리스트 완료에 쓰지 않는다.
+ResultKind = Literal["market_reference", "model_estimate", "conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"]
 
 
 class ValuationContext(BaseModel):
@@ -89,6 +90,28 @@ class JeonseContext(BaseModel):
     leases: list[JeonseLease] = Field(default_factory=list)
 
 
+class ModelContext(BaseModel):
+    """혼합 AVM(R-APT)의 근거 단계와 추정. 금액은 원. 구간은 검증 구간 잔차 분위수로 보정한 참고 구간이다."""
+    model_config = ConfigDict(extra="forbid")
+    level: Literal["A1", "A2", "A3", "A4"]
+    basis: str
+    complex: str = ""
+    counts: dict[str, int] = Field(default_factory=dict)
+    model: str
+    model_version: str | None = None
+    trained_through: str | None = None
+    interval: float | None = None
+    estimated_value: int | None = None
+    value_min: int | None = None
+    value_max: int | None = None
+    confidence: float | None = None
+    comparable_weight: float | None = None
+    comparable_per_sqm: int | None = None
+    # A1에 혼합 추정을 적용해도 된다고 평가로 승인된 산출물인지. 미승인이면 A1은 기존 비교 규칙 가격을 쓴다.
+    hybrid_approved: bool = False
+    applied: bool = False
+
+
 class ValuationAssessment(BaseModel):
     model_config = ConfigDict(extra="forbid")
     schema_version: Literal["valuation-assessment-1.0"] = "valuation-assessment-1.0"
@@ -104,6 +127,7 @@ class ValuationAssessment(BaseModel):
     next_actions: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     interval_basis: str = "not_provided"
-    model_status: Literal["not_used"] = "not_used"
+    model_status: Literal["not_used", "used"] = "not_used"
+    model_context: ModelContext | None = None
     reference_context: ReferenceContext | None = None
     jeonse_context: JeonseContext | None = None

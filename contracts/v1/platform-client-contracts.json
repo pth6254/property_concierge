@@ -712,6 +712,167 @@
         "title": "JeonseLease",
         "type": "object"
       },
+      "ModelContext": {
+        "additionalProperties": false,
+        "description": "혼합 AVM(R-APT)의 근거 단계와 추정. 금액은 원. 구간은 검증 구간 잔차 분위수로 보정한 참고 구간이다.",
+        "properties": {
+          "applied": {
+            "default": false,
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "basis": {
+            "title": "Basis",
+            "type": "string"
+          },
+          "comparable_per_sqm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Comparable Per Sqm"
+          },
+          "comparable_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Comparable Weight"
+          },
+          "complex": {
+            "default": "",
+            "title": "Complex",
+            "type": "string"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Confidence"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Counts",
+            "type": "object"
+          },
+          "estimated_value": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Estimated Value"
+          },
+          "hybrid_approved": {
+            "default": false,
+            "title": "Hybrid Approved",
+            "type": "boolean"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Interval"
+          },
+          "level": {
+            "enum": [
+              "A1",
+              "A2",
+              "A3",
+              "A4"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "model": {
+            "title": "Model",
+            "type": "string"
+          },
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Model Version"
+          },
+          "trained_through": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trained Through"
+          },
+          "value_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value Max"
+          },
+          "value_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value Min"
+          }
+        },
+        "required": [
+          "level",
+          "basis",
+          "model"
+        ],
+        "title": "ModelContext",
+        "type": "object"
+      },
       "ReferenceContext": {
         "additionalProperties": false,
         "description": "가격 산출이 보류된 경우에도 사용자가 직접 볼 수 있는 동일 단지 거래 목록. 추정가로 쓰지 않는다.",
@@ -1085,9 +1246,23 @@
         "title": "Methods",
         "type": "array"
       },
+      "model_context": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModelContext"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
+      },
       "model_status": {
-        "const": "not_used",
         "default": "not_used",
+        "enum": [
+          "not_used",
+          "used"
+        ],
         "title": "Model Status",
         "type": "string"
       },
@@ -1118,6 +1293,7 @@
       "result_kind": {
         "enum": [
           "market_reference",
+          "model_estimate",
           "conditional_scenario",
           "public_reference",
           "partial_reference",

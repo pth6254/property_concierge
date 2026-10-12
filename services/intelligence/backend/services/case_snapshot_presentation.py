@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 def _appraisal_won(result: dict) -> int | None:
     analysis = result.get("analysis_result") or {}
     valuation = analysis.get("valuation")
-    if (valuation is not None and not valuation.get("comparison_eligible")) or analysis.get("result_kind") in {"conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"}:
+    if (valuation is not None and not valuation.get("comparison_eligible")) or analysis.get("result_kind") in {"model_estimate", "conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"}:
         return None
     value = analysis.get("estimated_value")
     if value is None:

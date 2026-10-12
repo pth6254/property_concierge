@@ -1,0 +1,167 @@
+{
+  "schema": "price-model-manifest-1",
+  "model": "catboost",
+  "model_version": "1",
+  "params": {
+    "iterations": 800,
+    "depth": 6,
+    "learning_rate": 0.05,
+    "loss": "RMSE",
+    "seed": 42,
+    "early_stopping": 60
+  },
+  "features": {
+    "categorical": [
+      "lawd",
+      "dong",
+      "complex"
+    ],
+    "numeric": [
+      "floor",
+      "area",
+      "age",
+      "month",
+      "direct",
+      "index_level",
+      "a1_count",
+      "a1_median",
+      "a2_count",
+      "a2_median",
+      "last_days",
+      "cx_count",
+      "cx_median",
+      "cx_area_ratio",
+      "dong_count",
+      "dong_median",
+      "comp_estimate",
+      "block_median"
+    ],
+    "target": "target"
+  },
+  "training": {
+    "iterations": 799,
+    "train_rows": 125003,
+    "validation_rows": 11662
+  },
+  "files": [
+    "catboost.cbm"
+  ],
+  "sha256": {
+    "catboost.cbm": "76a01973c952b8ed6745a586a007209a36441e6dc22e17571180b6e48511b6cb"
+  },
+  "segment": "R-APT",
+  "calibration": {
+    "weights": {
+      "A1": 0.25,
+      "A2": 0,
+      "A3": 0
+    },
+    "interval_log_quantiles": {
+      "A1": [
+        -0.07900976251857869,
+        0.10425947641813106
+      ],
+      "A2": [
+        -0.11811234806594664,
+        0.12174415191122688
+      ],
+      "A3": [
+        -0.3866591259402156,
+        0.21290888559500154
+      ]
+    },
+    "confidence_by_level": {
+      "A1": 0.871,
+      "A2": 0.784,
+      "A3": 0.505
+    },
+    "interval": 0.85
+  },
+  "feature_origin_month": 24285,
+  "history_months": 12,
+  "trained_through": "2026-09-30",
+  "validation_mape": 0.064,
+  "levels": [
+    "A1",
+    "A2",
+    "A3",
+    "A4"
+  ],
+  "withheld_levels": [
+    "A4"
+  ],
+  "split": {
+    "regions": [
+      "11110",
+      "11140",
+      "11170",
+      "11200",
+      "11215",
+      "11230",
+      "11260",
+      "11290",
+      "11305",
+      "11320",
+      "11350",
+      "11380",
+      "11410",
+      "11440",
+      "11470",
+      "11500",
+      "11530",
+      "11545",
+      "11560",
+      "11590",
+      "11620",
+      "11650",
+      "11680",
+      "11710",
+      "11740"
+    ],
+    "train_start": "202410",
+    "validation_start": "202607",
+    "test_start": "999999",
+    "test_end": "202609",
+    "models": [
+      "catboost"
+    ],
+    "iterations": 800,
+    "seed": 42,
+    "interval": 0.85,
+    "blind_draws": 500,
+    "blind_size": 20,
+    "train_outlier_log": 0.5,
+    "segment": "apartment"
+  },
+  "data_sha256": "7d07d07f16e884749e30fbe1a94ca637b331299651d477bb602a05d54fd0a3b1",
+  "deployment": "service",
+  "regions": [
+    "11110",
+    "11140",
+    "11170",
+    "11200",
+    "11215",
+    "11230",
+    "11260",
+    "11290",
+    "11305",
+    "11320",
+    "11350",
+    "11380",
+    "11410",
+    "11440",
+    "11470",
+    "11500",
+    "11530",
+    "11545",
+    "11560",
+    "11590",
+    "11620",
+    "11650",
+    "11680",
+    "11710",
+    "11740"
+  ],
+  "evaluation_report": "evaluation-results/20261012T081102Z-avm-segment-apartment/result.json",
+  "a1_hybrid_approved": false
+}

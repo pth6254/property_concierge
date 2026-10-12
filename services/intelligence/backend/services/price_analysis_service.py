@@ -31,6 +31,7 @@ from schemas.property_query import PropertyQuery
 from price_engine import (
     calc_estimated_value,
     fetch_real_transaction_prices,
+    get_lawd_code,
 )
 from comparable_matching import comparable_match_level
 
@@ -249,7 +250,7 @@ def analyze_price(query: PropertyQuery, as_of: str = "") -> AppraisalResult:
 
     asking_manwon = _to_manwon(query.asking_price)
 
-    from backend.valuation.policy import plan, allowed, blocked_result, eligible_comparables, finalize
+    from backend.valuation.policy import plan, allowed, blocked_result, eligible_comparables, finalize, model_estimate, model_result, apply_hybrid
     state = {"building_name": complex_name, "appraisal_purpose": query.appraisal_purpose or "매매",
              "raw_inputs": {"property_category": property_type, "property_detail": query.property_detail or "",
                  "address": query.address or "", "area_sqm": area_m2, "appraisal_date": as_of_str,
@@ -278,12 +279,16 @@ def analyze_price(query: PropertyQuery, as_of: str = "") -> AppraisalResult:
     )
 
     apt_name_matched = price_data.get("apt_name_matched", "")
-    price_data = eligible_comparables(state, price_data)
-    if price_data is None:
+    filtered = eligible_comparables(state, price_data)
+    context = model_estimate(state, price_data, get_lawd_code(region) if region else "", "")
+    if filtered is None:
+        if context and context.get("estimated_value"):
+            return reference(model_result(state, context)["analysis_result"])
         return reference(blocked_result(state, state["valuation_plan"])["analysis_result"])
+    price_data = filtered
 
     # ── 2. 추정가 계산 ──────────────────────────────────────────────────
-    val = calc_estimated_value(price_data, area_m2 or 0.0, property_type)
+    val = apply_hybrid(calc_estimated_value(price_data, area_m2 or 0.0, property_type), state["valuation_plan"], area_m2 or 0.0)
     assessed = finalize({**state, "analysis_result": {**val, "value_unit": "만원"}})["analysis_result"]
     if not assessed["valuation"]["comparison_eligible"]:
         return reference(assessed)

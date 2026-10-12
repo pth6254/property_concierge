@@ -9,6 +9,10 @@ import sys
 import os
 from urllib.parse import urlsplit, unquote
 
+# 저장소의 서비스용 아파트 모델(data/models/r-apt)을 일반 테스트가 읽지 않게 한다. 모델 경로 검사는
+# tests/test_apartment_avm.py가 임시 산출물을 지정해 따로 한다.
+os.environ.setdefault("AVM_APARTMENT_MODEL_DIR", os.path.join(os.path.dirname(__file__), "fixtures", "no-apartment-model"))
+
 
 # 일부 통합 테스트가 테이블을 비운다. 기본 서비스 DB를 암묵적으로 사용하면
 # 실거래·법령·사용자 데이터까지 삭제되므로 명시적인 격리 DB만 허용한다.

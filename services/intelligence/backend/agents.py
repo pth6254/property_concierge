@@ -274,14 +274,22 @@ def residential_agent(state: dict) -> dict:
         elif building_name:
             print(f"  → 단지명 '{building_name}' 미발견 — 비교사례 적용 범위 확인 필요")
 
+        hybrid = False
         if state.get("valuation_plan"):
-            from backend.valuation.policy import eligible_comparables, blocked_result
+            from backend.valuation.policy import eligible_comparables, blocked_result, model_estimate, model_result, apply_hybrid
             _attach_jeonse(state, price_data)
             filtered = eligible_comparables(state, price_data)
+            # 혼합 AVM: 공개 기준 충족 시 보정, 미달 시 ML 참고 추정. 산출물이 없으면 기존 규칙 그대로다.
+            context = model_estimate(state, price_data, sigungu_cd, region3, floor_inferred or None)
             if filtered is None:
+                if context and context.get("estimated_value"):
+                    return model_result(state, context)
                 return blocked_result(state, state["valuation_plan"])
             price_data = filtered
         val  = calc_estimated_value(price_data, area_sqm, "주거용")
+        if state.get("valuation_plan"):
+            val = apply_hybrid(val, state["valuation_plan"], area_sqm)
+            hybrid = bool((state["valuation_plan"].get("model_context") or {}).get("applied"))
         roi  = calc_investment_return(val["estimated_value"], "주거용", area_sqm)
 
         nearby = search_nearby_facilities(lat, lng,
@@ -298,7 +306,8 @@ def residential_agent(state: dict) -> dict:
         result = ValuationResult(
             agent_name="주거용",
             valuation_method=(
-                f"비교사례법 ({dong_no}{ho_no} 기준 동일타입 실거래)"
+                "혼합 AVM (동일 단지 비교사례 + CatBoost 보정)" if hybrid
+                else f"비교사례법 ({dong_no}{ho_no} 기준 동일타입 실거래)"
                 if price_data.get("precision_filter")
                 else "비교사례법 (인근 실거래 평균)"
             ),

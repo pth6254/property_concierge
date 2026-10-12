@@ -9,7 +9,7 @@ import math
 from schemas.valuation import ValuationAssessment, ValuationContext, ValuationSubject
 from backend.valuation.segments import resolve as resolve_segment
 
-KINDS_WITHOUT_MARKET_PRICE = {"conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"}
+KINDS_WITHOUT_MARKET_PRICE = {"model_estimate", "conditional_scenario", "public_reference", "partial_reference", "withheld", "unsupported"}
 DETAILS = {"아파트": "apartment", "오피스텔": "officetel", "연립다세대": "row_house", "빌라": "row_house",
            "연립": "row_house", "다세대": "row_house", "단독": "detached", "단독주택": "detached", "다가구": "multi_household",
            "단독다가구": "detached_unspecified", "상가": "commercial", "사무실": "office", "토지": "land", "공장": "factory", "창고": "warehouse"}
@@ -97,7 +97,9 @@ def plan(state):
     allowed = not out["next_actions"]
     out["methods"] = [
         {"method": method, "status": "selected" if allowed else "blocked", "reason": "입력 조건 확인. 실행 후 수집 근거를 추가 검증합니다." if allowed else "필수 입력 또는 적용 범위 확인 필요"},
-        {"method": "catboost", "status": "blocked", "reason": "오프라인 후보 모델로 운영 기준을 통과하지 않았습니다. 거래 부족 시 자동 대체하지 않습니다.", "engine_version": "apartment-catboost-v1"},
+        {"method": "catboost", "status": "blocked", "engine_version": None,
+         "reason": ("아파트 혼합 AVM은 실행 후 근거 단계와 검증된 산출물을 확인합니다." if allowed else "필수 입력 또는 적용 범위 확인 필요")
+                   if target.subtype == "apartment" else "아파트 외 유형은 검증된 ML 모델이 없습니다. 다른 유형의 모델로 대체하지 않습니다."},
     ]
     return ValuationAssessment.model_validate(out).model_dump(mode="json")
 
@@ -162,6 +164,66 @@ def eligible_comparables(state, price_data):
             "per_sqm_avg": round(sum(s["price"] / s["area_sqm"] for s in selected) / len(selected))}
 
 
+def model_estimate(state, price_data, lawd="", dong="", floor=None):
+    """아파트 혼합 AVM(R-APT). 검증·최종 학습한 산출물이 없거나 실패하면 None — 호출측은 기존 규칙으로 처리한다.
+
+    공개 기준(A1)을 충족하면 비교사례와 모델 보정값을 섞고, 미달(A2·A3)이면 ML 참고 추정으로만 낸다.
+    근거가 없으면(A4) 가격을 만들지 않는다. 결과는 valuation_plan.model_context에 기록한다.
+    """
+    assessment = state.get("valuation_plan") or {}
+    target = assessment.get("subject") or {}
+    if target.get("subtype") != "apartment":
+        return None
+    try:
+        from backend.valuation import apartment_avm
+        result = apartment_avm.estimate(price_data.get("target_sigungu_code") or lawd, price_data.get("target_dong") or dong,
+                                        [price_data.get("apt_name_matched", ""), target.get("building_name", "")],
+                                        target.get("area_sqm") or 0, floor, date.fromisoformat(target["as_of_date"]))
+    except Exception as exc:  # 모델 경로의 실패가 기존 비교사례 결과를 막지 않게 한다.
+        print(f"[apartment-avm] 실행 생략: {type(exc).__name__}")
+        return None
+    if result:
+        assessment["model_context"] = result
+    return result
+
+
+def apply_hybrid(val, assessment, area_sqm):
+    """A1 혼합 추정으로 기존 규칙 결과(만원)를 바꾼다. A1이 아니거나 모델이 없으면 그대로 둔다."""
+    context = assessment.get("model_context") or {}
+    if context.get("level") != "A1" or not context.get("hybrid_approved") or not _positive(context.get("estimated_value")):
+        return val
+    context["applied"] = True
+    manwon = lambda won: round(won / 10_000)
+    per_sqm = round(context["estimated_value"] / area_sqm / 10_000) if area_sqm else val.get("price_per_sqm")
+    return {**val, "estimated_value": manwon(context["estimated_value"]), "value_min": manwon(context["value_min"]),
+            "value_max": manwon(context["value_max"]), "price_per_sqm": per_sqm,
+            "price_per_pyeong": round(per_sqm * 3.3058) if per_sqm else val.get("price_per_pyeong")}
+
+
+def model_result(state, context):
+    """공개 기준 미달 근거의 ML 참고 추정 결과. 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다."""
+    assessment = state["valuation_plan"]
+    target = assessment["subject"]
+    interval = round((context.get("interval") or .8) * 100)
+    assessment["next_actions"] = [text for text in assessment["next_actions"] if "ML로 대체하지 않습니다" not in text]
+    assessment["next_actions"].append("ML 참고 추정입니다. 같은 단지·유사 면적의 최근 거래와 현재 호가를 직접 확인해주세요.")
+    assessment["methods"][0].update(status="blocked", reason="같은 단지 최근 6개월·전용 ±10% 유효 거래 5건 미만 (공개 기준 미달)")
+    assessment["methods"][1].update(status="selected", reason=f"{context['basis']} — CatBoost 보정 추정. 근거 단계별 검증 잔차로 구간·신뢰도를 정했습니다.",
+                                    engine_version=f"r-apt-{context['model']}-{context.get('trained_through') or '미상'}")
+    assessment.update(result_kind="model_estimate", comparison_eligible=False, model_status="used",
+                      interval_basis="calibrated_holdout_quantiles")
+    assessment["limitations"] += [
+        "ML 참고 추정은 공개 기준(같은 단지 6개월 5건)에 미달한 근거로 계산했으며 시장가격 비교·가격 체크리스트 완료에 쓰지 않습니다.",
+        f"가격 구간은 검증 구간 잔차의 {interval}% 분위수이며 개별 물건의 실제 거래 가능 가격을 보장하지 않습니다.",
+    ]
+    assessment = ValuationAssessment.model_validate(assessment).model_dump(mode="json")
+    return {**state, "analysis_result": {"support_version": "valuation-policy-1.0", "valuation": assessment,
+        "result_kind": "model_estimate", "estimated_value": context["estimated_value"], "value_min": context["value_min"],
+        "value_max": context["value_max"], "value_unit": "원", "agent_name": target["category"], "address": target["address"],
+        "as_of_date": target["as_of_date"], "valuation_method": "아파트 혼합 AVM (ML 참고 추정)",
+        "limitations": assessment["next_actions"] + assessment["limitations"]}, "error": ""}
+
+
 def reference_context(price_data, target, as_of, months=12, tolerance=.20, limit=10):
     """보류 시 참고용으로만 보여줄 동일 단지 최근 거래. 가격 추정·시점수정에 쓰지 않는다."""
     from backend.comparable_matching import comparable_match_level
@@ -206,9 +268,21 @@ def finalize(state):
         if not _positive(analysis.get("estimated_value")) or not any(c["code"] == "comparables" and c["status"] == "available" for c in assessment["checks"]):
             assessment["next_actions"].append("검증된 비교 근거와 양수 추정가격을 확인하지 못했습니다.")
             return blocked_result(state, assessment)
-        assessment["interval_basis"] = "heuristic_range_not_prediction_interval"
         assessment["methods"][0].update(reason="동일 단지·최근 6개월·전용면적 ±10%의 유효 거래 5건 이상을 사용했습니다.", engine_version="residential-comparison-rules-v1")
-        assessment["limitations"].append("가격 범위는 기존 규칙의 참고 구간이며 통계적으로 보정된 예측구간이 아닙니다.")
+        context = assessment.get("model_context") or {}
+        if context.get("applied"):
+            interval = round((context.get("interval") or .8) * 100)
+            assessment["interval_basis"] = "calibrated_holdout_quantiles"
+            assessment["model_status"] = "used"
+            assessment["methods"][1].update(status="selected", engine_version=f"r-apt-{context['model']}-{context.get('trained_through') or '미상'}",
+                reason=f"비교사례 값과 CatBoost 보정값을 검증 구간에서 정한 가중치(비교사례 {context.get('comparable_weight', 0):.0%})로 혼합했습니다.")
+            assessment["limitations"].append(f"가격 구간은 검증 구간 잔차의 {interval}% 분위수로 정한 참고 구간이며 개별 물건의 실제 거래 가능 가격을 보장하지 않습니다.")
+        else:
+            assessment["interval_basis"] = "heuristic_range_not_prediction_interval"
+            assessment["limitations"].append("가격 범위는 기존 규칙의 참고 구간이며 통계적으로 보정된 예측구간이 아닙니다.")
+            if context.get("level") == "A1":
+                assessment["methods"][1].update(status="not_applicable",
+                    reason="공개 기준을 충족해 검증된 실거래 비교 규칙을 씁니다. 혼합 추정은 두 기간 평가에서 일관된 개선을 확인하지 못해 적용하지 않았습니다.")
         assessment["subject"]["identity_level"] = "complex_area"
     land = analysis.get("land_information")
     if land:

@@ -71,11 +71,19 @@ export type JeonseContext = {
 export type ValuationAssessment = {
   schema_version: string; policy_version: string; input_fingerprint: string; segment?: string | null;
   subject: ValuationContext & { category: string; subtype: string; address: string; building_name: string; area_sqm: number | null; as_of_date: string; purpose: string; identity_level: string };
-  result_kind: "market_reference" | "conditional_scenario" | "public_reference" | "partial_reference" | "withheld" | "unsupported";
+  result_kind: "market_reference" | "model_estimate" | "conditional_scenario" | "public_reference" | "partial_reference" | "withheld" | "unsupported";
   comparison_eligible: boolean; model_status: string; interval_basis: string;
   checks: { code: string; status: string; message: string; source: string; reference_date: string | null; observed_at: string | null }[];
   methods: { method: string; status: string; reason: string; engine_version: string | null }[];
   next_actions: string[]; limitations: string[];
   reference_context?: ReferenceContext | null;
   jeonse_context?: JeonseContext | null;
+  model_context?: ModelContext | null;
+};
+/** 아파트 혼합 AVM의 근거 단계와 추정(원). 구간은 검증 구간 잔차 분위수로 정한 참고 구간이다. */
+export type ModelContext = {
+  level: "A1" | "A2" | "A3" | "A4"; basis: string; complex: string; counts: Record<string, number>;
+  model: string; model_version: string | null; trained_through: string | null; interval: number | null;
+  estimated_value: number | null; value_min: number | null; value_max: number | null; confidence: number | null;
+  comparable_weight: number | null; comparable_per_sqm: number | null; applied: boolean;
 };
