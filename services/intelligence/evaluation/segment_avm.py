@@ -403,7 +403,7 @@ def run(args) -> int:
         raise ValueError(f"등록되지 않은 모델: {unknown} (사용 가능: {price_models.available()})")
     config = SegmentConfig(tuple(args.regions), args.train_start, args.validation_start, "999999" if final else args.test_start, args.test_end,
                            models=specs, iterations=args.iterations, seed=args.seed, segment=args.segment,
-                           interval=getattr(args, "interval", .80))
+                           interval=getattr(args, "interval", .80), band_by=getattr(args, "band_by", "level"))
     # 비교사례는 학습 시작 이전 거래도 근거로 써야 하므로 세그먼트의 근거 기간만큼 앞부터 읽는다.
     start_month = int(args.train_start[:4]) * 12 + int(args.train_start[4:]) - 1 - segment.history_months
     rows = load_rows(config.regions, f"{start_month // 12:04d}{start_month % 12 + 1:02d}", args.test_end, segment.endpoint)

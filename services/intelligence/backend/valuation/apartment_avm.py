@@ -131,6 +131,12 @@ def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | N
     log_estimate = weight * comp + (1 - weight) * predicted if (weight and comp is not None) else predicted
     band = (calibration.get("interval_log_quantiles") or {}).get(evidence.level)
     confidence = (calibration.get("confidence_by_level") or {}).get(evidence.level)
+    edges = calibration.get("price_band_edges") or []
+    if calibration.get("band_by") == "price" and edges:
+        # 평가와 같은 규칙: 근거 단계 × 추정가 5분위 칸의 검증 잔차 분위수. 30건 미만 칸은 근거 단계 값을 그대로 쓴다.
+        cell = f"{evidence.level}|{sum(math.exp(log_estimate) * area > edge for edge in edges) + 1}"
+        band = (calibration.get("price_interval_log_quantiles") or {}).get(cell, band)
+        confidence = (calibration.get("confidence_by_price") or {}).get(cell, confidence)
     if band is None or confidence is None:
         context["basis"] += " · 이 근거 단계의 검증 표본이 부족해 가격을 내지 않습니다"
         context["level"] = "A4"

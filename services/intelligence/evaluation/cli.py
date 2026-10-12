@@ -113,6 +113,8 @@ def main(argv=None):
                              help="공개 기준 충족(A1)에도 혼합 추정을 적용 (두 기간 평가에서 기존 규칙보다 일관되게 나을 때만)")
     avm_segment.add_argument("--iterations", type=positive_int, default=800)
     avm_segment.add_argument("--interval", type=float, default=.80, help="가격 구간의 명목 적중률 (0.5~0.99)")
+    avm_segment.add_argument("--band-by", choices=["level", "price"], default="level",
+                             help="구간 보정 단위: 근거 단계별(level) 또는 근거 단계 × 추정가 5분위(price)")
     avm_segment.add_argument("--seed", type=int, default=42)
     avm_segment.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     avm_rolling = sub.add_parser("avm-rolling", help="세그먼트 AVM 월별 롤링 평가와 사전 판정 기준 (현재 R-APT 아파트)")

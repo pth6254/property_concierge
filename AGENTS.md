@@ -331,7 +331,7 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
   `backend/valuation/apartment_avm.py`는 시간 분할 평가 후 `avm-segment --final`로 만든 `data/models/r-apt`
   (manifest `deployment=service`, 파일 해시 검증)만 읽고, 없거나 실패하면 기존 규칙으로 처리한다. 다른 유형·A4의 대체로 쓰지 않는다.
   A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 현재 산출물은 두 기간 평가에서 기존 규칙보다
-  일관되게 낫지 않아 `false`다. `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
+  일관되게 낫지 않아 `false`다(2026-10-12 12개월 롤링 평가에서도 용산구 지역 기준 미달). `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
   혼합 AVM 구간은 검증 구간 잔차의 분위수로 정한 참고 구간이다(`interval_basis=calibrated_holdout_quantiles`). 재학습·교체 시 같은 평가를 다시 통과한다.
 - **실거래 기반 가격은 과거 거래 근거다.** 화면 명칭은 "최근 실거래 기준 참고가"이며 "추정 시장가치"·현재 시세처럼 표시하지 않는다.
   가격 결과에는 `valuation.evidence_window`(근거 거래 수·기간·기준일까지 경과일·시점 보정 평균 %)와 신고 지연·시장 변동 경고

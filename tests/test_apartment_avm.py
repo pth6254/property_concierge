@@ -90,6 +90,22 @@ def test_runtime_estimate_returns_calibrated_band_and_level(runtime):
     assert result["confidence"] == .89 and result["interval"] == .85 and result["comparable_weight"] == .5
 
 
+def test_runtime_price_band_calibration_uses_estimate_quintile_cell(tmp_path, monkeypatch):
+    import json
+    directory = _artifact(tmp_path)
+    manifest = json.loads((directory / "model.json").read_text(encoding="utf-8"))
+    manifest["calibration"] |= {"band_by": "price", "price_band_edges": [1, 2, 3, 4],  # 어떤 추정가도 5분위 칸
+                                "price_interval_log_quantiles": {"A1|5": [-.2, .2]}, "confidence_by_price": {"A1|5": .5}}
+    (directory / "model.json").write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setenv("AVM_APARTMENT_MODEL_DIR", str(directory))
+    apartment_avm._loaded.cache_clear()
+    monkeypatch.setattr(apartment_avm, "_rows", lambda *args: _rows([(d, 84.9, 480_000) for d in (0, 30, 60, 90, 120)]))
+    result = apartment_avm.estimate("11650", "반포동", ["반포자이"], 84.97, 10, date(2026, 10, 1))
+    apartment_avm._loaded.cache_clear()
+    assert result["confidence"] == .5
+    assert abs(result["value_max"] / result["estimated_value"] - 2.718281828 ** .2) < 1e-3
+
+
 def test_runtime_gives_no_price_without_evidence_or_unknown_complex(runtime):
     runtime.setattr(apartment_avm, "_rows", lambda *args: _rows([(400, 84.9, 470_000)]))
     assert "estimated_value" not in apartment_avm.estimate("11650", "반포동", ["반포자이"], 84.9, None, date(2026, 10, 1))
