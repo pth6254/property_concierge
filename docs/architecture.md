@@ -28,6 +28,8 @@
 
 `scripts/`, `tests/`, `docs/`는 통합 운영·검증·설명을 담당하므로 루트에 유지한다.
 `data/`, `backups/`, `evaluation-results/`, `.env`, 로컬 가상환경은 상태·설정·산출물이다.
+`services/intelligence/avm/`은 연립·다세대 AVM 과제용 단독 실행 패키지다. 서비스 설치 대상이 아니며 가격 모델 등록표는 서비스 원본을 가져다 쓴다
+([평가 문서](../services/intelligence/evaluation/README.md)).
 기존 데이터·계정·DB 스키마를 이동하거나 삭제하지 않았다.
 
 <a id="repository-실행-경로"></a>

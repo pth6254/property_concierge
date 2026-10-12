@@ -1,0 +1,310 @@
+{
+  "period": {
+    "data": "rh_trades.csv",
+    "train_start": "202410",
+    "validation_start": "202602",
+    "test_start": "202604",
+    "test_end": "202606",
+    "seed": 42,
+    "model": "catboost"
+  },
+  "model": {
+    "name": "catboost",
+    "training": {
+      "iterations": 888,
+      "train_rows": 6051,
+      "validation_rows": 913
+    },
+    "validation_mape": 0.1613,
+    "train_rows": 6051,
+    "validation_rows": 990,
+    "train_outliers_removed": 327
+  },
+  "metrics": {
+    "hybrid": {
+      "L1": {
+        "n": 1014,
+        "mape": 0.1381,
+        "median_ape": 0.0967,
+        "hit10": 0.5158,
+        "hit20": 0.8008,
+        "p90_ape": 0.2894
+      },
+      "L1a": {
+        "n": 305,
+        "mape": 0.1097,
+        "median_ape": 0.0823,
+        "hit10": 0.6,
+        "hit20": 0.8689,
+        "p90_ape": 0.2191
+      },
+      "L1b": {
+        "n": 709,
+        "mape": 0.1503,
+        "median_ape": 0.1052,
+        "hit10": 0.4795,
+        "hit20": 0.7715,
+        "p90_ape": 0.3237
+      },
+      "L2": {
+        "n": 1432,
+        "mape": 0.2,
+        "median_ape": 0.1349,
+        "hit10": 0.3911,
+        "hit20": 0.6466,
+        "p90_ape": 0.4361
+      },
+      "L3": {
+        "n": 118,
+        "mape": 0.1771,
+        "median_ape": 0.0712,
+        "hit10": 0.5424,
+        "hit20": 0.678,
+        "p90_ape": 0.5319
+      },
+      "all": {
+        "n": 1789,
+        "mape": 0.1642,
+        "median_ape": 0.1086,
+        "hit10": 0.4667,
+        "hit20": 0.735,
+        "p90_ape": 0.3495
+      },
+      "region:11500": {
+        "n": 827,
+        "mape": 0.1552,
+        "median_ape": 0.1007,
+        "hit10": 0.4958,
+        "hit20": 0.7606,
+        "p90_ape": 0.3387
+      },
+      "region:11620": {
+        "n": 606,
+        "mape": 0.1666,
+        "median_ape": 0.1095,
+        "hit10": 0.4538,
+        "hit20": 0.7145,
+        "p90_ape": 0.3507
+      },
+      "region:11680": {
+        "n": 356,
+        "mape": 0.1807,
+        "median_ape": 0.1194,
+        "hit10": 0.4213,
+        "hit20": 0.7107,
+        "p90_ape": 0.3468
+      },
+      "scope": {
+        "n": 1514,
+        "mape": 0.1638,
+        "median_ape": 0.1096,
+        "hit10": 0.4577,
+        "hit20": 0.7292,
+        "p90_ape": 0.3533
+      }
+    },
+    "comparables": {
+      "L1": {
+        "n": 1014,
+        "mape": 0.1691,
+        "median_ape": 0.1164,
+        "hit10": 0.4428,
+        "hit20": 0.7357,
+        "p90_ape": 0.3599
+      },
+      "L2": {
+        "n": 716,
+        "mape": 0.2391,
+        "median_ape": 0.1579,
+        "hit10": 0.3561,
+        "hit20": 0.5824,
+        "p90_ape": 0.506
+      },
+      "all": {
+        "n": 1730,
+        "mape": 0.198,
+        "median_ape": 0.1299,
+        "hit10": 0.4069,
+        "hit20": 0.6723,
+        "p90_ape": 0.4314
+      }
+    }
+  },
+  "interval_coverage_all": 0.816,
+  "interval_coverage_scope": 0.813,
+  "calibration_by_bucket": {
+    "L1a": {
+      "n": 305,
+      "stated_confidence": 0.623,
+      "observed_hit10": 0.6,
+      "interval_coverage": 0.836
+    },
+    "L1b": {
+      "n": 709,
+      "stated_confidence": 0.505,
+      "observed_hit10": 0.48,
+      "interval_coverage": 0.812
+    },
+    "L2": {
+      "n": 716,
+      "stated_confidence": 0.424,
+      "observed_hit10": 0.391,
+      "interval_coverage": 0.811
+    },
+    "L3": {
+      "n": 59,
+      "stated_confidence": 0.424,
+      "observed_hit10": 0.542,
+      "interval_coverage": 0.797
+    }
+  },
+  "blind_20": {
+    "population": "과제 권역",
+    "draws": 500,
+    "mape_median": 0.1622,
+    "mape_p10": 0.1172,
+    "mape_p90": 0.2193
+  },
+  "worst_cases": [
+    {
+      "id": 6599,
+      "bucket": "L2",
+      "lawd": "11500",
+      "scope": false,
+      "actual": 55000000,
+      "estimate": 173676827,
+      "low": 116214034,
+      "high": 232542591,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 2.1578,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 6건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 6666,
+      "bucket": "L2",
+      "lawd": "11500",
+      "scope": false,
+      "actual": 130000000,
+      "estimate": 345253073,
+      "low": 231022486,
+      "high": 462272632,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 1.6558,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 15건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 15112,
+      "bucket": "L1b",
+      "lawd": "11680",
+      "scope": true,
+      "actual": 150000000,
+      "estimate": 387298425,
+      "low": 297525389,
+      "high": 488895887,
+      "inside": false,
+      "confidence": 0.505,
+      "error": 1.582,
+      "basis": "같은 건물 최근 24개월 2건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 15157,
+      "bucket": "L1b",
+      "lawd": "11680",
+      "scope": true,
+      "actual": 200000000,
+      "estimate": 503211176,
+      "low": 386570384,
+      "high": 635215271,
+      "inside": false,
+      "confidence": 0.505,
+      "error": 1.5161,
+      "basis": "같은 건물 최근 24개월 1건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 12157,
+      "bucket": "L2",
+      "lawd": "11620",
+      "scope": true,
+      "actual": 115000000,
+      "estimate": 284743596,
+      "low": 190533202,
+      "high": 381254163,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 1.476,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 112건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 15110,
+      "bucket": "L2",
+      "lawd": "11680",
+      "scope": true,
+      "actual": 460000000,
+      "estimate": 1137611605,
+      "low": 761220919,
+      "high": 1523191976,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 1.4731,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 9건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 12476,
+      "bucket": "L2",
+      "lawd": "11620",
+      "scope": true,
+      "actual": 100000000,
+      "estimate": 242456819,
+      "low": 162237447,
+      "high": 324634770,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 1.4246,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 136건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 6791,
+      "bucket": "L2",
+      "lawd": "11500",
+      "scope": false,
+      "actual": 80000000,
+      "estimate": 187468665,
+      "low": 125442698,
+      "high": 251009013,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 1.3434,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 3건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 6962,
+      "bucket": "L2",
+      "lawd": "11500",
+      "scope": false,
+      "actual": 125000000,
+      "estimate": 290741852,
+      "low": 194546872,
+      "high": 389285460,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 1.3259,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 31건 ㎡당 중앙값(시점 보정)"
+    },
+    {
+      "id": 7103,
+      "bucket": "L2",
+      "lawd": "11500",
+      "scope": false,
+      "actual": 73000000,
+      "estimate": 169539473,
+      "low": 113445567,
+      "high": 227002927,
+      "inside": false,
+      "confidence": 0.424,
+      "error": 1.3225,
+      "basis": "같은 동 준공±5년·면적±20% 최근 12개월 7건 ㎡당 중앙값(시점 보정)"
+    }
+  ]
+}

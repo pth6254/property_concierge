@@ -1,0 +1,110 @@
+{
+  "schema": "price-model-manifest-1",
+  "model": "catboost",
+  "model_version": "1",
+  "params": {
+    "iterations": 1500,
+    "depth": 6,
+    "learning_rate": 0.05,
+    "loss": "RMSE",
+    "seed": 42,
+    "early_stopping": 60
+  },
+  "features": {
+    "categorical": [
+      "lawd",
+      "dong",
+      "house_type"
+    ],
+    "numeric": [
+      "floor",
+      "area",
+      "age",
+      "land_ratio",
+      "month",
+      "direct",
+      "index_level",
+      "l1_count",
+      "l1_median",
+      "l1_area_gap",
+      "l1_days",
+      "l2_count",
+      "l2_median",
+      "block_count",
+      "block_median",
+      "comp_estimate"
+    ],
+    "target": "target"
+  },
+  "training": {
+    "iterations": 188,
+    "train_rows": 8630,
+    "validation_rows": 1180
+  },
+  "files": [
+    "catboost.cbm"
+  ],
+  "sha256": {
+    "catboost.cbm": "60e41a656e2edd36fdba8c9d88888e24805f71308765f689e2533523fbec8cfa"
+  },
+  "avm": {
+    "origin_month": 24285,
+    "calibration": {
+      "ALL": {
+        "n": 1269,
+        "source": "ALL",
+        "low": -0.2814479476749595,
+        "high": 0.2883264579106032,
+        "confidence": 0.485
+      },
+      "L1": {
+        "n": 755,
+        "source": "L1",
+        "low": -0.213279578195026,
+        "high": 0.2731069115074566,
+        "confidence": 0.532
+      },
+      "L1a": {
+        "n": 288,
+        "source": "L1a",
+        "low": -0.14804313183622436,
+        "high": 0.2385834642194542,
+        "confidence": 0.608
+      },
+      "L1b": {
+        "n": 467,
+        "source": "L1b",
+        "low": -0.22874588095469495,
+        "high": 0.287675407301931,
+        "confidence": 0.486
+      },
+      "L2": {
+        "n": 488,
+        "source": "L2",
+        "low": -0.35595870763931436,
+        "high": 0.327647732048258,
+        "confidence": 0.406
+      },
+      "L3": {
+        "n": 26,
+        "source": "L2",
+        "low": -0.35595870763931436,
+        "high": 0.327647732048258,
+        "confidence": 0.406
+      }
+    },
+    "interval_quantiles": [
+      0.075,
+      0.925
+    ],
+    "train_rows": 8630,
+    "validation_rows": 1269,
+    "train_outliers_removed": 527,
+    "train_start": "2024-10-01",
+    "validation_start": "2026-07-01",
+    "end": "2026-09-30",
+    "seed": 42,
+    "validation_mape": 0.1595
+  },
+  "data_sha256": "4987807a12266ea2d8e3960aee0434dea927973d5c05e6a285d36543af15975e"
+}

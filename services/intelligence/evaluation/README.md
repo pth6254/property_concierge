@@ -187,6 +187,12 @@ catboost@base 20.5% → 19.1%. 교체 구조 도입 전 catboost 결과(15.73%)�
 구분하는 필드가 없다. 이 결과는 오프라인 연구 기록이며 R-RH 공개(`withheld` 해제)나 CatBoost 운영 연결의 승인이 아니다.
 하우스머치 등 상용 시세는 입력·학습에 쓰지 않았다.
 
+**과제 산출 패키지 `services/intelligence/avm/` (2026-10-12):** 외부 과제 규격(`python predict.py --input --output`)의 단독 실행기다.
+국토부 API 스냅샷(`data/`)·학습 모델(`model/`)·검증(`validation/`)을 함께 두며 서비스 DB·Spring에 연결하지 않는다.
+가격 모델 등록표는 복사하지 않고 `rh_avm/price_models.py`가 위 `backend/valuation/models`를 가져온다. 제출 묶음은 `python package.py`로
+`dist/`(git 제외)에 만들고, 그때만 등록표를 `rh_avm/models`로 복사한다. `pyproject.toml`의 패키지 목록에 넣지 않아 서비스 이미지·설치에 포함되지 않는다.
+회귀는 `tests/test_rh_avm_package.py`다. 서비스의 R-RH `withheld` 정책과 별개이며 운영 공개 근거가 아니다.
+
 ### 운영 법령 검색과 주거용 에이전트 검증
 
 `rag --live`의 기본 정답셋은 `datasets/law-rag.json`이다. 챗봇과 같은
