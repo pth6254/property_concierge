@@ -331,8 +331,11 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
   `backend/valuation/apartment_avm.py`는 시간 분할 평가 후 `avm-segment --final`로 만든 `data/models/r-apt`
   (manifest `deployment=service`, 파일 해시 검증)만 읽고, 없거나 실패하면 기존 규칙으로 처리한다. 다른 유형·A4의 대체로 쓰지 않는다.
   A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 현재 산출물은 두 기간 평가에서 기존 규칙보다
-  일관되게 낫지 않아 `false`다(2026-10-12 12개월 롤링 평가에서도 용산구 지역 기준 미달). `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
+  일관되게 낫지 않아 `false`였으나, 시점 보정 V4 반영 후 12개월 롤링 평가(운영 규칙 대비 MAPE 5.48%→4.91%, 사전 기준 전부 통과)로 `true`가 됐다(2026-10-12). `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
   혼합 AVM 구간은 검증 구간 잔차의 분위수로 정한 참고 구간이다(`interval_basis=calibrated_holdout_quantiles`). 재학습·교체 시 같은 평가를 다시 통과한다.
+- **아파트 비교사례 시점 보정은 단지·면적대 고정효과 지수 + 최근 3개월 추세 연장(V4)이다** (2026-10-12, `backend/valuation/time_index.py`).
+  사전 기준 비교에서 이전 운영 방식(부동산원 지수 + 미공표 구간 월 0.3%)보다 MAPE·편향이 낮았다. 지수를 만들 수 없으면 부동산원 방식으로 처리한다.
+  혼합 모델의 비교사례 변수도 같은 지수를 쓴다. 지수를 바꾸면 모델을 다시 학습해야 한다(학습·운영 변수 불일치 방지).
 - **실거래 기반 가격은 과거 거래 근거다.** 화면 명칭은 "최근 실거래 기준 참고가"이며 "추정 시장가치"·현재 시세처럼 표시하지 않는다.
   가격 결과에는 `valuation.evidence_window`(근거 거래 수·기간·기준일까지 경과일·시점 보정 평균 %)와 신고 지연·시장 변동 경고
   (`PastTradeNotice`)를 가격 바로 아래에 함께 보여준다.
