@@ -92,16 +92,20 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     const added = await context.request.post(`/api/cases/${caseId}/properties`, { data: { name: '면적 미확인 아파트', address: '서울 중구 태평로1가 31', category: '아파트', area_sqm: 84, asking_price: 800000000 } });
     assert.equal(added.status(), 201); const apartmentId = (await added.json()).id;
     await page.goto(`/appraisal?caseId=${caseId}&candidateId=${apartmentId}`);
+    // 화면은 면적 기준이 비어 있으면 실행 전에 막는다. 보류 저장 경로는 전용으로 쓸 수 없는 공급면적 기준으로 확인한다.
+    await page.getByRole('button', { name: '시세추정 시작', exact: true }).click();
+    await page.getByText(/분석 면적 기준을\(를\) 입력해주세요/).waitFor();
+    await page.getByLabel('분석 면적 기준').selectOption('supply');
     await page.getByRole('button', { name: '시세추정 시작', exact: true }).click();
     await page.waitForURL(new RegExp(`/report/[0-9]+[?]caseId=${caseId}&candidateId=${apartmentId}$`), { timeout: 60000 });
     await page.getByRole('region', { name: '분석 중인 케이스 후보' }).getByRole('link', { name: '후보로 돌아가기' }).waitFor();
     await page.getByRole('heading', { name: '평가 결과 · 추정 보류', exact: true }).waitFor();
     await page.reload(); await page.getByRole('heading', { name: '평가 결과 · 추정 보류', exact: true }).waitFor();
     const apartment = (await (await context.request.get(`/api/cases/${caseId}`)).json()).properties.find(p => p.id === apartmentId);
-    assert.equal(apartment.appraisal.valuation.subject.area_basis, 'unknown');
+    assert.equal(apartment.appraisal.valuation.subject.area_basis, 'supply');
     assert.equal(apartment.appraisal.estimated_value, null);
     assert.equal(apartment.checklist.find(c => c.category === 'price').status, 'todo');
-    check('아파트 면적 기준 미확인 → 가격 보류·다음 확인 항목·이력 복원');
+    check('아파트 면적 기준 미선택은 실행 전 차단, 공급면적 기준 → 가격 보류·다음 확인 항목·이력 복원');
     const changed = await context.request.patch(`/api/cases/${caseId}/properties/${candidateId}`, { data: { identity: { unit_number: '502', area_basis: 'exclusive' } } });
     assert.equal(changed.status(), 200);
     const revised = (await (await context.request.get(`/api/cases/${caseId}`)).json()).properties.find(p => p.id === candidateId);

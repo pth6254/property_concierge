@@ -242,10 +242,18 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
     return "";
   })();
 
+  const apartmentMissing = selectedType?.detail !== "아파트" ? [] : [
+    ...(areaSqm ? [] : ["면적(㎡)"]),
+    ...(areaBasis === "unknown" ? ["분석 면적 기준"] : []),
+    ...(scope === "unknown" ? ["평가 대상 범위"] : []),
+  ];
+
   const handleSubmit = async () => {
     if (prefillLoading || prefillError || candidateMismatch) return;
     if (areaSqm && (!Number.isFinite(Number(areaSqm)) || Number(areaSqm) <= 0)) { setError("면적은 0보다 큰 숫자로 입력해주세요."); return; }
     if (!selectedAddress) { setError("주소를 입력해주세요."); return; }
+    // 아파트는 면적·면적 기준·평가 범위가 없으면 정책상 항상 보류된다. 빈 값으로 실행해 보류 결과만 받지 않도록 먼저 묻는다.
+    if (apartmentMissing.length > 0) { setError(`${apartmentMissing.join(", ")}을(를) 입력해주세요. 비어 있으면 가격을 산출하지 않고 보류합니다.`); return; }
     setError("");
     setErrorHistoryId(null);
     setLoading(true);
@@ -340,7 +348,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
             {PROPERTY_TYPES.map(pt => (
               <button
                 key={pt.detail}
-                onClick={() => { if (pt.detail !== selectedType?.detail) { setIncomeDraft(emptyIncomeDraft); setAreaBasis("unknown"); setScope("unknown"); } setSelectedType(pt); setTransactionType("매매"); setStep(2); }}
+                onClick={() => { if (pt.detail !== selectedType?.detail) { setIncomeDraft(emptyIncomeDraft); setAreaBasis("unknown"); setScope(pt.detail === "아파트" ? "single_unit" : "unknown"); } setSelectedType(pt); setTransactionType("매매"); setStep(2); }}
                 className="p-4 rounded-xl border-2 border-slate-200 hover:border-primary hover:bg-emerald-50 text-left transition-colors group"
               >
                 <div className="font-semibold text-sm text-slate-800 group-hover:text-primary-strong">{pt.label}</div>
@@ -456,11 +464,11 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
           <h2 className="font-semibold text-base text-slate-800 mb-4">상세 정보 입력</h2>
           {selectedType?.category === "토지" && <LandInformationLookup key={`${selectedAddress}:${getAppraisalDate()}`} address={selectedAddress} asOfDate={getAppraisalDate() ? `${getAppraisalDate().slice(0, 4)}-${getAppraisalDate().slice(4, 6)}-${getAppraisalDate().slice(6, 8)}` : ""} />}
           {incomeMode && <IncomeValuationFields draft={incomeDraft} onChange={setIncomeDraft} />}
-          {!incomeMode && selectedType?.category !== "토지" && <label className="mb-4 block text-sm">평가 대상 범위<select aria-label="평가 대상 범위" value={scope} onChange={event => setScope(event.target.value as ValuationContext["scope"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">범위 확인 필요</option><option value="single_unit">개별 호실</option><option value="whole_building">건물 전체</option><option value="land_and_building">토지와 건물 전체</option></select></label>}
-          <label className="mb-4 block text-sm">분석 면적 기준<select aria-label="분석 면적 기준" value={areaBasis} onChange={event => setAreaBasis(event.target.value as ValuationContext["area_basis"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">미확인</option><option value="exclusive">전용면적</option><option value="supply">공급면적</option><option value="gross">연면적</option><option value="land">토지면적</option></select></label>
+          {!incomeMode && selectedType?.category !== "토지" && <label className="mb-4 block text-sm">평가 대상 범위{selectedType?.detail === "아파트" && <span className="text-red-600"> (필수)</span>}<select aria-label="평가 대상 범위" value={scope} onChange={event => setScope(event.target.value as ValuationContext["scope"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">범위 확인 필요</option><option value="single_unit">개별 호실</option><option value="whole_building">건물 전체</option><option value="land_and_building">토지와 건물 전체</option></select></label>}
+          <label className="mb-4 block text-sm">분석 면적 기준{selectedType?.detail === "아파트" && <span className="text-red-600"> (필수)</span>}<select aria-label="분석 면적 기준" value={areaBasis} onChange={event => setAreaBasis(event.target.value as ValuationContext["area_basis"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">미확인</option><option value="exclusive">전용면적</option><option value="supply">공급면적</option><option value="gross">연면적</option><option value="land">토지면적</option></select></label>
           {selectedType?.detail === "아파트" && areaBasis !== "exclusive" && <p role="note" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">면적 기준이 전용면적이 아니면(미확인·공급면적 포함) 실거래 비교 가격을 산출하지 않고 보류합니다. 입력한 면적이 전용면적이면 &apos;전용면적&apos;을 선택해주세요.</p>}
           {selectedType?.category === "주거용" && selectedType.detail !== "아파트" && <p className="mb-4 text-sm text-amber-800">이 유형은 별도 거래 범위와 평가 기준의 보완이 필요합니다. 아파트 모델로 대체하지 않고 필요한 자료를 안내합니다.</p>}
-          <label className="mb-4 block text-sm">면적(㎡)<input aria-label="면적(㎡)" type="number" min="0.01" step="any" value={areaSqm} onChange={(event) => setAreaSqm(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
+          <label className="mb-4 block text-sm">면적(㎡){selectedType?.detail === "아파트" && <span className="text-red-600"> (필수 · 전용면적 권장)</span>}<input aria-label="면적(㎡)" type="number" min="0.01" step="any" value={areaSqm} onChange={(event) => setAreaSqm(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
           <label className="mb-4 block text-sm">건물명<input value={buildingName} onChange={(event) => setBuildingName(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
 
           {/* 선택 요약 */}

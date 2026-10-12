@@ -40,6 +40,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     evidence.stages.push('address_area_prefill'); console.log('PASS address/area prefill');
     let jobId;
     if(formFlow){
+      // 아파트는 면적 기준이 없으면 화면이 실행을 막는다. 이 후보의 84.9㎡는 전용면적이다.
+      await page.getByLabel('분석 면적 기준').selectOption('exclusive');
       const response=page.waitForResponse(r=>r.url().endsWith('/appraisal/jobs')&&r.request().method()==='POST');
       await page.getByRole('button',{name:'시세추정 시작',exact:true}).click();
       jobId=(await (await response).json()).job_id;
