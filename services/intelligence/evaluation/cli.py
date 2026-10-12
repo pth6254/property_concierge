@@ -128,6 +128,11 @@ def main(argv=None):
     avm_rolling.add_argument("--iterations", type=positive_int, default=800)
     avm_rolling.add_argument("--seed", type=int, default=42)
     avm_rolling.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
+    avm_time = sub.add_parser("avm-time-index", help="아파트 비교사례 시점 보정 방식 비교 (운영 부동산원 지수 재현 포함)")
+    avm_time.add_argument("--regions", nargs="+", required=True)
+    avm_time.add_argument("--from-month", required=True)
+    avm_time.add_argument("--to-month", required=True)
+    avm_time.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     avm_service = sub.add_parser("avm-service", help="저장 실거래로 실제 주거용 에이전트 가격 계산 재생")
     avm_service.add_argument("--regions", nargs="+", default=["11650", "11680", "11350"])
     avm_service.add_argument("--max-cases", type=positive_int, default=30)
@@ -180,6 +185,9 @@ def main(argv=None):
                 raise ValueError("구간 명목 적중률(0.5~0.99)과 평가 월 순서를 확인해주세요")
             from evaluation.rolling_avm import run as run_rolling
             return run_rolling(args)
+        if args.command == "avm-time-index":
+            from evaluation.time_index_eval import run as run_time_index
+            return run_time_index(args)
         if args.command == "avm-compare":
             from evaluation.catboost_avm import run as run_avm_comparison
             return run_avm_comparison(args)
