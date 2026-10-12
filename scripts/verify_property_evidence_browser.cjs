@@ -58,7 +58,7 @@ function textPdf(pages) {
     await page.goto(`/cases/${caseId}/comparison`);await page.getByText('동·호·면적 기준',{exact:true}).waitFor();assert.equal((await(await context.request.get(`/api/cases/${caseId}`)).json()).properties.length,2);check('같은 주소의 다른 호 구분·자동 병합 없음');
     assert.equal((await context.request.post(`/api/cases/${caseId}/decision`,{data:{property_id:candidateId,reason:'검증용 사용자 후보 선택'}})).status(),200);
     await page.goto(`/cases/${caseId}`);const card=page.locator('article').filter({has:page.getByRole('heading',{name:'개별 호 검증 후보',exact:true})});
-    await card.getByText('동·호·층 정보 수정',{exact:true}).click();await card.getByLabel('호수 (선택)').fill('503');await card.getByRole('button',{name:'물건 정보 저장',exact:true}).click();
+    await card.getByText('주소·면적·동·호 수정',{exact:true}).click();await card.getByLabel('호수 (선택)').fill('503');await card.getByRole('button',{name:'물건 정보 저장',exact:true}).click();
     await card.getByText('동: 101 · 호: 503 · 층: 5',{exact:true}).waitFor();const changed=await(await context.request.get(`/api/cases/${caseId}`)).json();assert.equal(changed.selected_property_id,null);assert.ok(changed.properties[0].source_reviews.length);check('물건 변경 → 선택 해제·과거 검토 이력 보존');
     await page.goto('/rights');await page.locator('input[type=file]').first().setInputFiles({name:'invalid.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7\ninvalid-document')});
     const analyzedPromise=page.waitForResponse(r=>r.url().endsWith('/rights/analyze')&&r.request().method()==='POST');await page.getByRole('button',{name:'위험 점검 시작',exact:true}).click();

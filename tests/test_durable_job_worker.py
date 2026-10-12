@@ -71,3 +71,34 @@ def test_interrupted_chat_does_not_generate_second_answer(client, monkeypatch):
     result = jobs.get(job_id, requester_id=owner_id)
     assert result["status"] == "error" and "다시 보내주세요" in result["error"]
     redis.delete(stream, jobs._key(job_id))
+
+
+def test_rejected_candidate_link_reports_reason_and_saved_history(client, monkeypatch):
+    """분석은 저장됐는데 후보 연결만 거절되면 일반 실패 문구 대신 사유와 저장된 이력을 돌려준다."""
+    from api import case_db, jobs, job_worker
+
+    from db.redis_client import get_redis
+    def rejected(*args, **kwargs):
+        raise ValueError("평가 대상의 주소·면적이 후보와 다릅니다. 후보 정보를 먼저 수정해주세요")
+    monkeypatch.setattr(case_db, "link_appraisal", rejected)
+    try:
+        job_worker._link_appraisal(1, 2, 77, 3, {}, None)
+        raise AssertionError("연결 거절이 전달되지 않았습니다")
+    except job_worker.CandidateLinkError as exc:
+        assert exc.history_id == 77 and "주소·면적이 후보와 다릅니다" in str(exc) and "이력에 저장" in str(exc)
+
+    stream = jobs.STREAM
+    get_redis().delete(stream)
+    monkeypatch.setattr(jobs, "GROUP", "link-error-" + uuid.uuid4().hex)
+    job_worker.ensure_group()
+    owner_id = _register(client, "link-error@example.com")
+    job_id = jobs.create_task("probe", {}, owner_id=owner_id)
+    def failing(*args):
+        raise job_worker.CandidateLinkError("후보에 연결하지 못했습니다: 주소 불일치. 시세추정 결과는 이력에 저장했습니다.", 77)
+    monkeypatch.setattr(job_worker, "run_task", failing)
+    record = get_redis().xreadgroup(jobs.GROUP, "link-worker", {stream: ">"}, count=1)[0][1][0]
+    job_worker.process_record(*record)
+    result = jobs.get(job_id, requester_id=owner_id)
+    assert result["status"] == "error" and "주소 불일치" in result["error"]
+    assert result["history_id"] == 77
+    get_redis().delete(stream, jobs._key(job_id))

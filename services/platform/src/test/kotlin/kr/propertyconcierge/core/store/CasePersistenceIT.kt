@@ -54,4 +54,31 @@ class CasePersistenceIT : PlatformIntegrationSupport() {
         val previous = json.readTree(jdbc.queryForObject("SELECT previous_execution::text FROM candidate_source_reviews WHERE property_id=?", String::class.java, property))
         assertEquals("501호 현장 확인", previous.first { it.path("id").asLong() == task }.path("outcome").asText())
     }
+    @Test fun `주소 없이 등록한 직접 후보는 주소와 면적을 고칠 수 있고 이전 분석은 재검토로 바뀐다`() {
+        val (owner, cookie) = register(); val id = case(cookie)
+        val property = candidate(cookie, id, mapOf("address" to "", "area_sqm" to 84))
+        val analysis = mapOf("user_id" to owner, "case_id" to id, "property_id" to property, "analysis_type" to "rights", "summary" to mapOf("risk_grade" to "unknown"))
+        assertEquals(true, store.dispatch("link_candidate_analysis", json.valueToTree(analysis)))
+        request("PATCH", "/api/cases/$id/properties/$property", mapOf("address" to " "), cookie, 422)
+        request("PATCH", "/api/cases/$id/properties/$property", mapOf("area_sqm" to 0), cookie, 422)
+        request("PATCH", "/api/cases/$id/properties/$property", mapOf("address" to null), cookie, 422)
+        request("PATCH", "/api/cases/$id/properties/$property", mapOf("address" to "서울 서초구 신반포로 270", "area_sqm" to 84.97), cookie)
+        val saved = jdbc.queryForMap("SELECT address, area_sqm FROM case_properties WHERE id=?", property)
+        assertEquals("서울 서초구 신반포로 270", saved["address"]); assertEquals(84.97, (saved["area_sqm"] as Number).toDouble(), 1e-6)
+        assertEquals("stale", jdbc.queryForObject("SELECT status FROM candidate_analyses WHERE property_id=?", String::class.java, property))
+        val review = jdbc.queryForMap("SELECT previous_snapshot::text AS before, applied_snapshot::text AS after FROM candidate_source_reviews WHERE property_id=?", property)
+        assertEquals("", json.readTree(review["before"] as String).path("address").asText())
+        assertEquals(84.97, json.readTree(review["after"] as String).path("area_sqm").asDouble(), 1e-6)
+        // 같은 값을 다시 보내면 재검토 기록을 늘리지 않는다.
+        request("PATCH", "/api/cases/$id/properties/$property", mapOf("address" to "서울 서초구 신반포로 270", "area_sqm" to 84.97), cookie)
+        assertEquals(1L, count("candidate_source_reviews"))
+    }
+    @Test fun `등록 매물에서 가져온 후보의 주소는 직접 바꿀 수 없다`() {
+        val (_, cookie) = register(); val id = case(cookie); val property = candidate(cookie, id)
+        import(cookie, listOf(row()))
+        val listing = requireNotNull(jdbc.queryForObject("SELECT max(id) FROM imported_listings", Long::class.java))
+        jdbc.update("UPDATE case_properties SET source_listing_id=? WHERE id=?", listing, property)
+        request("PATCH", "/api/cases/$id/properties/$property", mapOf("address" to "서울 강남구 다른 주소 1"), cookie, 422)
+        assertEquals("서울특별시 강남구 역삼동 123", jdbc.queryForObject("SELECT address FROM case_properties WHERE id=?", String::class.java, property))
+    }
 }

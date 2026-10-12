@@ -22,6 +22,35 @@ CONSUMER = f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:6]}"
 CLAIM_IDLE_MS = 180_000
 
 
+class CandidateLinkError(Exception):
+    """시세추정은 저장됐지만 후보 연결이 거절된 경우. 사유와 저장된 이력을 함께 돌려준다.
+
+    일반 실패 문구로 바꾸면 사용자가 주소·면적 불일치 같은 고칠 수 있는 원인을 알 수 없고,
+    이미 저장된 결과도 찾지 못한다(후보 주소가 빈 상태에서 실제로 겪음).
+    """
+
+    def __init__(self, message: str, history_id: int):
+        super().__init__(message)
+        self.history_id = history_id
+
+
+def _link_appraisal(case_id: int, candidate_id: int, history_id: int, owner_id: int | None, result: dict,
+                    expected_inputs: dict | None) -> None:
+    from api import case_db
+
+    if owner_id is None:
+        raise ValueError("candidate_link_failed")
+    saved = "시세추정 결과는 이력에 저장했습니다."
+    try:
+        linked = case_db.link_appraisal(case_id, candidate_id, history_id, owner_id, result, expected_inputs)
+    except ValueError as exc:
+        raise CandidateLinkError(f"후보에 연결하지 못했습니다: {exc}. {saved}", history_id) from None
+    except LookupError:
+        linked = False
+    if not linked:
+        raise CandidateLinkError(f"후보를 찾을 수 없어 연결하지 못했습니다. {saved}", history_id)
+
+
 def run_task(task_type: str, payload: dict, owner_id: int | None, job_id: str, set_step) -> tuple[dict, dict]:
     """저장된 JSON만 사용한다. API 프로세스의 closure는 재시작 후 존재하지 않는다."""
     if task_type == "probe":
@@ -36,7 +65,7 @@ def run_task(task_type: str, payload: dict, owner_id: int | None, job_id: str, s
         return retry_one(payload), {}
     if task_type in {"appraisal", "candidate_appraisal"}:
         from backend.router import run_appraisal
-        from api import case_db, history_db
+        from api import history_db
 
         if task_type == "appraisal":
             from api.routes.appraisal import AppraisalRequest
@@ -51,9 +80,8 @@ def run_task(task_type: str, payload: dict, owner_id: int | None, job_id: str, s
                 return result, {}
             history_id = history_db.save(req.user_input, result, user_id=owner_id, job_id=job_id)
             if req.case_id is not None and req.candidate_id is not None:
-                if owner_id is None or not case_db.link_appraisal(req.case_id, req.candidate_id, history_id, owner_id,
-                                                                  result, payload.get("expected_candidate_inputs")):
-                    raise ValueError("candidate_link_failed")
+                _link_appraisal(req.case_id, req.candidate_id, history_id, owner_id, result,
+                                payload.get("expected_candidate_inputs"))
             return result, {"history_id": history_id}
         result = run_appraisal(payload["query"], payload["building_name"], progress_cb=set_step,
                                address=payload["address"], property_category=payload["category"],
@@ -62,10 +90,8 @@ def run_task(task_type: str, payload: dict, owner_id: int | None, job_id: str, s
         if result.get("error"):
             return result, {}
         history_id = history_db.save(payload["query"], result, user_id=owner_id, job_id=job_id)
-        if owner_id is None or not case_db.link_appraisal(payload["case_id"], payload["candidate_id"],
-                                                           history_id, owner_id, result,
-                                                           payload.get("expected_candidate_inputs")):
-            raise ValueError("candidate_link_failed")
+        _link_appraisal(payload["case_id"], payload["candidate_id"], history_id, owner_id, result,
+                        payload.get("expected_candidate_inputs"))
         return result, {"history_id": history_id, "case_id": payload["case_id"],
                         "candidate_id": payload["candidate_id"]}
 
@@ -149,6 +175,9 @@ def process_record(stream_id: str, fields: dict) -> None:
         except HTTPException as exc:
             job = jobs._load(job_id) or job
             job["status"], job["error"] = "error", str(exc.detail)
+        except CandidateLinkError as exc:
+            job = jobs._load(job_id) or job
+            job["status"], job["error"], job["extra"] = "error", str(exc), {"history_id": exc.history_id}
         except Exception:
             logger.exception("작업 실행 실패: %s", job_id)
             job = jobs._load(job_id) or job

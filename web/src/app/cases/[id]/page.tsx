@@ -185,12 +185,17 @@ function CandidateCard({ property, caseId, profile, reload }: { property: CasePr
     {property.alias && <p className="mt-2 break-words text-sm text-primary">별칭: {property.alias}</p>}
     {property.address_details && <p className="mt-1 break-words text-xs text-slate-500">도로명: {property.address_details.road_address || "제공 정보 없음"} · 지번: {property.address_details.jibun_address}</p>}
     <PropertyIdentityDetails identity={property.identity} />
-    {!property.source_listing_id && <details className="mt-3 text-sm"><summary className="cursor-pointer text-primary">동·호·층 정보 수정</summary><form key={property.updated} className="mt-3 space-y-3" onSubmit={async event => {
-      event.preventDefault(); const identity = identityFromForm(event.currentTarget); setSourceError(""); setSourceBusy(true);
-      try { await api.updateCaseProperty(caseId, property.id, { identity }); await reload(); }
+    {!property.source_listing_id && <details open={!property.address || undefined} className="mt-3 text-sm"><summary className="cursor-pointer text-primary">{property.address ? "주소·면적·동·호 수정" : "주소 입력 필요 · 물건 정보 수정"}</summary><form key={property.updated} className="mt-3 space-y-3" onSubmit={async event => {
+      event.preventDefault(); const form = event.currentTarget; const identity = identityFromForm(form);
+      const address = String(new FormData(form).get("address") ?? "").trim(); const areaText = String(new FormData(form).get("area_sqm") ?? "").trim();
+      const area = areaText ? Number(areaText) : null;
+      if (!address) { setSourceError("주소를 입력해주세요. 시세추정 결과는 후보 주소와 같은 주소일 때만 연결됩니다."); return; }
+      if (area != null && (!Number.isFinite(area) || area <= 0)) { setSourceError("면적은 0보다 큰 숫자로 입력해주세요."); return; }
+      setSourceError(""); setSourceBusy(true);
+      try { await api.updateCaseProperty(caseId, property.id, { identity, address, ...(area != null ? { area_sqm: area } : {}) }); await reload(); }
       catch (error) { setSourceError(error instanceof Error ? error.message : "물건 정보를 저장하지 못했습니다."); }
       finally { setSourceBusy(false); }
-    }}><PropertyIdentityFields identity={property.identity} /><p className="text-xs text-amber-700">물건 정보가 달라지면 분석과 최종 선택을 다시 검토합니다.</p><button disabled={sourceBusy} className="rounded-lg border px-3 py-2">물건 정보 저장</button></form></details>}
+    }}><div className="grid gap-3 md:grid-cols-2"><label className="block">주소<input name="address" aria-label="후보 주소" defaultValue={property.address} placeholder="예: 서울 서초구 신반포로 270" className="mt-1 block w-full rounded-lg border px-3 py-2" /></label><label className="block">면적(㎡)<input name="area_sqm" aria-label="후보 면적(㎡)" type="number" min="0.01" step="any" defaultValue={property.area_sqm ?? ""} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label></div><PropertyIdentityFields identity={property.identity} /><p className="text-xs text-amber-700">물건 정보가 달라지면 분석과 최종 선택을 다시 검토합니다.</p><button disabled={sourceBusy} className="rounded-lg border px-3 py-2">물건 정보 저장</button></form></details>}
     {source && source.status !== "current" && <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
       <strong>원본 매물 재확인 필요</strong>
       <p className="mt-1">{source.status === "missing" ? "원본 매물을 더 이상 조회할 수 없습니다." : source.needs_confirmation ? "원본 매물의 거래 가능 상태 또는 확인 시각을 다시 확인해주세요." : "저장 당시와 원본 내용이 달라졌습니다."}</p>
@@ -215,6 +220,8 @@ function CandidateCard({ property, caseId, profile, reload }: { property: CasePr
       <summary className="cursor-pointer font-semibold">매물 변경·이전 판단 기록 {property.source_reviews.length}건</summary>
       {property.source_reviews.map(review => <p key={review.id} className="mt-2 border-t pt-2">
         {review.created} · 희망가 {won(numberValue(review.previous_snapshot.asking_price))} → {won(numberValue(review.applied_snapshot.asking_price))}
+        {"address" in review.applied_snapshot && review.previous_snapshot.address !== review.applied_snapshot.address && <> · 주소 {textValue(review.previous_snapshot.address) || "미입력"} → {textValue(review.applied_snapshot.address) || "미입력"}</>}
+        {"area_sqm" in review.applied_snapshot && review.previous_snapshot.area_sqm !== review.applied_snapshot.area_sqm && <> · 면적 {numberValue(review.previous_snapshot.area_sqm) ?? "미입력"}㎡ → {numberValue(review.applied_snapshot.area_sqm) ?? "미입력"}㎡</>}
         {review.previous_decision && <> · 이전 선택 근거: {review.previous_decision.reason}</>}
         {review.invalidated_analyses.length > 0 && <> · 재분석: {review.invalidated_analyses.join(", ")}</>}
         {review.previous_analyses.map((analysis, index) => <span key={`${analysis.type}-${index}`} className="mt-1 block">

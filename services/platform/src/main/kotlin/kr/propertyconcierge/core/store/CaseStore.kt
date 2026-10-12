@@ -216,21 +216,40 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
                     val selected = case?.path("selected_property_id")?.asLong() == propertyId
                     if ((data.text("status") == "selected" && !selected) || (selected && data.has("status") && data.text("status") != "selected"))
                         throw ApiFailure(422, "최종 선택은 후보 검토 화면에서 선택 근거와 함께 변경해주세요")
-                    if (data.has("identity")) {
-                        if (item.hasNonNull("source_listing_id")) throw ApiFailure(422, "등록 매물의 동·호 정보는 원본을 갱신한 뒤 재검토해주세요")
+                    // 주소·면적도 직접 등록 후보에서는 고칠 수 있어야 한다. 주소 없이 등록된 후보는 시세추정 결과의
+                    // 주소 대조를 통과할 수 없어 분석을 영영 연결하지 못했다. 바뀌면 동·호 변경과 같은 재검토 규칙을 따른다.
+                    if (listOf("identity", "address", "area_sqm").any(data::has)) {
+                        if (item.hasNonNull("source_listing_id")) throw ApiFailure(422, "등록 매물에서 가져온 후보의 주소·면적·동·호는 원본을 갱신한 뒤 재검토해주세요")
                         val before = item.path("source_snapshot").takeIf(JsonNode::isObject)?.deepCopy<ObjectNode>() ?: json.createObjectNode()
-                        val after = identity(data)
-                        if (!same(identity(before), after)) {
+                        val after = if (data.has("identity")) identity(data) else identity(before)
+                        val address = if (data.has("address")) data.text("address").trim() else item.text("address")
+                        val area = if (data.has("area_sqm")) data.path("area_sqm") else item.path("area_sqm")
+                        if (data.has("address") && address.isEmpty()) throw ApiFailure(422, "주소를 입력해주세요")
+                        if (data.has("area_sqm") && (!area.isNumber || area.decimalValue().signum() <= 0)) throw ApiFailure(422, "면적은 0보다 큰 숫자로 입력해주세요")
+                        val addressChanged = address != item.text("address")
+                        if (!same(identity(before), after) || addressChanged || !same(area, item.path("area_sqm"))) {
                             if (data.text("status") == "selected") throw ApiFailure(422, "물건 정보를 바꾼 뒤 다시 검토·선택해주세요")
-                            val afterSnapshot = before.deepCopy().apply { set<JsonNode>("identity", after) }
+                            val afterSnapshot = before.deepCopy().apply {
+                                set<JsonNode>("identity", after)
+                                // 확인된 주소 근거는 바뀐 주소를 증명하지 않으므로 함께 남기지 않는다.
+                                if (addressChanged) { remove("address_details"); remove("building_register") }
+                            }
+                            // 변경 기록에는 주소·면적·가격도 남겨 이전 판단이 어떤 물건 기준이었는지 보이게 한다.
+                            fun reviewed(snapshot: ObjectNode, address: String, area: JsonNode) = snapshot.deepCopy().apply {
+                                put("address", address); set<JsonNode>("area_sqm", area); set<JsonNode>("asking_price", item.get("asking_price"))
+                            }
                             val previousAnalyses = rows("SELECT analysis_type AS type,status,summary,analyzed_at,reference_id FROM candidate_analyses WHERE property_id=?", propertyId)
                             val previousTasks = if (selected) rows("SELECT id,title,status,checked_by,outcome,evidence_note FROM case_execution_tasks WHERE case_id=?", caseId) else emptyList()
                             val decision = if (selected) json.writeValueAsString(mapOf("property_id" to propertyId, "reason" to case?.get("decision_reason"), "decided_at" to case?.get("decided_at"))) else null
                             jdbc.update("""INSERT INTO candidate_source_reviews(case_id,property_id,user_id,previous_snapshot,applied_snapshot,previous_decision,
                                 invalidated_analyses,previous_analyses,previous_execution,created) VALUES (?,?,?,?::json,?::json,?::json,?::json,?::json,?::json,?)""",
-                                caseId, propertyId, owner, before.toString(), afterSnapshot.toString(), decision,
+                                caseId, propertyId, owner, reviewed(before, item.text("address"), item.path("area_sqm")).toString(),
+                                reviewed(afterSnapshot, address, area).toString(), decision,
                                 json.writeValueAsString(listOf("appraisal", "rights", "simulation")), json.writeValueAsString(previousAnalyses), json.writeValueAsString(previousTasks), now())
-                            jdbc.update("UPDATE case_properties SET source_snapshot=?::json WHERE id=?", afterSnapshot.toString(), propertyId)
+                            jdbc.update("UPDATE case_properties SET source_snapshot=?::json,address=?,area_sqm=? WHERE id=?", afterSnapshot.toString(), address,
+                                area.takeUnless { it.isMissingNode || it.isNull }?.asDouble(), propertyId)
+                            // 직접 입력한 새 주소는 법정동 확인을 거치지 않았으므로 이전 법정동 코드를 유지하지 않는다.
+                            if (addressChanged) jdbc.update("UPDATE case_properties SET legal_region_code=null WHERE id=?", propertyId)
                             jdbc.update("UPDATE candidate_analyses SET status='stale',updated=? WHERE property_id=?", now(), propertyId)
                             jdbc.update("UPDATE candidate_checklist_items SET status='todo',completed_at=null WHERE property_id=? AND category IN ('price','funding','rights')", propertyId)
                             if (selected) {
@@ -240,7 +259,7 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
                             }
                         }
                     }
-                    val fields = data.deepCopy<ObjectNode>().apply { remove("identity") }
+                    val fields = data.deepCopy<ObjectNode>().apply { remove(listOf("identity", "address", "area_sqm")) }
                     patch("case_properties", item.path("id").asLong(), fields, setOf("asking_price", "status", "notes"), mapOf("updated" to version()))
                     touch(caseId); mapOf("property_id" to propertyId)
                 }

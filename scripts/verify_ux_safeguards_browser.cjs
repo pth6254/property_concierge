@@ -104,6 +104,35 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_mo
     await page.locator(`#candidate-${secondId}`).getByRole('group',{name:'후보 삭제 확인'}).getByRole('button',{name:'삭제',exact:true}).click();
     await page.locator(`#candidate-${secondId}`).waitFor({state:'detached'});
 
+    // 4-2) 주소 없이 등록한 후보: 시세추정 결과를 연결할 수 없으므로 케이스에서 주소·면적을 고친 뒤 실행한다.
+    const bare=await context.request.post(`/api/cases/${caseId}/properties`,{data:{name:'주소 없는 후보',address:'',asking_price:900000000,area_sqm:84,category:'아파트',source:'manual'}});
+    assert.ok(bare.ok(),await bare.text());const bareId=(await bare.json()).id;
+    await page.goto(`/appraisal?caseId=${caseId}&candidateId=${candidate.id}`);
+    await page.getByLabel('면적(㎡)').waitFor();
+    await page.getByRole('note').filter({hasText:'면적 기준이 전용면적이 아니면'}).waitFor();
+    await page.getByLabel('면적(㎡)').fill('59');
+    await page.getByRole('alert').filter({hasText:'입력한 면적이 후보 면적'}).waitFor();
+    assert.equal(await page.getByRole('button',{name:'시세추정 시작'}).isDisabled(),true);
+    await page.goto(`/cases/${caseId}`);const bareCard=page.locator(`#candidate-${bareId}`);
+    await bareCard.getByText('주소 입력 필요 · 물건 정보 수정',{exact:true}).waitFor();
+    await bareCard.getByLabel('후보 주소').fill('서울 서초구 신반포로 270');await bareCard.getByLabel('후보 면적(㎡)').fill('84.97');
+    await bareCard.getByLabel('면적 기준').selectOption('exclusive');
+    await bareCard.getByRole('button',{name:'물건 정보 저장'}).click();
+    await bareCard.getByText(/서울 서초구 신반포로 270 · 84\.97㎡/).waitFor();
+    await bareCard.getByText('매물 변경·이전 판단 기록 1건').click();
+    await bareCard.getByText(/주소 미입력 → 서울 서초구 신반포로 270 · 면적 84㎡ → 84\.97㎡/).waitFor();
+    await page.goto(`/appraisal?caseId=${caseId}&candidateId=${bareId}`);
+    await page.getByLabel('면적(㎡)').waitFor();
+    assert.equal(await page.getByLabel('면적(㎡)').inputValue(),'84.97');
+    assert.equal(await page.getByRole('alert').filter({hasText:'후보'}).count(),0);
+    assert.equal(await page.getByRole('note').filter({hasText:'면적 기준이 전용면적이 아니면'}).count(),0);
+    assert.equal(await page.getByRole('button',{name:'시세추정 시작'}).isDisabled(),false);
+    check('시세추정: 후보와 다른 면적은 실행 전 차단·면적 기준 안내, 주소 없는 후보는 케이스에서 주소·면적 입력 후 실행 가능');
+    await page.goto(`/cases/${caseId}`);
+    await page.locator(`#candidate-${bareId}`).getByRole('button',{name:'후보 삭제'}).click();
+    await page.locator(`#candidate-${bareId}`).getByRole('group',{name:'후보 삭제 확인'}).getByRole('button',{name:'삭제',exact:true}).click();
+    await page.locator(`#candidate-${bareId}`).waitFor({state:'detached'});
+
     // 5) 확인 후 실제 삭제
     await page.locator(`#candidate-${candidate.id}`).getByRole('button',{name:'후보 삭제'}).click();
     await page.getByRole('group',{name:'후보 삭제 확인'}).getByRole('button',{name:'삭제',exact:true}).click();

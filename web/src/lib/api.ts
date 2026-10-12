@@ -279,7 +279,7 @@ export const api = {
     req<void>(`/cases/${caseId}/properties/${propertyId}`, { method: "DELETE" }),
 
   updateCaseProperty: (caseId: number, propertyId: number, data: {
-    asking_price?: number | null;
+    asking_price?: number | null; address?: string; area_sqm?: number;
     status?: "reviewing" | "shortlisted" | "rejected" | "selected"; notes?: string;
     identity?: Pick<import("./listings").PropertyIdentity, "building_dong" | "unit_number" | "floor" | "area_basis">;
   }) => req(`/cases/${caseId}/properties/${propertyId}`, { method: "PATCH", body: JSON.stringify(data) }),

@@ -59,7 +59,8 @@ data class PropertyCreateInput(@field:Size(min=1,max=150) val name: String,
 
 data class PropertyUpdateInput(@field:Min(0) val askingPrice: Long? = null,
     @field:Pattern(regexp="reviewing|shortlisted|rejected|selected") val status: String? = null,
-    @field:Size(max=5000) val notes: String? = null, @field:Valid val identity: PropertyIdentityInput? = null)
+    @field:Size(max=5000) val notes: String? = null, @field:Valid val identity: PropertyIdentityInput? = null,
+    @field:Size(min=1,max=500) val address: String? = null, @field:DecimalMin(value="0",inclusive=false) val areaSqm: Double? = null)
 
 data class ChecklistInput(@field:Pattern(regexp="todo|done|warning|blocked") val status: String,
     @field:Size(max=5000) val evidence: String? = null)

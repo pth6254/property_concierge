@@ -7,6 +7,7 @@ import LandInformationLookup from "@/components/LandInformationDetails";
 import type { ValuationContext } from "@/lib/valuation";
 import { removeSessionValue, setSessionValue, useSessionValue } from "@/lib/sessionStore";
 import CaseContextBanner from "@/components/CaseContextBanner";
+import Link from "next/link";
 
 const PROPERTY_TYPES = [
   { category: "주거용", detail: "아파트",     label: "아파트",          hasDong: true,  hasHo: true  },
@@ -75,6 +76,8 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
   const [prefillLoading, setPrefillLoading] = useState(Boolean(caseId || candidateId));
   const [prefillError, setPrefillError] = useState("");
   const [manualInput, setManualInput]     = useState(false);
+  // 결과를 후보에 연결할 때 서버가 대조하는 주소·면적. 다르면 분석은 끝나도 연결이 거절되므로 실행 전에 알린다.
+  const [candidateTarget, setCandidateTarget] = useState<{ addresses: string[]; area: number | null } | null>(null);
 
   // step 3
   const [dongNo, setDongNo]             = useState("");
@@ -86,6 +89,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
+  const [errorHistoryId, setErrorHistoryId] = useState<number | null>(null);
   const [progressStep, setProgressStep] = useState(""); // 파이프라인 현재 노드명
   const pendingJob = useSessionValue(PENDING_JOB_KEY);
   const resumingRef = useRef(false);
@@ -106,6 +110,10 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
         if (cancelled) return;
         const labels: Record<string, string> = { apartment: "아파트", officetel: "오피스텔", row_house: "연립다세대", detached: "단독다가구", land: "토지" };
         const type = PROPERTY_TYPES.find((item) => item.detail === (labels[candidate.category] ?? candidate.category));
+        setCandidateTarget({
+          addresses: [candidate.address, candidate.address_details?.jibun_address, candidate.address_details?.road_address].filter((value): value is string => Boolean(value)),
+          area: candidate.area_sqm,
+        });
         setSelectedAddress(candidate.address ?? "");
         setBuildingName(candidate.name);
         setTypedQuery(candidate.address ?? "");
@@ -200,6 +208,8 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
       if (job.status === "error") {
         removeSessionValue(PENDING_JOB_KEY);
         setError(job.error || "시세추정 실패");
+        // 분석은 저장됐지만 후보 연결만 거절된 경우 결과를 잃지 않게 이력으로 안내한다.
+        setErrorHistoryId(job.history_id ?? null);
         return;
       }
     }
@@ -224,11 +234,20 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
     return () => controller.abort();
   }, [pendingJob, caseId, candidateId, pollJob]);
 
+  const candidateMismatch = (() => {
+    if (!candidateTarget) return "";
+    if (candidateTarget.addresses.length === 0) return "이 후보에는 주소가 없어 결과를 후보에 연결할 수 없습니다. 케이스에서 후보 주소를 먼저 입력해주세요.";
+    if (selectedAddress && !candidateTarget.addresses.includes(selectedAddress)) return `선택한 주소가 후보 주소(${candidateTarget.addresses[0]})와 다릅니다. 후보 주소를 먼저 고치거나 후보 주소로 실행해주세요.`;
+    if (candidateTarget.area != null && areaSqm && Number(areaSqm) !== candidateTarget.area) return `입력한 면적이 후보 면적(${candidateTarget.area}㎡)과 다릅니다. 후보 면적을 먼저 고치거나 후보 면적으로 실행해주세요.`;
+    return "";
+  })();
+
   const handleSubmit = async () => {
-    if (prefillLoading || prefillError) return;
+    if (prefillLoading || prefillError || candidateMismatch) return;
     if (areaSqm && (!Number.isFinite(Number(areaSqm)) || Number(areaSqm) <= 0)) { setError("면적은 0보다 큰 숫자로 입력해주세요."); return; }
     if (!selectedAddress) { setError("주소를 입력해주세요."); return; }
     setError("");
+    setErrorHistoryId(null);
     setLoading(true);
     setProgressStep("");
 
@@ -439,6 +458,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
           {incomeMode && <IncomeValuationFields draft={incomeDraft} onChange={setIncomeDraft} />}
           {!incomeMode && selectedType?.category !== "토지" && <label className="mb-4 block text-sm">평가 대상 범위<select aria-label="평가 대상 범위" value={scope} onChange={event => setScope(event.target.value as ValuationContext["scope"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">범위 확인 필요</option><option value="single_unit">개별 호실</option><option value="whole_building">건물 전체</option><option value="land_and_building">토지와 건물 전체</option></select></label>}
           <label className="mb-4 block text-sm">분석 면적 기준<select aria-label="분석 면적 기준" value={areaBasis} onChange={event => setAreaBasis(event.target.value as ValuationContext["area_basis"])} className="mt-1 block w-full rounded-lg border px-3 py-2"><option value="unknown">미확인</option><option value="exclusive">전용면적</option><option value="supply">공급면적</option><option value="gross">연면적</option><option value="land">토지면적</option></select></label>
+          {selectedType?.detail === "아파트" && areaBasis !== "exclusive" && <p role="note" className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">면적 기준이 전용면적이 아니면(미확인·공급면적 포함) 실거래 비교 가격을 산출하지 않고 보류합니다. 입력한 면적이 전용면적이면 &apos;전용면적&apos;을 선택해주세요.</p>}
           {selectedType?.category === "주거용" && selectedType.detail !== "아파트" && <p className="mb-4 text-sm text-amber-800">이 유형은 별도 거래 범위와 평가 기준의 보완이 필요합니다. 아파트 모델로 대체하지 않고 필요한 자료를 안내합니다.</p>}
           <label className="mb-4 block text-sm">면적(㎡)<input aria-label="면적(㎡)" type="number" min="0.01" step="any" value={areaSqm} onChange={(event) => setAreaSqm(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
           <label className="mb-4 block text-sm">건물명<input value={buildingName} onChange={(event) => setBuildingName(event.target.value)} className="mt-1 block w-full rounded-lg border px-3 py-2" /></label>
@@ -566,11 +586,12 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
             </div>
           </div>
 
-          {error && <p className="text-red-500 text-sm mb-3">⚠️ {error}</p>}
+          {candidateMismatch && caseId && candidateId && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{candidateMismatch} <Link href={`/cases/${caseId}#candidate-${candidateId}`} className="font-semibold underline">케이스에서 후보 정보 수정</Link></div>}
+          {error && <p className="text-red-500 text-sm mb-3">⚠️ {error}{errorHistoryId && <> <Link href={`/report/${errorHistoryId}`} className="font-semibold underline">저장된 결과 보기</Link></>}</p>}
 
           <button
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || Boolean(candidateMismatch)}
             className="w-full py-3 bg-primary text-white rounded-xl font-semibold text-sm hover:bg-primary-strong disabled:opacity-50 transition-colors"
           >
             {loading ? "검토 자료를 만들고 있습니다…" : incomeMode ? "수익·가격 범위 계산" : selectedType?.category === "토지" ? "토지 공개정보 결과 저장" : "시세추정 시작"}
