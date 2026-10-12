@@ -118,6 +118,9 @@ class SegmentConfig:
     # 학습에서만 비교사례 대비 크게 벗어난 거래(지분·특수관계 추정)를 뺀다. 평가 구간은 그대로 둔다.
     train_outlier_log: float = .5
     segment: str = "row_house"
+    # 구간 보정 단위: level(근거 단계별) 또는 price(근거 단계 × 추정가 5분위, 30건 미만 칸은 근거 단계 값)
+    band_by: str = "level"
+    keep_rows: bool = False
 
 
 def _ym(day: date) -> str:
@@ -157,27 +160,38 @@ def _metrics(errors: list[float]) -> dict:
             "p90_ape": round(ape[int(.9 * (len(ape) - 1))], 4)}
 
 
-def build_parts(rows: list[dict], config: SegmentConfig):
+def build_frame(rows: list[dict], segment_name: str, start: str = "000000"):
+    """모든 거래의 근거·변수를 한 번만 계산한다. 근거는 각 거래일 이전 거래만 쓰므로 기간 분할과 무관하다."""
     import pandas as pd
-    segment = SEGMENTS[config.segment]
-    trades, record_for = segment.prepare(rows)
+    trades, record_for = SEGMENTS[segment_name].prepare(rows)
     records = []
     for trade in trades:
         ym = _ym(trade.day)
-        split = None if ym < config.train_start else "train" if ym < config.validation_start else \
-            "validation" if ym < config.test_start else "test" if ym <= config.test_end else None
-        if split is None:
+        if ym < start:
             continue
-        evidence, record, extra = record_for(trade, False if split == "test" else None)
-        record.update(split=split, level=evidence.level, target=trade.log_per_sqm, area_value=trade.area, price=trade.price,
+        evidence, record, extra = record_for(trade, None)
+        record.update(ym=ym, level=evidence.level, target=trade.log_per_sqm, area_value=trade.area, price=trade.price,
                       id=trade.id, basis=evidence.basis, **extra)
         records.append(record)
-    frame = pd.DataFrame(records)
-    parts = {name: frame[frame.split == name].reset_index(drop=True) for name in ("train", "validation", "test")}
+    return trades, pd.DataFrame(records)
+
+
+def split_parts(frame, config: SegmentConfig) -> dict:
+    """학습 < 검증 < 평가 월로 나눈다. 블라인드 입력에는 거래 유형이 없으므로 평가 구간은 중개거래로 둔다."""
+    ym = frame.ym
+    parts = {"train": frame[(ym >= config.train_start) & (ym < config.validation_start)],
+             "validation": frame[(ym >= config.validation_start) & (ym < config.test_start)],
+             "test": frame[(ym >= config.test_start) & (ym <= config.test_end)].assign(direct=0.0)}
+    parts = {name: part.reset_index(drop=True) for name, part in parts.items()}
     required = ("train", "validation") if config.test_start > config.test_end else ("train", "validation", "test")
     if min(len(parts[name]) for name in required) < 100:
         raise ValueError(f"구간별 표본이 부족합니다: { {k: len(v) for k, v in parts.items()} }")
-    return trades, parts
+    return parts
+
+
+def build_parts(rows: list[dict], config: SegmentConfig):
+    trades, frame = build_frame(rows, config.segment, config.train_start)
+    return trades, split_parts(frame, config)
 
 
 def train_final(rows: list[dict], config: SegmentConfig, spec: str) -> tuple[object, dict]:
@@ -231,6 +245,7 @@ def assess(spec: str, train, validation, test, config: SegmentConfig) -> tuple[d
     val_pred = to_log(validation, model.predict_probe(validation))
     target = validation.target.to_numpy()
     weights, residuals = {}, {}
+    val_log = np.full(len(validation), np.nan)
     for level in levels:
         mask = (validation.level == level).to_numpy()
         if not mask.any():
@@ -239,10 +254,27 @@ def assess(spec: str, train, validation, test, config: SegmentConfig) -> tuple[d
         choices = [0.0] if level in segment.no_comp_levels or not uses_comps else [0, .25, .5, .75, 1.0]
         scored = {w: float(np.mean(np.abs(np.exp(target[mask] - (w * comp + (1 - w) * val_pred[mask])) - 1))) for w in choices}
         weights[level] = min(scored, key=scored.get)
-        residuals[level] = target[mask] - (weights[level] * comp + (1 - weights[level]) * val_pred[mask])
+        val_log[mask] = weights[level] * comp + (1 - weights[level]) * val_pred[mask]
+        residuals[level] = target[mask] - val_log[mask]
     alpha = (1 - config.interval) / 2
     bands = {lv: (float(np.quantile(r, alpha)), float(np.quantile(r, 1 - alpha))) if len(r) >= 30 else None for lv, r in residuals.items()}
     confidence = {lv: round(float(np.mean(np.abs(np.exp(r) - 1) <= .10)), 3) if len(r) >= 30 else None for lv, r in residuals.items()}
+    # 추정가 가격대별 보정: 같은 근거 단계라도 가격대마다 불확실성이 다르다. 실제 가격은 운영에서 모르므로 추정가로 나눈다.
+    val_estimate = np.exp(val_log) * validation.area_value.to_numpy(dtype=float)
+    finite = np.isfinite(val_estimate)
+    price_edges = [float(np.quantile(val_estimate[finite], q)) for q in (.2, .4, .6, .8)] if finite.sum() >= 50 else []
+    def price_bin(value: float) -> int:
+        return sum(value > edge for edge in price_edges) + 1
+    price_bands, price_confidence = {}, {}
+    if price_edges:
+        bins = np.array([price_bin(v) if np.isfinite(v) else 0 for v in val_estimate])
+        for level in levels:
+            for b in range(1, 6):
+                cell = (validation.level == level).to_numpy() & (bins == b)
+                r = target[cell] - val_log[cell]
+                if len(r) >= 30:
+                    price_bands[f"{level}|{b}"] = (float(np.quantile(r, alpha)), float(np.quantile(r, 1 - alpha)))
+                    price_confidence[f"{level}|{b}"] = round(float(np.mean(np.abs(np.exp(r) - 1) <= .10)), 3)
     produced = ~validation.level.isin(segment.withheld_levels).to_numpy()
     validation_mape = round(float(np.mean(np.abs(np.exp(target[produced] - val_pred[produced]) - 1))), 4)
     # 최종 평가: 학습+검증으로 다시 학습한 모델과 검증에서 정한 가중치·분위수를 그대로 쓴다.
@@ -260,12 +292,19 @@ def assess(spec: str, train, validation, test, config: SegmentConfig) -> tuple[d
         band_no = sum(rec.price > edge for edge in edges) + 1
         for key in ("all", rec.level, f"region:{rec.lawd}", f"price_q{band_no}"):
             groups[key].append(error)
-        band = bands.get(rec.level)
+        cell = f"{rec.level}|{price_bin(estimate)}" if price_edges else None
+        variants = {"level": (bands.get(rec.level), confidence.get(rec.level)),
+                    "price": (price_bands.get(cell, bands.get(rec.level)), price_confidence.get(cell, confidence.get(rec.level)))}
+        inside = {key: None if band is None else bool(math.exp(log_estimate + band[0]) * rec.area_value <= rec.price
+                                                      <= math.exp(log_estimate + band[1]) * rec.area_value)
+                  for key, (band, _) in variants.items()}
+        band, stated = variants[config.band_by]
         low = math.exp(log_estimate + band[0]) * rec.area_value if band else None
         high = math.exp(log_estimate + band[1]) * rec.area_value if band else None
-        rows_out.append({"id": int(rec.id), "level": rec.level, "lawd": rec.lawd, "actual": int(rec.price), "estimate": round(estimate),
-                         "low": None if low is None else round(low), "high": None if high is None else round(high),
-                         "inside": None if low is None else bool(low <= rec.price <= high), "confidence": confidence.get(rec.level),
+        rows_out.append({"id": int(rec.id), "ym": rec.get("ym"), "level": rec.level, "lawd": rec.lawd, "actual": int(rec.price),
+                         "estimate": round(estimate), "low": None if low is None else round(low), "high": None if high is None else round(high),
+                         "inside": inside[config.band_by], "inside_level": inside["level"], "inside_price": inside["price"],
+                         "confidence": stated, "confidence_level": variants["level"][1], "confidence_price": variants["price"][1],
                          "error": error, "basis": rec.basis})
     coverage = {lv: round(mean(r["inside"] for r in rows_out if r["level"] == lv and r["inside"] is not None), 3)
                 if any(r["level"] == lv and r["inside"] is not None for r in rows_out) else None for lv in levels}
@@ -286,8 +325,11 @@ def assess(spec: str, train, validation, test, config: SegmentConfig) -> tuple[d
                                    "mape_p10": round(draws[int(.1 * (len(draws) - 1))], 4) if draws else None,
                                    "mape_p90": round(draws[int(.9 * (len(draws) - 1))], 4) if draws else None},
               "worst_cases": sorted(rows_out, key=lambda r: -abs(r["error"]))[:15]}
+    if config.keep_rows:
+        result["rows"] = rows_out
     return result, model, {"weights": weights, "interval_log_quantiles": bands, "confidence_by_level": confidence, "interval": config.interval,
-                           "residual": residual}
+                           "residual": residual, "band_by": config.band_by, "price_band_edges": price_edges,
+                           "price_interval_log_quantiles": price_bands, "confidence_by_price": price_confidence}
 
 
 def _service_rule(test) -> dict | None:

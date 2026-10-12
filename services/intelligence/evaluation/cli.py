@@ -115,6 +115,17 @@ def main(argv=None):
     avm_segment.add_argument("--interval", type=float, default=.80, help="가격 구간의 명목 적중률 (0.5~0.99)")
     avm_segment.add_argument("--seed", type=int, default=42)
     avm_segment.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
+    avm_rolling = sub.add_parser("avm-rolling", help="세그먼트 AVM 월별 롤링 평가와 사전 판정 기준 (현재 R-APT 아파트)")
+    avm_rolling.add_argument("--segment", choices=["apartment"], default="apartment")
+    avm_rolling.add_argument("--regions", nargs="+", required=True)
+    avm_rolling.add_argument("--train-start", required=True, help="학습 시작 월 YYYYMM (근거 기간만큼 앞 자료가 있어야 함)")
+    avm_rolling.add_argument("--from-month", required=True, help="첫 평가 월 YYYYMM")
+    avm_rolling.add_argument("--to-month", required=True, help="마지막 평가 월 YYYYMM (완료월)")
+    avm_rolling.add_argument("--models", default="catboost")
+    avm_rolling.add_argument("--interval", type=float, default=.85)
+    avm_rolling.add_argument("--iterations", type=positive_int, default=800)
+    avm_rolling.add_argument("--seed", type=int, default=42)
+    avm_rolling.add_argument("--output", type=Path, default=ROOT / "evaluation-results")
     avm_service = sub.add_parser("avm-service", help="저장 실거래로 실제 주거용 에이전트 가격 계산 재생")
     avm_service.add_argument("--regions", nargs="+", default=["11650", "11680", "11350"])
     avm_service.add_argument("--max-cases", type=positive_int, default=30)
@@ -159,6 +170,14 @@ def main(argv=None):
                 raise ValueError("서로 다른 5자리 시군구 코드를 지정해주세요")
             from evaluation.segment_avm import run as run_segment
             return run_segment(args)
+        if args.command == "avm-rolling":
+            import re
+            if not all(re.fullmatch(r"\d{5}", code) for code in args.regions) or len(set(args.regions)) != len(args.regions):
+                raise ValueError("서로 다른 5자리 시군구 코드를 지정해주세요")
+            if not .5 <= args.interval <= .99 or not args.from_month <= args.to_month:
+                raise ValueError("구간 명목 적중률(0.5~0.99)과 평가 월 순서를 확인해주세요")
+            from evaluation.rolling_avm import run as run_rolling
+            return run_rolling(args)
         if args.command == "avm-compare":
             from evaluation.catboost_avm import run as run_avm_comparison
             return run_avm_comparison(args)
