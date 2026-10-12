@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { LandInformationDetails } from "@/components/LandInformationDetails";
 import type { ValuationAssessment, ValuationSupportResult } from "@/lib/valuation";
-import { DataTable, InfoTable, NumberedList, ReportShell, Sections, type InfoRow } from "@/components/ReportDocument";
+import { DataTable, InfoTable, NumberedList, PastTradeNotice, ReportShell, Sections, type InfoRow } from "@/components/ReportDocument";
 
 /*
  * 보류·조건부 시나리오·공개자료 참고 결과를 시세추정 리포트 문서 양식으로 보여준다.
@@ -35,9 +35,11 @@ function ResultBox({ result }: { result: ValuationSupportResult }) {
       </div>
       <div className="py-6 px-4 text-center">
         {valuation?.result_kind === "model_estimate" && valuation.model_context?.estimated_value != null ? <>
+          <p className="text-[11px] tracking-[0.2em] text-gray-500 mb-1">최근 실거래 기준 ML 참고가</p>
           <p className="text-[26px] sm:text-[32px] font-bold text-gray-900 tracking-tight">₩ {valuation.model_context.estimated_value.toLocaleString("ko-KR")} 원</p>
           <p className="text-xs text-gray-600 mt-2">참고 구간 {money(valuation.model_context.value_min)} ~ {money(valuation.model_context.value_max)} · 신뢰도 {valuation.model_context.confidence != null ? `${Math.round(valuation.model_context.confidence * 100)}%` : "미산출"}</p>
           <p className="mt-3 border border-amber-300 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">공개 기준(같은 단지 최근 6개월 5건)에 미달한 근거로 낸 ML 참고 추정입니다. 시장가격 비교·가격 체크리스트 완료에 쓰지 않습니다.</p>
+          <div className="mt-2"><PastTradeNotice window={valuation.evidence_window} asOf={valuation.subject.as_of_date} /></div>
         </> : scenario && scenario.scenarios.length > 0 ? <>
           <p className="text-[22px] sm:text-[26px] font-bold text-gray-900">{money(scenario.low_price_won)} ~ {money(scenario.high_price_won)}</p>
           <p className="text-[11px] text-gray-500 mt-2">입력 임대료·운영비·환원율 가정에 따른 조건부 범위이며 시장가격이나 통계적 예측구간이 아닙니다.</p>

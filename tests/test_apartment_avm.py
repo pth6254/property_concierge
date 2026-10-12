@@ -44,6 +44,8 @@ def test_levels_follow_public_rule_then_weaker_evidence():
     similar = [("반포리체", d, 84.0, 400_000) for d in (20, 40, 60)]
     assert _evidence(_rows([], other=similar)).level == "A3"                    # 같은 동 유사 단지 3건
     assert _evidence(_rows([(400, 84.9, 470_000)], other=similar[:2])).level == "A4"
+    a1 = _evidence(_rows(five))
+    assert (a1.first_day, a1.last_day) == (date(2026, 10, 1) - timedelta(days=120), date(2026, 10, 1) - timedelta(days=10))
 
 
 def test_evidence_never_uses_trades_on_or_after_cutoff():
@@ -109,7 +111,7 @@ def test_runtime_refuses_evaluation_only_or_missing_artifacts(tmp_path, monkeypa
 CONTEXT = {"level": "A2", "basis": "같은 단지·전용 ±10% 최근 12개월 2건", "complex": "마포래미안푸르지오", "counts": {"a1": 2},
            "model": "catboost", "model_version": "1", "trained_through": "2026-09-30", "interval": .85,
            "estimated_value": 1_500_000_000, "value_min": 1_350_000_000, "value_max": 1_650_000_000, "confidence": .75,
-           "comparable_weight": 0.0, "comparable_per_sqm": None}
+           "comparable_weight": 0.0, "comparable_per_sqm": None, "evidence_first": "2025-11-03", "evidence_last": "2025-12-20"}
 
 
 def test_below_public_rule_becomes_model_estimate_not_market_price(monkeypatch):
@@ -126,6 +128,8 @@ def test_below_public_rule_becomes_model_estimate_not_market_price(monkeypatch):
     assert assessment["model_status"] == "used" and assessment["model_context"]["level"] == "A2"
     assert [m["status"] for m in assessment["methods"]] == ["blocked", "selected"]
     assert not any("ML로 대체하지 않습니다" in text for text in assessment["next_actions"])
+    window = assessment["evidence_window"]  # 기준일 2026-01-15, 가장 최근 근거 2025-12-20
+    assert window["source"] == "model" and window["days_since_last"] == 26 and window["time_adjustment_pct"] is None
     from backend.services.case_snapshot_presentation import _appraisal_won
     assert _appraisal_won({"analysis_result": result}) is None  # 케이스 시장가격 비교에 쓰지 않는다
 

@@ -110,6 +110,20 @@ class ModelContext(BaseModel):
     # A1에 혼합 추정을 적용해도 된다고 평가로 승인된 산출물인지. 미승인이면 A1은 기존 비교 규칙 가격을 쓴다.
     hybrid_approved: bool = False
     applied: bool = False
+    evidence_first: str | None = None
+    evidence_last: str | None = None
+
+
+class EvidenceWindow(BaseModel):
+    """가격 근거로 쓴 실거래의 기간. 실거래는 과거 거래라서 기준일과의 간격과 시점 보정 정도를 함께 보여준다."""
+    model_config = ConfigDict(extra="forbid")
+    source: Literal["comparables", "model"]
+    trade_count: int
+    first_deal_date: str
+    last_deal_date: str
+    days_since_last: int
+    # 시점 보정으로 바뀐 가격의 평균 비율(%). 모델 추정은 단일 보정률이 없어 None이다.
+    time_adjustment_pct: float | None = None
 
 
 class ValuationAssessment(BaseModel):
@@ -129,5 +143,6 @@ class ValuationAssessment(BaseModel):
     interval_basis: str = "not_provided"
     model_status: Literal["not_used", "used"] = "not_used"
     model_context: ModelContext | None = None
+    evidence_window: EvidenceWindow | None = None
     reference_context: ReferenceContext | None = None
     jeonse_context: JeonseContext | None = None

@@ -79,6 +79,12 @@ export type ValuationAssessment = {
   reference_context?: ReferenceContext | null;
   jeonse_context?: JeonseContext | null;
   model_context?: ModelContext | null;
+  evidence_window?: EvidenceWindow | null;
+};
+/** 가격 근거로 쓴 실거래의 기간과 기준일까지의 간격. time_adjustment_pct는 시점 보정의 평균 비율(%)이다. */
+export type EvidenceWindow = {
+  source: "comparables" | "model"; trade_count: number; first_deal_date: string; last_deal_date: string;
+  days_since_last: number; time_adjustment_pct: number | null;
 };
 /** 아파트 혼합 AVM의 근거 단계와 추정(원). 구간은 검증 구간 잔차 분위수로 정한 참고 구간이다. */
 export type ModelContext = {
@@ -86,4 +92,5 @@ export type ModelContext = {
   model: string; model_version: string | null; trained_through: string | null; interval: number | null;
   estimated_value: number | null; value_min: number | null; value_max: number | null; confidence: number | null;
   comparable_weight: number | null; comparable_per_sqm: number | null; applied: boolean;
+  evidence_first?: string | null; evidence_last?: string | null;
 };

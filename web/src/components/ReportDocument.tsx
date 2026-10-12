@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import type { EvidenceWindow } from "@/lib/valuation";
 
 /*
  * 시세추정 리포트의 문서 틀(표지·절 제목·표·고지사항).
@@ -81,6 +82,27 @@ export function NumberedList({ items }: { items: string[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * 실거래 기반 가격의 시점 한계. 실거래는 이미 끝난 거래라 기준일의 거래 가능 가격을 확정하지 못한다.
+ * 근거 거래가 언제였고 기준일까지 얼마나 지났는지, 시점 보정을 얼마나 했는지를 가격 바로 아래에 고정해 보여준다.
+ */
+export function PastTradeNotice({ window, asOf }: { window?: EvidenceWindow | null; asOf?: string }) {
+  const adjustment = window?.time_adjustment_pct;
+  return (
+    <div role="note" aria-label="실거래 근거 시점" className="border border-amber-300 bg-amber-50 px-4 py-3 text-left text-[11px] leading-relaxed text-amber-900">
+      {window ? (
+        <p className="font-semibold">
+          근거 거래 {window.trade_count}건 · {window.first_deal_date} ~ {window.last_deal_date} · 가장 최근 거래는 기준일{asOf ? `(${asOf})` : ""}보다 {window.days_since_last}일 전
+          {window.source === "comparables"
+            ? ` · 시점 보정 ${adjustment == null ? "없음" : `평균 ${adjustment > 0 ? "+" : ""}${adjustment.toFixed(2)}%`}`
+            : " · 모델이 시점·층·면적 차이를 보정"}
+        </p>
+      ) : <p className="font-semibold">근거 거래 기간을 확인하지 못한 이전 분석입니다.</p>}
+      <p className="mt-1">실거래는 과거 거래이며 신고 지연(최대 30일)과 시장 변동 때문에 현재 거래 가능 가격과 다를 수 있습니다. 현재 매물 호가를 함께 확인하세요.</p>
     </div>
   );
 }

@@ -115,6 +115,9 @@ class Evidence:
     dong_count: int
     dong_median: float | None
     basis: str
+    # 추정 근거로 쓴 거래의 기간. 실거래는 과거 거래이므로 화면에 근거가 얼마나 오래됐는지 함께 보여준다.
+    first_day: date | None = None
+    last_day: date | None = None
 
 
 class ComparableIndex:
@@ -156,6 +159,7 @@ class ComparableIndex:
                 and (year is None or t.year_built is None or abs(t.year_built - year) <= A3_DONG_YEARS)]
         dong_values = [adjusted(t) for t in dong]
         dong_median = median(dong_values) if len(dong_values) >= A3_DONG_MIN else None
+        used = a1 if len(a1) >= A1_MIN else near or cx or (dong if dong_median is not None else [])
         if len(a1) >= A1_MIN:
             level, estimate = "A1", median(a1_values)
             basis = f"같은 단지·전용 ±10% 최근 6개월 {len(a1)}건 ㎡당 중앙값을 시점 보정"
@@ -175,7 +179,8 @@ class ComparableIndex:
                         last_days=(cutoff - max(t.day for t in near)).days if near else None,
                         cx_count=len(cx), cx_median=median(cx_values) if cx_values else None,
                         cx_area_ratio=median(t.area for t in cx) / target.area if cx else None,
-                        dong_count=len(dong), dong_median=dong_median, basis=basis)
+                        dong_count=len(dong), dong_median=dong_median, basis=basis,
+                        first_day=min((t.day for t in used), default=None), last_day=max((t.day for t in used), default=None))
 
 
 CATEGORICAL = ("lawd", "dong", "complex")

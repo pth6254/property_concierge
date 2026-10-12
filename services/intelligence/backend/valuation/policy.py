@@ -151,6 +151,12 @@ def eligible_comparables(state, price_data):
         from backend.price_engine import _apply_time_adjustment
         selected.sort(key=lambda r: (int(r["deal_year"]), int(r["deal_month"]), int(r["deal_day"])), reverse=True)
         selected, _ = _apply_time_adjustment([dict(r) for r in selected], "주거용", as_of.strftime("%Y%m%d"), price_data.get("used_region", ""))
+    if ok:
+        days = [date(int(r["deal_year"]), int(r["deal_month"]), int(r["deal_day"])) for r in selected]
+        ratios = [r["price"] / r["original_price"] - 1 for r in selected if _positive(r.get("original_price"))]
+        assessment["evidence_window"] = {"source": "comparables", "trade_count": len(selected), "first_deal_date": min(days).isoformat(),
+            "last_deal_date": max(days).isoformat(), "days_since_last": (as_of - max(days)).days,
+            "time_adjustment_pct": round(sum(ratios) / len(ratios) * 100, 2) if ratios else None}
     assessment["checks"].append({"code": "comparables", "status": "available" if ok else "missing", "source": "official_data",
         "message": f"최근 6개월·동일 단지·전용면적 ±10%의 중복 제외 비교사례 {len(selected)}건 / 산출 기준 5건",
         "reference_date": target["as_of_date"], "observed_at": None})
@@ -212,6 +218,12 @@ def model_result(state, context):
                                     engine_version=f"r-apt-{context['model']}-{context.get('trained_through') or '미상'}")
     assessment.update(result_kind="model_estimate", comparison_eligible=False, model_status="used",
                       interval_basis="calibrated_holdout_quantiles")
+    if context.get("evidence_first") and context.get("evidence_last"):
+        counts = context.get("counts") or {}
+        count = {"A2": counts.get("a2"), "A3": counts.get("complex_other_area") or counts.get("dong_similar")}.get(context["level"]) or 0
+        assessment["evidence_window"] = {"source": "model", "trade_count": count, "first_deal_date": context["evidence_first"],
+            "last_deal_date": context["evidence_last"], "time_adjustment_pct": None,
+            "days_since_last": (date.fromisoformat(target["as_of_date"]) - date.fromisoformat(context["evidence_last"])).days}
     assessment["limitations"] += [
         "ML 참고 추정은 공개 기준(같은 단지 6개월 5건)에 미달한 근거로 계산했으며 시장가격 비교·가격 체크리스트 완료에 쓰지 않습니다.",
         f"가격 구간은 검증 구간 잔차의 {interval}% 분위수이며 개별 물건의 실제 거래 가능 가격을 보장하지 않습니다.",

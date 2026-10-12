@@ -586,6 +586,57 @@
   },
   "valuation_assessment_schema": {
     "$defs": {
+      "EvidenceWindow": {
+        "additionalProperties": false,
+        "description": "가격 근거로 쓴 실거래의 기간. 실거래는 과거 거래라서 기준일과의 간격과 시점 보정 정도를 함께 보여준다.",
+        "properties": {
+          "days_since_last": {
+            "title": "Days Since Last",
+            "type": "integer"
+          },
+          "first_deal_date": {
+            "title": "First Deal Date",
+            "type": "string"
+          },
+          "last_deal_date": {
+            "title": "Last Deal Date",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "comparables",
+              "model"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "time_adjustment_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Time Adjustment Pct"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source",
+          "trade_count",
+          "first_deal_date",
+          "last_deal_date",
+          "days_since_last"
+        ],
+        "title": "EvidenceWindow",
+        "type": "object"
+      },
       "JeonseContext": {
         "additionalProperties": false,
         "description": "동일 단지 전세·매매 ㎡당 중앙값의 대조. 가격 추정이 아니며 표본이 적으면 sufficient=false다.",
@@ -784,6 +835,30 @@
             ],
             "default": null,
             "title": "Estimated Value"
+          },
+          "evidence_first": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Evidence First"
+          },
+          "evidence_last": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Evidence Last"
           },
           "hybrid_approved": {
             "default": false,
@@ -1211,6 +1286,17 @@
         "default": false,
         "title": "Comparison Eligible",
         "type": "boolean"
+      },
+      "evidence_window": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/EvidenceWindow"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null
       },
       "input_fingerprint": {
         "title": "Input Fingerprint",

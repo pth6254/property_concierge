@@ -3,7 +3,7 @@ import ValuationSupportReport from "@/components/ValuationSupportReport";
 import type { ValuationSupportResult } from "@/lib/valuation";
 import type { ValuationAssessment } from "@/lib/valuation";
 import ValuationAssessmentCard from "@/components/ValuationAssessmentCard";
-import { InfoTable, ReportShell, SectionTitle, type InfoRow } from "@/components/ReportDocument";
+import { InfoTable, PastTradeNotice, ReportShell, SectionTitle, type InfoRow } from "@/components/ReportDocument";
 
 /*
  * AppraisalReport — AI 시세추정 리포트 문서 렌더러 (공용)
@@ -239,7 +239,7 @@ export default function AppraisalReport({
 
   /* ── 추정 시세 세부 행 ── */
   const valueRows: InfoRow[] = [
-    ["추 정 범 위",
+    ["참 고 범 위",
       ap.low_price && ap.high_price
         ? `${ap.low_price.toLocaleString("ko-KR")}원  ~  ${ap.high_price.toLocaleString("ko-KR")}원`
         : "—"],
@@ -287,14 +287,14 @@ export default function AppraisalReport({
             </section>
           )}
 
-          {/* ── 제 2 절: AI 추정 시세 ── */}
+          {/* ── 제 2 절: 최근 실거래 기준 참고가 (과거 거래 근거임을 명칭에 드러낸다) ── */}
           <section>
-            <SectionTitle number="제 2 절" title="AI 추정 시세" />
+            <SectionTitle number="제 2 절" title="최근 실거래 기준 참고가" />
 
             {/* 추정 시세 대형 표시 */}
             <div className="border-2 border-gray-800 mb-4">
               <div className="bg-gray-800 text-white text-center py-2.5">
-                <span className="text-[11px] tracking-[0.35em]">추 정 시 장 가 치 (Estimated Market Value)</span>
+                <span className="text-[11px] tracking-[0.35em]">최 근 실 거 래 기 준 참 고 가 (Reference Value from Recent Trades)</span>
               </div>
               <div className="py-7 text-center">
                 <p className="text-[32px] font-bold text-gray-900 tracking-tight">
@@ -310,6 +310,7 @@ export default function AppraisalReport({
               </div>
             </div>
 
+            {ap.estimated_price && <div className="mb-4"><PastTradeNotice window={ar.valuation?.evidence_window} asOf={ar.valuation?.subject.as_of_date} /></div>}
             <InfoTable rows={valueRows} />
           </section>
 

@@ -58,6 +58,8 @@ def test_excludes_future_old_other_complex_area_cancelled_and_duplicates():
     result = eligible_comparables(value, data)
     assert result["count"] == 5 and result["avg"] == 80_000
     assert [r["transaction_ref"] for r in result["samples"]] == [f"valid-{i}" for i in range(1, 6)]
+    window = value["valuation_plan"]["evidence_window"]  # 기준일 2026-01-15
+    assert (window["first_deal_date"], window["last_deal_date"], window["days_since_last"]) == ("2026-01-01", "2026-01-05", 10)
     complete = finalize({**value, "analysis_result": {"estimated_value": 80_000}})
     assessment = complete["analysis_result"]["valuation"]
     assert assessment["result_kind"] == "market_reference" and assessment["comparison_eligible"]
@@ -206,6 +208,7 @@ def test_policy_reads_fixed_window_pool_not_truncated_display_samples(monkeypatc
     assert result["count"] == 6
     assert [r["transaction_ref"] for r in result["samples"]][:2] == ["pool-1", "pool-12"]
     assert all(r["price"] == 80_001 for r in result["samples"])  # 선택된 사례에만 기존 시점수정 적용
+    assert value["valuation_plan"]["evidence_window"]["last_deal_date"] == "2026-01-03"
 
 
 def test_reference_trades_use_unadjusted_pool_prices():

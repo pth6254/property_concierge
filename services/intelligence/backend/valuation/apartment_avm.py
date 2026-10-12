@@ -112,7 +112,9 @@ def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | N
     context = {"level": evidence.level, "basis": evidence.basis, "complex": key.split("|", 2)[2],
                "counts": {"a1": evidence.a1_count, "a2": evidence.a2_count, "complex_other_area": evidence.cx_count, "dong_similar": evidence.dong_count},
                "model": manifest["model"], "model_version": manifest.get("model_version"), "trained_through": manifest.get("trained_through"),
-               "interval": calibration.get("interval"), "hybrid_approved": bool(manifest.get("a1_hybrid_approved"))}
+               "interval": calibration.get("interval"), "hybrid_approved": bool(manifest.get("a1_hybrid_approved")),
+               "evidence_first": evidence.first_day.isoformat() if evidence.first_day else None,
+               "evidence_last": evidence.last_day.isoformat() if evidence.last_day else None}
     if evidence.level in set(manifest.get("withheld_levels", ["A4"])):
         return context
     import pandas as pd
