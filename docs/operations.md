@@ -8,6 +8,7 @@
 - [Windows·WSL 접속 유지](#local-runtime)
 - [작업 복구와 실행기](#job-recovery)
 - [실거래 주기 갱신](#transaction-refresh)
+- [아파트 AVM 매달 재학습](#avm-retrain)
 
 <a id="administration"></a>
 
@@ -298,3 +299,19 @@ sh scripts/compose.sh local --profile maintenance up -d --build
 ```
 
 `TRANSACTION_REFRESH_INTERVAL_HOURS`, `TRANSACTION_REFRESH_MONTHS`, `TRANSACTION_REFRESH_WORKERS`, `TRANSACTION_REFRESH_SIDO`로 요청량을 조절한다. 처음 활성화할 때는 계획 작업 수와 국토부 API 할당량을 확인한다. 한 번의 배치가 실패하면 오류를 기록하고 다음 주기에 다시 시도하며, 수집 실패를 빈 거래월로 저장하지 않는다. 매물 원문 수집과 법령 코퍼스 갱신은 이 서비스에 포함되지 않는다.
+
+<a id="avm-retrain"></a>
+
+## 아파트 AVM 매달 재학습
+
+`avm-retrain`도 `maintenance` 프로필 서비스다. 하루마다(`AVM_RETRAIN_CHECK_HOURS`, 기본 24) 새 완결월을 확인하고,
+있으면 12개월 롤링 평가(약 1시간, CPU 사용)와 사전 기준 판정 후 통과할 때만 아파트 모델을 교체한다. 교체 모델·이력·판정 보고서는
+Docker 볼륨 `avm_models`의 `r-apt/`·`history/`·`reports/`에 있다. API·작업 실행기는 이 볼륨을 읽기 전용으로 붙이고 재시작 없이 새 모델을 읽는다.
+
+```bash
+docker logs property_concierge-avm-retrain-1 --tail 20        # status: up_to_date / kept / deployed
+docker exec property_concierge-avm-retrain-1 python -m backend.tools.retrain_apartment_avm   --live-dir /app/data/models-live/r-apt --force --dry-run         # 교체 없이 평가·판정만
+```
+
+교체를 되돌리려면 `history/`의 이전 폴더를 `r-apt/`로 옮긴다(재시작 불필요). 볼륨을 지우면 이미지에 포함된 모델로 돌아간다.
+판정 기준 미달(`kept`)이 이어지면 보고서의 단계별 적중·지역 판정을 보고 원인을 확인한다. 기준을 낮춰 통과시키지 않는다.

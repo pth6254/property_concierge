@@ -287,6 +287,16 @@ python -m evaluation avm-rolling --segment apartment --regions <서울 25개 구
   이번에는 level 방식의 최저 5분위 적중(79.8%)이 price 방식(79.1%)보다 높아 서비스 산출물은 `--band-by level`이다.
 - 서비스 산출물(재학습): 학습 2024-10~2026-07, 보정 2026-08~09, 학습 자료 2026-09-30까지, `a1_hybrid_approved=true`, `band_by=level`, 비교사례 변수는 V4 지수.
 
+### R-APT 매달 재학습 (2026-10-12)
+
+`python -m backend.tools.retrain_apartment_avm --live-dir <폴더> [--force] [--dry-run]`. Compose에서는 `avm-retrain`(maintenance 프로필)이
+하루마다 확인한다(`AVM_RETRAIN_CHECK_HOURS`). 완결월은 직전 달이며, 학습 기준월이 그 달 이상이면 아무것도 하지 않는다.
+- 롤링 평가: 최근 12개월, 학습 창 최대 24개월(근거용 12개월은 그 앞에서 더 읽음). 위 롤링 평가와 같은 규칙·같은 사전 기준.
+- 교체 조건: ML 참고 추정(A2·A3)의 구간 적중·가격대별 적중·신뢰도 기준 통과. 미달이면 기존 모델 유지(`status=kept`).
+  A1 혼합 적용은 그 달의 A1 판정 결과를 manifest `a1_hybrid_approved`에 그대로 기록한다.
+- 최종 학습: 직전 2개월로 보정, `--band-by level`, 임시 폴더에 저장 → 해시 검증 → 라이브 폴더와 교체, 이전 모델은 `history/`.
+- API·작업 실행기는 manifest 수정 시각이 바뀌면 재시작 없이 새 모델을 읽는다. 라이브 모델이 없으면 이미지 모델을 쓴다.
+
 **과제 산출 패키지 `services/intelligence/avm/` (2026-10-12):** 외부 과제 규격(`python predict.py --input --output`)의 단독 실행기다.
 국토부 API 스냅샷(`data/`)·학습 모델(`model/`)·검증(`validation/`)을 함께 두며 서비스 DB·Spring에 연결하지 않는다.
 가격 모델 등록표는 복사하지 않고 `rh_avm/price_models.py`가 위 `backend/valuation/models`를 가져온다. 제출 묶음은 `python package.py`로

@@ -333,6 +333,10 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
   A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 현재 산출물은 두 기간 평가에서 기존 규칙보다
   일관되게 낫지 않아 `false`였으나, 시점 보정 V4 반영 후 12개월 롤링 평가(운영 규칙 대비 MAPE 5.48%→4.91%, 사전 기준 전부 통과)로 `true`가 됐다(2026-10-12). `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
   혼합 AVM 구간은 검증 구간 잔차의 분위수로 정한 참고 구간이다(`interval_basis=calibrated_holdout_quantiles`). 재학습·교체 시 같은 평가를 다시 통과한다.
+- **아파트 혼합 AVM은 매달 재학습한다** (2026-10-12, `backend/tools/retrain_apartment_avm.py`, Compose `avm-retrain` 유지보수 서비스).
+  새 완결월이 생기면 12개월 롤링 평가 → `rolling_avm.ACCEPTANCE` 판정 → ML 참고 추정 기준 통과 시에만 교체하고, A1 승인은 그 달 판정을 따른다.
+  교체 모델은 볼륨 `avm_models`(`AVM_APARTMENT_LIVE_DIR`)에 두고 이전 모델은 `history/`, 판정 보고서는 `reports/`에 남긴다.
+  볼륨이 비면 이미지의 `data/models/r-apt`를 쓴다. 판정 기준을 바꾸려면 결과를 보기 전에 바꾸고 그 사실을 문서에 남긴다.
 - **아파트 비교사례 시점 보정은 단지·면적대 고정효과 지수 + 최근 3개월 추세 연장(V4)이다** (2026-10-12, `backend/valuation/time_index.py`).
   사전 기준 비교에서 이전 운영 방식(부동산원 지수 + 미공표 구간 월 0.3%)보다 MAPE·편향이 낮았다. 지수를 만들 수 없으면 부동산원 방식으로 처리한다.
   혼합 모델의 비교사례 변수도 같은 지수를 쓴다. 지수를 바꾸면 모델을 다시 학습해야 한다(학습·운영 변수 불일치 방지).

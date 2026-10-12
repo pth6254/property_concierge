@@ -77,8 +77,11 @@ services:
       REQUIRE_INTERNAL_SERVICE_AUTH: "1"
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?32자 이상의 내부 인증키를 설정하세요}
       FORWARDED_ALLOW_IPS: 172.31.244.2
+      # 매달 재학습(avm-retrain)이 교체한 아파트 모델. 없으면 이미지에 포함된 data/models/r-apt를 쓴다.
+      AVM_APARTMENT_LIVE_DIR: /app/data/models-live/r-apt
     volumes:
       - ./backups:/app/backups:ro
+      - avm_models:/app/data/models-live:ro
     networks:
       default: {}
       core_bridge:
@@ -142,6 +145,9 @@ services:
       REDIS_URL: redis://redis:6379/0
       CORE_STORAGE_URL: http://core:8080
       INTERNAL_SERVICE_SECRET: ${INTERNAL_SERVICE_SECRET:?}
+      AVM_APARTMENT_LIVE_DIR: /app/data/models-live/r-apt
+    volumes:
+      - avm_models:/app/data/models-live:ro
     command: ["python", "-m", "api.job_worker"]
 
   # 외부 API 할당량을 고려해 명시적으로 활성화하는 주기 재수집기.
@@ -176,6 +182,26 @@ services:
       TRANSACTION_REFRESH_WORKERS: ${TRANSACTION_REFRESH_WORKERS:-2}
       TRANSACTION_REFRESH_SIDO: ${TRANSACTION_REFRESH_SIDO:-서울특별시}
     command: ["sh", "/app/scripts/run_transaction_refresh.sh"]
+
+  # 아파트 혼합 AVM 매달 재학습: 롤링 평가 → 사전 기준 판정 → 통과 시에만 모델 교체(이전 모델은 이력 보관).
+  avm-retrain:
+    profiles: ["maintenance"]
+    image: property_concierge_backend:latest
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
+      REDIS_URL: redis://redis:6379/0
+      AVM_APARTMENT_LIVE_DIR: /app/data/models-live/r-apt
+      AVM_RETRAIN_CHECK_HOURS: ${AVM_RETRAIN_CHECK_HOURS:-24}
+      AVM_RETRAIN_SIDO: ${AVM_RETRAIN_SIDO:-서울특별시}
+    volumes:
+      - avm_models:/app/data/models-live
+    command: ["sh", "/app/scripts/run_avm_retrain.sh"]
 
   database-backup:
     profiles: ["maintenance"]
@@ -247,3 +273,4 @@ networks:
 volumes:
   pgvector_data:
   redis_data:
+  avm_models:

@@ -24,13 +24,22 @@ from backend.valuation.segments.row_house import MarketIndex
 ENDPOINT = "RTMSDataSvcAptTrade"
 
 
-def model_dir() -> Path:
+def bundled_dir() -> Path:
     from concierge_workspace import REPO_ROOT
     return Path(os.getenv("AVM_APARTMENT_MODEL_DIR") or REPO_ROOT / "data" / "models" / "r-apt")
 
 
-@lru_cache(maxsize=1)
-def _loaded(directory: str):
+def model_dir() -> Path:
+    """매달 재학습(backend.tools.retrain_apartment_avm)이 교체한 모델이 있으면 그것을, 없으면 이미지에 포함된 모델을 쓴다."""
+    live = os.getenv("AVM_APARTMENT_LIVE_DIR")
+    if live and (Path(live) / "model.json").exists():
+        return Path(live)
+    return bundled_dir()
+
+
+@lru_cache(maxsize=2)
+def _loaded(directory: str, stamp: int = 0):
+    # stamp(manifest 수정 시각)가 바뀌면 다시 읽는다. 재학습 교체 후 API·작업 실행기를 재시작하지 않아도 새 모델을 쓴다.
     from backend.valuation import models as price_models
     try:
         model, manifest = price_models.load(Path(directory))
@@ -44,7 +53,9 @@ def _loaded(directory: str):
 
 
 def load_model():
-    return _loaded(str(model_dir()))
+    directory = model_dir()
+    manifest = directory / "model.json"
+    return _loaded(str(directory), manifest.stat().st_mtime_ns if manifest.exists() else 0)
 
 
 def _ym(day: date) -> str:
