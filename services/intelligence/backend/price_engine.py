@@ -684,6 +684,18 @@ def fetch_real_transaction_prices(
             )
         return _empty_price_data("최근 6개월 실거래 데이터 없음")
 
+    # ── 정책 검사용 고정 기간 원자료 ─────────────────────────────────────
+    # 단지 탐색은 거래가 처음 보이는 짧은 기간(3개월)에서 멈추고 표시용 표본도 10건으로 자른다.
+    # 그 결과만 정책 검사(최근 6개월)·참고 거래(12개월)에 넘기면 실제로 충분한 단지도 "비교사례 부족"이 됐다
+    # (반포자이 84㎡: 6개월 8건인데 3개월치만 전달). 같은 단지명·같은 동의 13개월 원자료를 시점수정 전 사본으로 따로 넘긴다.
+    comparable_pool: list[dict] = []
+    if matched_complex and category == "주거용":
+        names = {d.get("apt_name") for d in all_parsed}
+        source = _fetch_by_ymds(url, safe_key, lawd_code, _get_recent_deal_ymds(months=13, as_of=as_of), category)
+        from comparable_matching import normalized_name
+        comparable_pool = [dict(d) for d in source if d.get("apt_name") in names
+                           and (not region_3depth or normalized_name(d.get("dong")) == normalized_name(region_3depth))]
+
     # ── 결과 집계 ─────────────────────────────────────────────────────────
     # ── 정밀 필터 (호수 정보 있을 때만, 주거용 단지 매칭 후 적용) ─────────────────
     precision_label = ""
@@ -740,7 +752,7 @@ def fetch_real_transaction_prices(
     per_sqm   = round(sum(p / a for p, a in zip(prices, areas)) / len(areas)) if areas else 0
     samples   = all_parsed[:10]
 
-    for s in samples:
+    for s in samples + comparable_pool:
         s["apt_name_matched"] = apt_name_matched
         s["target_dong"] = region_3depth
         s["target_sigungu_code"] = lawd_code
@@ -770,6 +782,7 @@ def fetch_real_transaction_prices(
         "precision_filter": precision_label.strip(),
         "time_adj_rate":    time_adj_rate,
         "time_adj_applied": adj_months_avg > 0,
+        "comparable_pool":  comparable_pool,
     }
 
 

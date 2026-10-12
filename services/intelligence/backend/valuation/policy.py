@@ -125,7 +125,8 @@ def eligible_comparables(state, price_data):
     year, month = month_index // 12, month_index % 12 + 1
     start = date(year, month, min(as_of.day, calendar.monthrange(year, month)[1]))
     selected, seen = [], set()
-    for row in price_data.get("samples") or []:
+    pool = price_data.get("comparable_pool")
+    for row in pool or price_data.get("samples") or []:
         try:
             day = date(int(row["deal_year"]), int(row["deal_month"]), int(row["deal_day"]))
             match = comparable_match_level(row, matched_complex=price_data.get("apt_name_matched", ""),
@@ -143,6 +144,11 @@ def eligible_comparables(state, price_data):
     ok = len(selected) >= 5
     if not ok:
         assessment["reference_context"] = reference_context(price_data, target, as_of)
+    if ok and pool:
+        # 고정 기간 원자료는 시점수정 전 가격이다. 기존 비교 엔진과 같은 시점수정을 선택된 사례에만 적용한다.
+        from backend.price_engine import _apply_time_adjustment
+        selected.sort(key=lambda r: (int(r["deal_year"]), int(r["deal_month"]), int(r["deal_day"])), reverse=True)
+        selected, _ = _apply_time_adjustment([dict(r) for r in selected], "주거용", as_of.strftime("%Y%m%d"), price_data.get("used_region", ""))
     assessment["checks"].append({"code": "comparables", "status": "available" if ok else "missing", "source": "official_data",
         "message": f"최근 6개월·동일 단지·전용면적 ±10%의 중복 제외 비교사례 {len(selected)}건 / 산출 기준 5건",
         "reference_date": target["as_of_date"], "observed_at": None})
@@ -162,7 +168,8 @@ def reference_context(price_data, target, as_of, months=12, tolerance=.20, limit
     index = as_of.year * 12 + as_of.month - 1 - months
     start = date(index // 12, index % 12 + 1, 1)
     trades, seen = [], set()
-    for row in price_data.get("samples") or []:
+    # 참고 거래는 시점수정하지 않은 신고가를 보여준다. 고정 기간 원자료가 있으면 그것을 쓴다.
+    for row in price_data.get("comparable_pool") or price_data.get("samples") or []:
         try:
             day = date(int(row["deal_year"]), int(row["deal_month"]), int(row["deal_day"]))
             if (comparable_match_level(row, matched_complex=price_data.get("apt_name_matched", ""),

@@ -191,3 +191,46 @@ def test_jeonse_context_uses_same_complex_jeonse_only_and_flags_thin_samples():
     assert context["ratio_pct"] == round(480_000_000 / 84 / (80_000 * 10_000 / 84) * 100, 1)
     assert jeonse_context.build(data, target, date(2026, 1, 15), fetch=lambda lawd, ym: None) is None
     assert jeonse_context.build({**data, "apt_name_matched": ""}, target, date(2026, 1, 15), fetch=lambda *a: []) is None
+
+
+def test_policy_reads_fixed_window_pool_not_truncated_display_samples(monkeypatch):
+    """단지 탐색이 3개월에서 멈춰도 6개월 유효 거래로 판단한다(반포자이 84㎡ 6개월 8건이 '부족'으로 보류된 결함)."""
+    import backend.price_engine as engine
+    monkeypatch.setattr(engine, "_apply_time_adjustment", lambda rows, *args: ([{**r, "price": r["price"] + 1} for r in rows], 0.0))
+    value, data = state(), prices()
+    base = data["samples"][0]
+    data["comparable_pool"] = [{**base, "deal_year": 2025, "deal_month": month, "deal_day": 20, "transaction_ref": f"pool-{month}"}
+                               for month in (8, 9, 10, 11, 12)] + [{**base, "deal_day": 3, "transaction_ref": "pool-1"}]
+    data["samples"] = data["samples"][:2]
+    result = eligible_comparables(value, data)
+    assert result["count"] == 6
+    assert [r["transaction_ref"] for r in result["samples"]][:2] == ["pool-1", "pool-12"]
+    assert all(r["price"] == 80_001 for r in result["samples"])  # 선택된 사례에만 기존 시점수정 적용
+
+
+def test_reference_trades_use_unadjusted_pool_prices():
+    value, data = state(), prices()
+    data["comparable_pool"] = [dict(data["samples"][0], transaction_ref="raw", price=70_000)]
+    data["samples"] = [dict(data["samples"][0], price=99_000)]  # 시점수정된 표시용 표본
+    assert eligible_comparables(value, data) is None
+    reference = value["valuation_plan"]["reference_context"]
+    assert reference["trade_count"] == 1 and reference["trades"][0]["price_won"] == 700_000_000
+
+
+def test_price_engine_returns_thirteen_month_same_complex_pool(monkeypatch):
+    import backend.price_engine as engine
+    monkeypatch.setattr(engine, "MOLIT_API_KEY", "test-key")
+    monkeypatch.setattr(engine, "_apply_time_adjustment", lambda rows, *args: ([{**r, "price": r["price"] * 2} for r in rows], 0.0))
+    def row(ym, name="반포자이", dong="반포동", area=84.943):
+        return dict(apt_name=name, dong=dong, deal_year=int(ym[:4]), deal_month=int(ym[4:]), deal_day=10, price=500_000,
+                    area_sqm=area, floor="10", deal_ym=ym)
+    def fetch(url, key, lawd, ymds, category):
+        return [row(ym) for ym in ymds] + [row(ymds[-1], name="신반포자이", dong="잠원동"), row(ymds[-1], dong="잠원동")]
+    monkeypatch.setattr(engine, "_fetch_by_ymds", fetch)
+    data = engine.fetch_real_transaction_prices("주거용", "서초구", "아파트", apt_name="반포자이아파트", region_3depth="반포동",
+                                                area_sqm_exact=84.97, as_of="20261012", lawd_code="11650")
+    pool = data["comparable_pool"]
+    assert data["used_months"] == 3 and len(pool) == 13
+    assert {r["apt_name"] for r in pool} == {"반포자이"} and {r["dong"] for r in pool} == {"반포동"}
+    assert all(r["price"] == 500_000 for r in pool)  # 시점수정 전 원자료
+    assert all(s["price"] == 1_000_000 for s in data["samples"])  # 표시용 표본은 기존대로 시점수정
