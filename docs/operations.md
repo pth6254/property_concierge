@@ -313,5 +313,11 @@ docker logs property_concierge-avm-retrain-1 --tail 20        # status: up_to_da
 docker exec property_concierge-avm-retrain-1 python -m backend.tools.retrain_apartment_avm   --live-dir /app/data/models-live/r-apt --force --dry-run         # 교체 없이 평가·판정만
 ```
 
+같은 컨테이너가 재학습 전에 **공동주택 공시가격(호별)**을 VWorld `getApartHousingPriceAttr`로 이어서 수집한다
+(`backend.tools.ingest_apartment_unit_prices`, 올해와 이전 3년, 실행마다 호출 상한 `APT_UNIT_PRICE_MAX_CALLS` 기본 8,000).
+필지·연도별 상태는 `apartment_unit_price_fetches`에 남아 끝난 필지는 다시 부르지 않는다. 서울 아파트 실거래 필지 약 7,300곳 ×
+4개 연도로 약 3만 회이며 필지·연도당 호출은 약 1회다(2026-10-15 시험 20곳 기준). VWorld 일일 한도는 확인하지 못했으므로
+실패가 늘면 상한을 낮춘다. 이전 공공데이터포털 공시가격 API(PblntfPublicWrtPrcInfo)는 폐기돼 쓰지 않는다.
+
 교체를 되돌리려면 `history/`의 이전 폴더를 `r-apt/`로 옮긴다(재시작 불필요). 볼륨을 지우면 이미지에 포함된 모델로 돌아간다.
 판정 기준 미달(`kept`)이 이어지면 보고서의 단계별 적중·지역 판정을 보고 원인을 확인한다. 기준을 낮춰 통과시키지 않는다.

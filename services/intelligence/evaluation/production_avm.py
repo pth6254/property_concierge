@@ -83,7 +83,6 @@ def replay_one(target: dict, months: dict[str, list[dict]], lawd_code: str, regi
         for obj, name, replacement in [
             (price_engine, "MOLIT_API_KEY", "historical-replay"),
             (price_engine, "_fetch_by_ymds", historical_source),
-            (price_engine, "_fetch_by_official_price", lambda **kwargs: price_engine._empty_price_data("과거 공시가격 미보유")),
             (reb_index, "is_enabled", lambda: False),
             (agents, "_fetch_build_year", lambda state: (_integer(target.get("year_built")), "")),
             (agents, "search_nearby_facilities", lambda *args, **kwargs: {}),

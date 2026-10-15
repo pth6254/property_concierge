@@ -197,112 +197,6 @@ def _get_recent_deal_ymds(months: int = 3, as_of: str = "") -> list[str]:
 
 
 # ─────────────────────────────────────────
-#  공동주택 공시가격 API (실거래가 폴백)
-# ─────────────────────────────────────────
-
-OFFICIAL_PRICE_URL = (
-    "https://apis.data.go.kr/1613000"
-    "/PblntfPublicWrtPrcInfo/getPblntfPublicWrtPrcInfo"
-)
-
-REALIZATION_RATE = {
-    "아파트":     0.69,
-    "오피스텔":   0.69,
-    "연립다세대": 0.654,
-    "단독다가구": 0.536,
-}
-
-
-def _fetch_by_official_price(
-    lawd_code: str,
-    apt_name: str,
-    category_detail: str = "",
-    area_sqm: float = 0.0,
-) -> dict:
-    if not MOLIT_API_KEY:
-        return _empty_price_data("MOLIT_API_KEY 없음 (공시가격 조회 불가)")
-
-    safe_key  = MOLIT_API_KEY.replace("+", "%2B").replace("=", "%3D")
-    this_year = datetime.now().year
-
-    for year in [this_year, this_year - 1]:
-        query = (
-            f"serviceKey={safe_key}"
-            f"&LAWD_CD={lawd_code}"
-            f"&STDR_YEAR={year}"
-            f"&numOfRows=100"
-            f"&pageNo=1"
-        )
-        if apt_name:
-            query += f"&BLDG_NM={apt_name}"
-
-        try:
-            res = requests.get(f"{OFFICIAL_PRICE_URL}?{query}", timeout=10)
-            res.raise_for_status()
-            root  = ET.fromstring(res.text)
-
-            result_code = root.findtext(".//resultCode", "")
-            if result_code.lstrip("0") not in ("", "0"):
-                print(f"[official] API 오류: {result_code} - {root.findtext('.//resultMsg','')}")
-                continue
-
-            items = root.findall(".//item")
-            print(f"[official] {year}년 공시가격: {len(items)}건")
-
-            if not items:
-                continue
-
-            if area_sqm > 0:
-                items = [
-                    it for it in items
-                    if abs(float(it.findtext("excluUseAr", "0") or 0) - area_sqm) <= 10
-                ] or items
-
-            prices = []
-            for it in items:
-                prc_text = it.findtext("pblntfPrc", "") or ""
-                try:
-                    prc = int(prc_text.replace(",", "").strip())
-                    if prc > 0:
-                        prices.append(prc)
-                except ValueError:
-                    pass
-
-            if not prices:
-                continue
-
-            avg_official = sum(prices) // len(prices)
-            rate         = REALIZATION_RATE.get(category_detail, 0.69)
-            avg_est      = round(avg_official / rate)
-            per_sqm_est  = round(avg_est / area_sqm) if area_sqm > 0 else 0
-
-            print(f"[official] ✅ 공시가격 평균 {avg_official:,}만원 "
-                  f"/ 현실화율 {rate:.1%} "
-                  f"/ 추정 시세 {avg_est:,}만원")
-
-            return {
-                "avg":              avg_est,
-                "min":              round(avg_est * 0.90),
-                "max":              round(avg_est * 1.10),
-                "count":            len(prices),
-                "per_sqm_avg":      per_sqm_est,
-                "samples":          [],
-                "apt_name_matched": apt_name,
-                "used_months":      0,
-                "used_region":      "",
-                "source":           f"공시가격 역산 ({year}년 기준, 현실화율 {rate:.1%})",
-                "error":            "",
-            }
-
-        except requests.Timeout:
-            print(f"[official] {year}년 타임아웃")
-        except Exception as e:
-            print(f"[official] {year}년 오류: {e}")
-
-    return _empty_price_data("공시가격 조회 실패 (실거래·공시가격 모두 없음)")
-
-
-# ─────────────────────────────────────────
 #  국토부 실거래가 API
 # ─────────────────────────────────────────
 
@@ -550,7 +444,6 @@ def fetch_real_transaction_prices(
       1) 단지명 매칭 (3 → 6 → 12개월)
       2) 동 필터링 (3 → 6개월)
       3) 구 전체 (3 → 6개월)
-      4) 주거용 한정: 공시가격 역산 폴백
 
     lawd_code: 법정동코드 5자리. 지오코딩(sigungu_cd)에서 넘어오면 그대로 사용
                (전국 어디든 동작) — 없을 때만 지역명 테이블 조회 폴백.
@@ -672,17 +565,11 @@ def fetch_real_transaction_prices(
                 break
             print(f"[molit] {months}개월 데이터 없음 → 기간 확장")
 
-    # ── 실거래 없음 → 공시가격 폴백 (주거용만) ──────────────────────────────
+    # ── 실거래 없음 ─────────────────────────────────────────────────────
+    # 예전에는 공시가격을 고정 현실화율(아파트 69%)로 나눠 가격을 역산했다. 근거가 약하고 원천 API(PblntfPublicWrtPrcInfo)도
+    # 폐기됐다(2026-10-15 확인: "서비스가 없거나 폐기됨"). 실거래가 없으면 가격을 만들지 않는다.
     if not all_parsed:
-        if category == "주거용":
-            print("[molit] 실거래 없음 → 공시가격 폴백 시도")
-            return _fetch_by_official_price(
-                lawd_code       = lawd_code,
-                apt_name        = apt_clean,
-                category_detail = category_detail,
-                area_sqm        = 0.0,
-            )
-        return _empty_price_data("최근 6개월 실거래 데이터 없음")
+        return _empty_price_data("최근 실거래 데이터 없음")
 
     # ── 정책 검사용 고정 기간 원자료 ─────────────────────────────────────
     # 단지 탐색은 거래가 처음 보이는 짧은 기간(3개월)에서 멈추고 표시용 표본도 10건으로 자른다.

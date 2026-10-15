@@ -12,6 +12,9 @@ case "$interval_hours" in
 esac
 
 while true; do
+  # 공동주택 공시가격(호별)을 하루 호출 상한 안에서 이어서 수집한다. 실패해도 재학습은 계속한다.
+  python -m backend.tools.ingest_apartment_unit_prices --sido "$sido" --max-calls "${APT_UNIT_PRICE_MAX_CALLS:-8000}" || \
+    echo "공동주택 공시가격 수집 실패: 다음 주기에 이어서 시도합니다" >&2
   python -m backend.tools.retrain_apartment_avm --live-dir "$live_dir" --sido "$sido" || \
     echo "아파트 AVM 재학습 실패: 기존 모델을 유지하고 다음 주기에 다시 시도합니다" >&2
   sleep "$((interval_hours * 3600))"

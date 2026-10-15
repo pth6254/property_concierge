@@ -440,6 +440,48 @@ class Transaction(Base):
     )
 
 
+class ApartmentUnitPrice(Base):
+    """국토교통부 공동주택 공시가격(호별, VWorld getApartHousingPriceAttr). 금액은 원.
+
+    같은 단지·면적 안에서 층·동·향에 따른 호별 가격 차이를 정부가 매긴 상대값이다. 시장가격이 아니므로
+    가격을 직접 만들지 않고, 실거래 대비 비율을 보정·모델 변수로만 쓴다(평가로 개선을 확인한 뒤).
+    """
+    __tablename__ = "apartment_unit_prices"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    pnu: Mapped[str] = mapped_column(String(19), nullable=False)
+    stdr_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    aphus_code: Mapped[str] = mapped_column(String(20), nullable=False)
+    aphus_name: Mapped[str | None] = mapped_column(String(100), default=None)
+    dong_name: Mapped[str] = mapped_column(String(50), default="", nullable=False)
+    ho_name: Mapped[str] = mapped_column(String(50), default="", nullable=False)
+    floor_name: Mapped[str | None] = mapped_column(String(20), default=None)
+    exclusive_area: Mapped[float | None] = mapped_column(Float, default=None)
+    official_price: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    ld_code: Mapped[str | None] = mapped_column(String(10), default=None)
+    lot_number: Mapped[str | None] = mapped_column(String(20), default=None)
+    source_updated: Mapped[str | None] = mapped_column(String(20), default=None)
+    fetched_at: Mapped[float] = mapped_column(Float, nullable=False)
+
+    __table_args__ = (
+        Index("uq_apt_unit_price", "pnu", "stdr_year", "aphus_code", "dong_name", "ho_name", unique=True),
+        Index("idx_apt_unit_price_pnu_year", "pnu", "stdr_year"),
+    )
+
+
+class ApartmentUnitPriceFetch(Base):
+    """필지·기준연도별 수집 상태. 하루 호출 상한으로 끊겨도 끝난 필지를 다시 부르지 않고 이어서 수집한다."""
+    __tablename__ = "apartment_unit_price_fetches"
+
+    pnu: Mapped[str] = mapped_column(String(19), primary_key=True)
+    stdr_year: Mapped[int] = mapped_column(Integer, primary_key=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, index=True)   # done / empty / failed
+    total_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    row_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    fetched_at: Mapped[float] = mapped_column(Float, nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text, default=None)
+
+
 class IngestLog(Base):
     __tablename__ = "ingest_log"
 

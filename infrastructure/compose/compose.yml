@@ -199,6 +199,7 @@ services:
       AVM_APARTMENT_LIVE_DIR: /app/data/models-live/r-apt
       AVM_RETRAIN_CHECK_HOURS: ${AVM_RETRAIN_CHECK_HOURS:-24}
       AVM_RETRAIN_SIDO: ${AVM_RETRAIN_SIDO:-서울특별시}
+      APT_UNIT_PRICE_MAX_CALLS: ${APT_UNIT_PRICE_MAX_CALLS:-8000}
     volumes:
       - avm_models:/app/data/models-live
     command: ["sh", "/app/scripts/run_avm_retrain.sh"]
