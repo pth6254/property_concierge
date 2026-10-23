@@ -20,6 +20,8 @@ from pathlib import Path
 
 ENDPOINT = "RTMSDataSvcAptTrade"
 TRAIN_HISTORY_MONTHS = 24     # 학습 창 상한(완결월 기준 24개월). 근거용 12개월은 그 앞에서 더 읽는다.
+# 서비스 변수 묶음. 2026-10-24 롤링 평가에서 공시가격 변수(@official)가 사전 채택 기준(FEATURE_ADOPTION)을 통과했다.
+SERVICE_SPEC = "catboost@official"
 
 
 def shift(ym: str, months: int) -> str:
@@ -94,11 +96,11 @@ def run(live: Path, regions: tuple[str, ...], today: date, force: bool = False, 
         return {"status": "up_to_date", "trained_through": trained, "last_complete_month": last}
     months = plan_months(earliest or _earliest_month(regions), last)
     base = segment_avm.SegmentConfig(regions, months["train_start"], months["train_start"], months["train_start"], months["train_start"],
-                                     models=("catboost",), segment="apartment", interval=.85)
+                                     models=(SERVICE_SPEC,), segment="apartment", interval=.85)
     rows = load(regions, shift(months["train_start"], -12), last, ENDPOINT)
     report = evaluate(rows, "apartment", rolling_avm.months_between(months["test_from"], months["test_to"]), months["train_start"],
-                      ("catboost",), base, progress=lambda message: print(message, flush=True))
-    verdict = report["models"]["catboost"]["verdict"]
+                      (SERVICE_SPEC,), base, progress=lambda message: print(message, flush=True))
+    verdict = report["models"][SERVICE_SPEC]["verdict"]
     decision = decide(verdict)
     summary = {"status": "evaluated", "last_complete_month": last, "months": months, "decision": decision,
                "a1_checks": verdict["a1_hybrid"]["checks"]}
@@ -111,7 +113,7 @@ def run(live: Path, regions: tuple[str, ...], today: date, force: bool = False, 
     if not decision["deploy"] or dry_run:
         return summary | {"status": "kept" if not decision["deploy"] else "dry_run", "report": str(report_path)}
     config = replace(base, validation_start=months["final_validation_start"], test_start="999999", test_end=last, band_by="level")
-    model, meta = train(rows, config, "catboost")
+    model, meta = train(rows, config, SERVICE_SPEC)
     staging = live.parent / f".staging-{stamp}"
     from backend.valuation import models as price_models
     price_models.save(model, staging, meta | {"deployment": "service", "regions": list(regions),

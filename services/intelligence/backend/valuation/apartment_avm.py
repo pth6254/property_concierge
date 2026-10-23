@@ -68,7 +68,9 @@ def _rows(lawd: str, start: str, end: str) -> list[dict]:
     from db.models import Transaction
     columns = [Transaction.id, Transaction.lawd_cd, Transaction.deal_year, Transaction.deal_month, Transaction.deal_day,
                Transaction.price, Transaction.area_sqm, Transaction.floor, Transaction.year_built, Transaction.dong,
-               Transaction.apt_name, Transaction.transaction_type, Transaction.is_cancelled]
+               Transaction.apt_name, Transaction.transaction_type, Transaction.is_cancelled,
+               # 공시가격 변수(PNU)에 필요하다. 빠지면 변수가 전부 결측이 되어 학습과 다른 입력으로 추정한다(2026-10-24 실제 발생).
+               Transaction.jibun]
     with get_engine().connect() as connection:
         with connection.begin():
             connection.execute(text("SET TRANSACTION READ ONLY"))
@@ -174,8 +176,24 @@ def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | N
     subject = apt.Subject(lawd, dong.strip(), key, float(area), floor, None, as_of)
     # 기준일 당일 신고까지 근거로 쓴다. 평가에서는 대상 거래일 이전만 쓰므로 하루 뒤를 기준으로 둔다.
     evidence = comps.evidence(subject, as_of=as_of + timedelta(days=1))
+    floor_note = ""
+    if floor is None and unit_ho:
+        # 호수 앞자리가 층이다(2503 → 25층). 사용자 입력이므로 근거에 그 사실을 남긴다.
+        digits = "".join(ch for ch in unit_ho if ch.isdigit())
+        if len(digits) >= 3 and int(digits[:-2]) > 0:
+            floor = int(digits[:-2])
+            subject = apt.Subject(lawd, dong.strip(), key, float(area), floor, None, as_of)
+            floor_note = f" · 층: 입력한 호수에서 {floor}층으로 읽음"
+    if floor is None:
+        # 학습 거래에는 층이 항상 있다. 층을 모르는 채로 넣으면 모델이 결측을 가장 낮은 값처럼 다뤄 체계적으로 낮게 추정했다.
+        # 비교사례의 중앙 층을 대표 호실로 가정하고 그 사실을 근거에 남긴다.
+        floors = sorted(t.floor for t in evidence.used if t.floor is not None)
+        if floors:
+            floor = floors[len(floors) // 2]
+            subject = apt.Subject(lawd, dong.strip(), key, float(area), floor, None, as_of)
+            floor_note = f" · 층 미입력: 비교사례 중앙 층({floor}층) 기준"
     calibration = manifest.get("calibration") or {}
-    context = {"level": evidence.level, "basis": evidence.basis, "complex": key.split("|", 2)[2],
+    context = {"level": evidence.level, "basis": evidence.basis + floor_note, "complex": key.split("|", 2)[2],
                "counts": {"a1": evidence.a1_count, "a2": evidence.a2_count, "complex_other_area": evidence.cx_count, "dong_similar": evidence.dong_count},
                "model": manifest["model"], "model_version": manifest.get("model_version"), "trained_through": manifest.get("trained_through"),
                "interval": calibration.get("interval"), "hybrid_approved": bool(manifest.get("a1_hybrid_approved")),

@@ -21,7 +21,7 @@ def _verdict(estimate_pass=True, a1=True):
 def _fake_evaluate(verdict):
     def evaluate(rows, segment, months, train_start, models, base, progress=print):
         evaluate.called = {"months": months, "train_start": train_start}
-        return {"models": {"catboost": {"verdict": verdict}}, "monthly": [], "rows": {}}
+        return {"models": {retrain.SERVICE_SPEC: {"verdict": verdict}}, "monthly": [], "rows": {}}
     return evaluate
 
 

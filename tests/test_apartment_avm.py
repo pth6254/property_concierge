@@ -19,7 +19,7 @@ def _rows(complex_trades, as_of=date(2026, 10, 1), other=()):
         nonlocal next_id
         rows.append(dict(id=next_id, lawd_cd="11650", deal_year=day.year, deal_month=day.month, deal_day=day.day, price=price,
                          area_sqm=area, floor=str(floor), year_built=year, dong=dong, apt_name=name, transaction_type="중개거래",
-                         is_cancelled=False))
+                         is_cancelled=False, jibun="20-43" if name == "반포자이" else "1"))
         next_id += 1
     for days_ago, area, price in complex_trades:
         add("반포자이", as_of - timedelta(days=days_ago), area, price)
@@ -188,3 +188,21 @@ def test_unapproved_a1_hybrid_keeps_rule_price_and_says_why(monkeypatch):
     assessment = policy.finalize({**value, "analysis_result": val})["analysis_result"]["valuation"]
     assert assessment["model_status"] == "not_used" and assessment["methods"][1]["status"] == "not_applicable"
     assert assessment["model_context"]["level"] == "A1" and not assessment["model_context"]["applied"]
+
+
+def test_runtime_selects_jibun_so_official_features_are_not_silently_missing():
+    """운영 조회가 지번을 빠뜨리면 공시가격 변수가 전부 결측이 되어 학습과 다른 입력이 된다(2026-10-24 실제 결함)."""
+    import inspect
+    assert "Transaction.jibun" in inspect.getsource(apartment_avm._rows)
+
+
+def test_runtime_uses_comparables_median_floor_when_floor_is_unknown(runtime):
+    runtime.setattr(apartment_avm, "_rows", lambda *args: _rows([(d, 84.9, 480_000) for d in (0, 30, 60, 90, 120)]))
+    result = apartment_avm.estimate("11650", "반포동", ["반포자이"], 84.97, None, date(2026, 10, 1))
+    assert "층 미입력: 비교사례 중앙 층(10층) 기준" in result["basis"]
+
+
+def test_runtime_reads_floor_from_entered_ho_before_falling_back(runtime):
+    runtime.setattr(apartment_avm, "_rows", lambda *args: _rows([(d, 84.9, 480_000) for d in (0, 30, 60, 90, 120)]))
+    result = apartment_avm.estimate("11650", "반포동", ["반포자이"], 84.97, None, date(2026, 10, 1), unit_dong="134", unit_ho="2503호")
+    assert "입력한 호수에서 25층으로 읽음" in result["basis"]
