@@ -96,7 +96,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     evidence.stages.push('live_avm_saved_to_candidate');
     if(decisionFlow){
       await page.goto(`/cases/${caseId}`);
-      await page.getByRole('link').filter({hasText:'자금 분석'}).click();
+      await page.locator(`#candidate-${candidate.id}`).getByRole('link').filter({hasText:'자금 분석'}).click();  // 진행 안내에도 같은 이름 링크가 있어 후보 카드 안의 것을 누른다
       await page.getByLabel('보유 현금 (원)',{exact:true}).fill('20억');
       await page.getByLabel('월 대출 상환 한도 (원)',{exact:true}).fill('1000만');
       await page.getByPlaceholder('예: 8000만').fill('3억');
@@ -111,7 +111,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
       if(otherCalculation.status()!==200)throw Error('두 번째 후보 계산 실패');
       await page.goto(`/cases/${caseId}/comparison`);
       await page.getByRole('button',{name:'이 후보를 최종 선택',exact:true}).first().click();
-      await page.locator('textarea').fill('검증용 선택: 실제 AVM·자금 결과를 비교했으며 권리서류 미확인 상태를 인지함');
+      await page.getByLabel('최종 후보 선택 근거',{exact:true}).fill('검증용 선택: 실제 AVM·자금 결과를 비교했으며 권리서류 미확인 상태를 인지함');
       await page.getByRole('button',{name:'선택 저장',exact:true}).click();
       await page.getByText('최종 선택과 근거가 저장되었습니다. 남은 확인 사항은 거래 준비에서 이어가세요.',{exact:true}).waitFor();
       await page.reload();
