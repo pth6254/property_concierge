@@ -60,6 +60,15 @@ DB custom-format 백업을 생성하고 `pg_restore --list`로 파일을 확인�
 목록 읽기 성공은 실제 복원 성공과 다르다. 기존 격리 복원 절차를 주기적으로 수행하고,
 백업을 다른 호스트에도 보관해야 한다. 자동 삭제는 하지 않는다.
 
+호스트 재시작 직후 DB가 기동 중일 때 백업이 실패하고 하루를 기다리던 결함이 있었다(2026-09-30~10-23 실패 28회,
+성공 백업 간격 최대 11일). 이제 `pg_isready`로 DB를 기다린 뒤 백업하고, 실패하면 `BACKUP_RETRY_SECONDS`(기본 10분) 뒤 다시 시도하며
+빈 `.partial` 파일은 지운다.
+
+**복구 리허설:** `bash scripts/restore_db.sh --check backups/<덤프>.dump`는 서비스 DB를 바꾸지 않고 점검용 DB
+`real_estate_restore_check`에 복원해 주요 테이블 건수를 서비스 DB와 나란히 보여주고 지운다. 2026-10-24 로컬 기록:
+99MB 덤프 복원 30초, users·transactions(299,304)·legal_regions(20,560) 등 일치(공시가격은 백업 이후 수집분만 차이).
+운영 서버에서도 배포 전과 정기적으로 실행한다.
+
 ```bash
 sh scripts/compose.sh dev --profile maintenance up -d database-backup
 # 도메인 DNS와 공개 서버가 준비된 후 development override 없이 실행
