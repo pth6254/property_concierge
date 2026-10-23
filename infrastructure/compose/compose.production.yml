@@ -13,6 +13,9 @@ services:
     environment:
       APP_ENV: production
       COOKIE_SAMESITE: lax
+      # Google 로그인 콜백·비밀번호 재설정 링크는 Spring이 만든다. .env의 localhost 값이 운영에 남지 않도록 도메인으로 고정한다.
+      FRONTEND_URL: https://${SERVICE_DOMAIN:?}
+      GOOGLE_REDIRECT_URI: https://${SERVICE_DOMAIN:?}/api/auth/google/callback
   gateway:
     environment:
       SERVICE_DOMAIN: ${SERVICE_DOMAIN:?}
