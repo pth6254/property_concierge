@@ -126,7 +126,29 @@ def _resolve_complex(comps: apt.ComparableIndex, lawd: str, dong: str, names: li
     return None
 
 
-def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | None, as_of: date) -> dict | None:
+def _official_for_subject(trades_of_complex, evidence, lawd: str, subject, unit_dong: str, unit_ho: str) -> dict | None:
+    """모델이 공시가격 변수를 쓸 때만 대상·비교사례 필지의 호실 공시가격을 읽는다. 실패하면 결측(NaN)으로 둔다."""
+    try:
+        from collections import Counter
+        from backend.valuation import official_price
+        jibuns = Counter(t.jibun for t in trades_of_complex if t.jibun)
+        target = apt.Subject(subject.lawd, subject.dong, subject.complex, subject.area, subject.floor, subject.year_built, subject.day,
+                             jibun=jibuns.most_common(1)[0][0] if jibuns else "")
+        pnu_of = official_price.make_pnu_of(official_price.dong_codes([lawd]))
+        target_pnu = pnu_of(target)
+        pnus = {p for p in [target_pnu, *(pnu_of(t) for t in evidence.used)] if p}
+        if not pnus:
+            return None
+        prices = official_price.load(pnus=pnus, aggregate=False)
+        return official_price.official_features(prices, pnu_of, target_pnu, subject.day, subject.floor, subject.area, evidence.used,
+                                                dong=unit_dong, ho=unit_ho)
+    except Exception as exc:
+        print(f"[apartment-avm] 공시가격 변수 생략: {type(exc).__name__}")
+        return None
+
+
+def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | None, as_of: date,
+             unit_dong: str = "", unit_ho: str = "") -> dict | None:
     """대상 한 건의 근거 단계·추정가·구간·신뢰도. 모델을 쓸 수 없으면 None."""
     loaded = load_model()
     if loaded is None or not lawd or not dong or not area or area <= 0:
@@ -162,8 +184,12 @@ def estimate(lawd: str, dong: str, names: list[str], area: float, floor: int | N
     if evidence.level in set(manifest.get("withheld_levels", ["A4"])):
         return context
     import pandas as pd
+    official = None
+    if "official_gap" in (manifest.get("features") or {}).get("numeric", []):
+        # 사용자 입력 동·호는 공시가격 호실을 찾는 데만 쓴다. 공식 호실 확인으로 표시하지 않는다.
+        official = _official_for_subject(comps.by_complex.get(key, []), evidence, lawd, subject, unit_dong, unit_ho)
     values = apt.features(subject, evidence, index, int(manifest["feature_origin_month"]), direct=False,
-                          year_built=comps.complex_year(key))
+                          year_built=comps.complex_year(key), official=official)
     predicted = float(model.predict(pd.DataFrame([values]))[0])
     weight = float((calibration.get("weights") or {}).get(evidence.level, 0.0))
     comp = evidence.estimate

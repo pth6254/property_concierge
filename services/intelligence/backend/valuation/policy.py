@@ -197,7 +197,8 @@ def model_estimate(state, price_data, lawd="", dong="", floor=None):
         from backend.valuation import apartment_avm
         result = apartment_avm.estimate(price_data.get("target_sigungu_code") or lawd, price_data.get("target_dong") or dong,
                                         [price_data.get("apt_name_matched", ""), target.get("building_name", "")],
-                                        target.get("area_sqm") or 0, floor, date.fromisoformat(target["as_of_date"]))
+                                        target.get("area_sqm") or 0, floor, date.fromisoformat(target["as_of_date"]),
+                                        unit_dong=target.get("dong") or "", unit_ho=target.get("ho") or "")
     except Exception as exc:  # 모델 경로의 실패가 기존 비교사례 결과를 막지 않게 한다.
         print(f"[apartment-avm] 실행 생략: {type(exc).__name__}")
         return None

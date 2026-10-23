@@ -36,6 +36,32 @@ ACCEPTANCE = {
 }
 
 
+# 2026-10-23, 공동주택 공시가격 변수(catboost@official) 롤링 결과를 보기 전에 정한 채택 기준. 비교 대상은 같은 실행의 현재 모델(첫 모델).
+FEATURE_ADOPTION = {
+    "min_relative_improvement": .03,     # 산출 거래 전체(A1~A3) MAPE 3% 이상 개선
+    "a1_max_worse_pp": .001,             # A1 MAPE가 0.1%p 넘게 나빠지지 않음
+    "region_min_n": 100, "region_margin_pp": .01,   # 표본 100건 이상 구 중 1.0%p 넘게 나빠진 구 없음
+}
+
+
+def compare_feature_sets(report: dict, base: str, candidate: str) -> dict:
+    """같은 거래·같은 기간에서 후보 변수 묶음이 현재 모델보다 나은지 FEATURE_ADOPTION으로 판정한다."""
+    rule = FEATURE_ADOPTION
+    old, new = report["models"][base]["summary"]["model"], report["models"][candidate]["summary"]["model"]
+    improvement = 1 - new["all"]["mape"] / old["all"]["mape"]
+    a1_delta = new.get("A1", {}).get("mape", 0) - old.get("A1", {}).get("mape", 0)
+    worse = {k[7:]: (new[k]["mape"], old[k]["mape"]) for k in old if k.startswith("region:") and old[k]["n"] >= rule["region_min_n"]
+             and k in new and new[k]["mape"] > old[k]["mape"] + rule["region_margin_pp"]}
+    estimate = report["models"][candidate]["verdict"]["model_estimate"]["level"]
+    estimate_ok = (all(v["pass"] for v in estimate["coverage"].values()) and estimate["price_band_coverage"]["pass"]
+                   and all(v["pass"] for v in estimate["calibration"].values()))
+    checks = {"relative_improvement": {"value": round(improvement, 4), "pass": improvement >= rule["min_relative_improvement"]},
+              "a1": {"delta_pp": round(a1_delta, 4), "pass": a1_delta <= rule["a1_max_worse_pp"]},
+              "regions": {"worse": worse, "pass": not worse},
+              "model_estimate_criteria": {"pass": estimate_ok}}
+    return {"base": base, "candidate": candidate, "checks": checks, "adopt": all(c["pass"] for c in checks.values())}
+
+
 def months_between(start: str, end: str) -> list[str]:
     index, last, out = int(start[:4]) * 12 + int(start[4:]) - 1, int(end[:4]) * 12 + int(end[4:]) - 1, []
     while index <= last:
@@ -161,6 +187,8 @@ def evaluate(rows: list[dict], segment: str, test_months: list[str], train_start
         summary = summarize(per_model[spec], rules, edges, levels)
         report["models"][spec] = {"summary": summary, "verdict": judge(summary, test_months, levels),
                                   "produced_rate": round(len(per_model[spec]) / max(sum(m["test_rows"] for m in monthly if m["model"] == spec), 1), 4)}
+    if len(models) > 1:
+        report["feature_comparison"] = [compare_feature_sets(report, models[0], spec) for spec in models[1:]]
     report["rule_produced_rate"] = round(len(rules) / max(sum(m["test_rows"] for m in monthly if m["model"] == models[0]), 1), 4)
     # 비교 기준선은 현재 운영 규칙(V4 지수)이다. 이전 운영(부동산원 지수 + 월 0.3%) 성적은 참고로만 남긴다.
     report["rule_reb_reference"] = {"all": _metrics([r["error"] for r in rules_reb])} if rules_reb else None
@@ -201,5 +229,6 @@ def run(args) -> int:
             for item in items:
                 handle.write(json.dumps({"source": name, **{k: v for k, v in item.items() if k != "basis"}}, ensure_ascii=False, default=str) + "\n")
     print(json.dumps({spec: {"produced_rate": value["produced_rate"], "verdict": value["verdict"]} for spec, value in report["models"].items()}
-                     | {"rule_produced_rate": report["rule_produced_rate"], "report": str(directory / "result.json")}, ensure_ascii=False, indent=1, default=str))
+                     | {"rule_produced_rate": report["rule_produced_rate"], "feature_comparison": report.get("feature_comparison"),
+                        "report": str(directory / "result.json")}, ensure_ascii=False, indent=1, default=str))
     return 0

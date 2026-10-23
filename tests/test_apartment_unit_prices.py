@@ -23,6 +23,14 @@ def test_run_stops_at_call_budget_and_reports_remaining():
     assert result["calls"] >= 6 and result["remaining"] == 10 - len(calls) and result["remaining"] > 0
 
 
+def test_run_stops_after_consecutive_failures():
+    def failing(*args):
+        raise RuntimeError("HTTP 429")
+    result = ingest.run([(f"p{i}", 2026) for i in range(200)], "k", "d", max_calls=10_000, workers=2, fetcher=failing,
+                        saver=lambda *args: 0)
+    assert result["stopped"] and result["remaining"] > 0 and result["failed"] < 200
+
+
 def test_store_upserts_units_and_records_status():
     with get_engine().begin() as connection:
         connection.execute(text("DELETE FROM apartment_unit_prices WHERE pnu = '1165010700100200043'"))

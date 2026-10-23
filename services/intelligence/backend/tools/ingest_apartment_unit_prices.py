@@ -124,11 +124,17 @@ def store(pnu: str, year: int, items: list[dict], total: int, error: str | None 
     return len(rows)
 
 
+STOP_AFTER_CONSECUTIVE_FAILURES = 40
+
+
 def run(jobs: list[tuple[str, int]], key: str, domain: str, max_calls: int, workers: int = 4, fetcher=fetch, saver=store) -> dict:
-    """호출 상한 안에서 필지·연도를 수집한다. 상한에 닿으면 남은 작업은 다음 실행으로 넘긴다."""
-    counts = {"done": 0, "empty": 0, "failed": 0, "calls": 0, "rows": 0, "remaining": 0}
-    index = 0
-    while index < len(jobs) and counts["calls"] < max_calls:
+    """호출 상한 안에서 필지·연도를 수집한다. 상한에 닿으면 남은 작업은 다음 실행으로 넘긴다.
+
+    VWorld 일일 한도는 문서로 확인하지 못했다. 연속 실패가 이어지면 한도·장애로 보고 멈춘다(실패 기록은 다음 실행에 다시 시도).
+    """
+    counts = {"done": 0, "empty": 0, "failed": 0, "calls": 0, "rows": 0, "remaining": 0, "stopped": None}
+    index, streak = 0, 0
+    while index < len(jobs) and counts["calls"] < max_calls and streak < STOP_AFTER_CONSECUTIVE_FAILURES:
         # 한 묶음에서 쓸 수 있는 호출 수만큼만 보낸다(필지 한 곳은 보통 1~3쪽).
         batch = jobs[index:index + max(1, min(workers * 4, max_calls - counts["calls"]))]
         index += len(batch)
@@ -145,8 +151,11 @@ def run(jobs: list[tuple[str, int]], key: str, domain: str, max_calls: int, work
                 stored = saver(pnu, year, items, total, error)
                 counts["rows"] += stored
                 counts["failed" if error else "done" if stored else "empty"] += 1
+                streak = streak + 1 if error else 0
         print(f"진행 {index}/{len(jobs)} · 호출 {counts['calls']} · 저장 {counts['rows']}행 · 실패 {counts['failed']}", flush=True)
     counts["remaining"] = len(jobs) - index
+    if streak >= STOP_AFTER_CONSECUTIVE_FAILURES:
+        counts["stopped"] = f"연속 실패 {streak}건 — 호출 한도 또는 원천 장애로 보고 중단"
     return counts
 
 

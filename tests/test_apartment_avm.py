@@ -135,7 +135,7 @@ def test_below_public_rule_becomes_model_estimate_not_market_price(monkeypatch):
     value, data = state(), prices()
     data["samples"] = data["samples"][:2]
     assert policy.eligible_comparables(value, data) is None
-    monkeypatch.setattr(apartment_avm, "estimate", lambda *args: dict(CONTEXT))
+    monkeypatch.setattr(apartment_avm, "estimate", lambda *args, **kwargs: dict(CONTEXT))
     context = policy.model_estimate(value, data)
     result = policy.model_result(value, context)["analysis_result"]
     assessment = result["valuation"]
@@ -153,7 +153,7 @@ def test_below_public_rule_becomes_model_estimate_not_market_price(monkeypatch):
 def test_public_rule_hybrid_replaces_rule_estimate_and_records_model(monkeypatch):
     from backend.valuation import policy
     value, data = state(), prices()
-    monkeypatch.setattr(apartment_avm, "estimate", lambda *args: dict(CONTEXT, level="A1", comparable_weight=.25, hybrid_approved=True))
+    monkeypatch.setattr(apartment_avm, "estimate", lambda *args, **kwargs: dict(CONTEXT, level="A1", comparable_weight=.25, hybrid_approved=True))
     assert policy.eligible_comparables(value, data)["count"] == 5
     policy.model_estimate(value, data)
     val = policy.apply_hybrid({"estimated_value": 80_000, "value_min": 72_000, "value_max": 88_000, "price_per_sqm": 952}, value["valuation_plan"], 84)
@@ -167,7 +167,7 @@ def test_public_rule_hybrid_replaces_rule_estimate_and_records_model(monkeypatch
 def test_without_model_artifact_existing_rules_are_unchanged(monkeypatch):
     from backend.valuation import policy
     value, data = state(), prices()
-    monkeypatch.setattr(apartment_avm, "estimate", lambda *args: None)
+    monkeypatch.setattr(apartment_avm, "estimate", lambda *args, **kwargs: None)
     policy.eligible_comparables(value, data)
     assert policy.model_estimate(value, data) is None
     val = {"estimated_value": 80_000, "value_min": 72_000, "value_max": 88_000}
@@ -180,7 +180,7 @@ def test_unapproved_a1_hybrid_keeps_rule_price_and_says_why(monkeypatch):
     """A1 혼합은 두 기간 평가에서 일관되게 낫지 않아 미승인이다. 미승인 산출물은 기존 비교 규칙 가격을 바꾸지 않는다."""
     from backend.valuation import policy
     value, data = state(), prices()
-    monkeypatch.setattr(apartment_avm, "estimate", lambda *args: dict(CONTEXT, level="A1", hybrid_approved=False))
+    monkeypatch.setattr(apartment_avm, "estimate", lambda *args, **kwargs: dict(CONTEXT, level="A1", hybrid_approved=False))
     policy.eligible_comparables(value, data)
     policy.model_estimate(value, data)
     val = {"estimated_value": 80_000, "value_min": 72_000, "value_max": 88_000}

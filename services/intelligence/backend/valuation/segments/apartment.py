@@ -47,6 +47,7 @@ class Trade:
     price: int            # 원
     year_built: int | None
     direct: bool
+    jibun: str = ""       # 공동주택 공시가격 조회(PNU)용 필지 번호
 
     @property
     def log_per_sqm(self) -> float:
@@ -77,7 +78,8 @@ def normalize(rows: list[dict]) -> list[Trade]:
         lawd, dong = str(row["lawd_cd"]), (row.get("dong") or "").strip()
         trade = Trade(id=int(row["id"]), lawd=lawd, dong=dong, complex=complex_key(lawd, dong, name), day=when,
                       floor=_int(row.get("floor")), area=float(area), price=int(price) * 10_000,  # 국토부 금액은 만원 단위
-                      year_built=_int(row.get("year_built")), direct=row.get("transaction_type") == "직거래")
+                      year_built=_int(row.get("year_built")), direct=row.get("transaction_type") == "직거래",
+                      jibun=(row.get("jibun") or "").strip())
         identity = (trade.complex, trade.day, trade.floor, trade.area, trade.price)
         if identity in seen:
             continue
@@ -98,6 +100,9 @@ class Subject:
     year_built: int | None
     day: date
     id: int = -1
+    jibun: str = ""
+    unit_dong: str = ""   # 사용자 입력 동·호(공시가격 호실 조회용). 공식 호실 확인이 아니다.
+    unit_ho: str = ""
 
 
 @dataclass
@@ -118,6 +123,7 @@ class Evidence:
     # 추정 근거로 쓴 거래의 기간. 실거래는 과거 거래이므로 화면에 근거가 얼마나 오래됐는지 함께 보여준다.
     first_day: date | None = None
     last_day: date | None = None
+    used: tuple = ()      # 추정 근거로 쓴 비교사례(공시가격 차이 변수용)
 
 
 class ComparableIndex:
@@ -180,17 +186,20 @@ class ComparableIndex:
                         cx_count=len(cx), cx_median=median(cx_values) if cx_values else None,
                         cx_area_ratio=median(t.area for t in cx) / target.area if cx else None,
                         dong_count=len(dong), dong_median=dong_median, basis=basis,
-                        first_day=min((t.day for t in used), default=None), last_day=max((t.day for t in used), default=None))
+                        first_day=min((t.day for t in used), default=None), last_day=max((t.day for t in used), default=None),
+                        used=tuple(used))
 
 
 CATEGORICAL = ("lawd", "dong", "complex")
 BASE_NUMERIC = ("floor", "area", "age", "month", "direct", "index_level")
 COMP_NUMERIC = ("a1_count", "a1_median", "a2_count", "a2_median", "last_days", "cx_count", "cx_median", "cx_area_ratio",
                 "dong_count", "dong_median", "comp_estimate", "block_median")
+# 공동주택 공시가격 상대값(backend/valuation/official_price.py). 평가로 개선을 확인한 뒤에만 서비스 변수 묶음에 넣는다.
+OFFICIAL_NUMERIC = ("official_premium", "official_level", "official_gap")
 
 
 def features(subject: Subject, evidence: Evidence, index: MarketIndex, origin: int, direct: bool = False,
-             year_built: int | None = None) -> dict:
+             year_built: int | None = None, official: dict | None = None) -> dict:
     """평가·운영이 같은 변수를 쓰도록 한 곳에서 만든다. block_median은 비교사례 기준선의 2순위(같은 동 유사 단지)다."""
     month = subject.day.year * 12 + subject.day.month - 1
     nz = lambda v: float("nan") if v is None else v
@@ -203,4 +212,4 @@ def features(subject: Subject, evidence: Evidence, index: MarketIndex, origin: i
         "a2_median": nz(evidence.a2_median), "last_days": nz(evidence.last_days), "cx_count": evidence.cx_count,
         "cx_median": nz(evidence.cx_median), "cx_area_ratio": nz(evidence.cx_area_ratio), "dong_count": evidence.dong_count,
         "dong_median": nz(evidence.dong_median), "comp_estimate": nz(evidence.estimate), "block_median": nz(evidence.dong_median),
-    }
+        } | {name: float("nan") for name in OFFICIAL_NUMERIC} | (official or {})

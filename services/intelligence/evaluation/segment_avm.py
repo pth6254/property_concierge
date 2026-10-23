@@ -24,6 +24,7 @@ from typing import Callable
 from backend.valuation import models as price_models
 from backend.valuation.segments import apartment as apt
 from backend.valuation.segments import row_house as rh
+from backend.valuation.official_price import official_features
 
 
 @dataclass(frozen=True)
@@ -65,6 +66,20 @@ def _rh_features(trade, evidence, index, origin, direct=None) -> dict:
     }
 
 
+def _official_for(trades):
+    """저장된 공동주택 공시가격이 있으면 읽는다. 없거나 읽을 수 없으면 공시가격 변수는 결측(NaN)이다."""
+    try:
+        from backend.valuation import official_price
+        lawds = sorted({t.lawd for t in trades})
+        official = official_price.load(lawds=lawds)
+        if not official.cells:
+            return None, None
+        return official, official_price.make_pnu_of(official_price.dong_codes(lawds))
+    except Exception as exc:  # 테스트 DB·이전 스키마 등: 기존 변수만으로 평가한다.
+        print(f"공동주택 공시가격 변수 생략: {type(exc).__name__}")
+        return None, None
+
+
 def _apt_prepare(rows, reb: dict | None = None):
     from backend.valuation.time_index import MonthlyChain
     trades = apt.normalize(rows)
@@ -72,11 +87,14 @@ def _apt_prepare(rows, reb: dict | None = None):
     chain = MonthlyChain(trades)            # 비교사례 시점 보정: 운영 A1 규칙과 같은 V4 지수
     comps = apt.ComparableIndex(trades, chain)
     origin = trades[0].day.year * 12 + trades[0].day.month - 1
+    official, pnu_of = _official_for(trades)
     def record(trade, direct):
-        subject = apt.Subject(trade.lawd, trade.dong, trade.complex, trade.area, trade.floor, trade.year_built, trade.day, trade.id)
+        subject = apt.Subject(trade.lawd, trade.dong, trade.complex, trade.area, trade.floor, trade.year_built, trade.day, trade.id, trade.jibun)
         evidence = comps.evidence(subject)
         values = apt.features(subject, evidence, index, origin, direct=trade.direct if direct is None else direct,
-                              year_built=comps.complex_year(trade.complex))
+                              year_built=comps.complex_year(trade.complex),
+                              official=official_features(official, pnu_of, pnu_of(trade), trade.day, trade.floor, trade.area, evidence.used)
+                              if official is not None else None)
         # 운영 A1 규칙 재현: A1 사례의 시점 보정 ㎡당 가격 산술평균 × 면적 (calc_estimated_value와 같은 방식).
         # service_rule은 현재 운영(V4 지수), service_rule_reb는 이전 운영(부동산원 지수 + 월 0.3%) 참고값이다.
         extra = {}
@@ -100,6 +118,7 @@ SEGMENTS = {
         24, _rh_prepare),
     "apartment": SegmentSpec("R-APT", "RTMSDataSvcAptTrade", apt.LEVELS, frozenset({"A4"}), frozenset({"A4"}),
         {"full": price_models.FeatureSpec(apt.CATEGORICAL, apt.BASE_NUMERIC + apt.COMP_NUMERIC),
+         "official": price_models.FeatureSpec(apt.CATEGORICAL, apt.BASE_NUMERIC + apt.COMP_NUMERIC + apt.OFFICIAL_NUMERIC),
          "base": price_models.FeatureSpec(apt.CATEGORICAL, apt.BASE_NUMERIC)},
         12, _apt_prepare),
 }

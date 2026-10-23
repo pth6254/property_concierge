@@ -11,7 +11,19 @@ case "$interval_hours" in
   ''|*[!0-9]*|0) echo "확인 주기는 양의 정수(시간)여야 합니다" >&2; exit 2 ;;
 esac
 
+# 호스트 재시작 직후에는 DB가 아직 기동 중이라 첫 단계가 실패하고 하루를 통째로 잃었다(2026-10-15~23 실제 발생).
+# 접속될 때까지 기다린 뒤 시작한다.
+wait_for_database() {
+  for _ in $(seq 1 60); do
+    python -c "from db.base import get_engine; get_engine().connect().close()" >/dev/null 2>&1 && return 0
+    sleep 10
+  done
+  echo "DB 접속 대기 시간 초과: 이번 주기를 건너뜁니다" >&2
+  return 1
+}
+
 while true; do
+  if ! wait_for_database; then sleep 600; continue; fi
   # 공동주택 공시가격(호별)을 하루 호출 상한 안에서 이어서 수집한다. 실패해도 재학습은 계속한다.
   python -m backend.tools.ingest_apartment_unit_prices --sido "$sido" --max-calls "${APT_UNIT_PRICE_MAX_CALLS:-8000}" || \
     echo "공동주택 공시가격 수집 실패: 다음 주기에 이어서 시도합니다" >&2
