@@ -316,7 +316,8 @@ sh scripts/compose.sh local --profile maintenance up -d --build
 비공개 베타·포트폴리오 시연(2026-11-01 기준 목적)은 VM 한 대에 `production` 모드로 전체를 올린다. Caddy가 HTTPS 인증서를 받고
 웹·API를 같은 도메인으로 제공하므로 접속 IP 신뢰(Caddy → Spring → Python)·쿠키 `lax`·유지보수 서비스를 로컬 검증 구성 그대로 쓴다.
 
-1. **서버:** Ubuntu LTS, 최소 4 vCPU·8GB RAM·50GB SSD(재학습 중에도 응답을 지키려면 8 vCPU·16GB). arm64도 가능하다 —
+1. **서버:** Ubuntu LTS, **권장 4 vCPU 이상·16GB RAM·60GB SSD**. 상시 약 3GB + 임베딩 Ollama 약 3.3GB + 월 1회 재학습 최대 약 1.4GB이므로
+   8GB는 여유가 없다(스왑을 두면 동작은 가능). arm64도 가능하다 —
    베이스 이미지 전부와 CatBoost(`manylinux2014_aarch64`)가 arm64를 지원한다(2026-11-01 확인). 나머지 Python 패키지는 첫 빌드에서 확인한다.
    방화벽은 22·80·443만 연다. DB·Redis·Spring·Python 포트는 `production` 모드에서 외부에 열리지 않는다.
 2. **설치:** Docker Engine·Compose 플러그인, `git clone` 후 저장소 루트에서 작업한다. `.env`는 로컬 파일을 복사하지 말고 `.env.example`로 새로 만든다.
@@ -324,9 +325,12 @@ sh scripts/compose.sh local --profile maintenance up -d --build
    `MOLIT_API_KEY`, `VWORLD_API_KEY`·`VWORLD_DOMAIN`(키 등록 도메인과 일치), `KAKAO_REST_API_KEY`, `RBONE_API_KEY`(시점 보정 대체 경로),
    LLM 키, `OPERATOR_USER_IDS`, Google 로그인을 쓰면 `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`
    (콜백 `https://SERVICE_DOMAIN/api/auth/google/callback`은 overlay가 만든다. Google 콘솔에 같은 주소를 등록한다).
-   - **LLM·임베딩 제공자:** 로컬 `.env`는 `LLM_PROVIDER`·`EMBED_PROVIDER`가 호스트 Ollama다. 서버에 Ollama가 없으면 해당 기능이 실패한다.
-     `LLM_PROVIDER`는 OpenRouter 등으로 바꿀 수 있지만, **임베딩은 DB의 코퍼스 벡터를 만든 모델과 같아야** 검색이 맞는다.
-     임베딩 제공자를 바꾸면 코퍼스를 다시 임베딩해야 한다(서버에 같은 Ollama 임베딩 모델을 두는 방법도 있다). 배포 전에 정한다.
+   - **LLM:** `LLM_PROVIDER=openrouter`(2026-11-01 변경, 채팅·의도분석과 같은 제공자). `OPENROUTER_API_KEY`·`OPENROUTER_MODEL`이 필요하다.
+   - **임베딩:** 실제로 쓰는 것은 법령 검색(`law_retrieval`)이며, 코퍼스(4,115건, 2,560차원)를 만든 `qwen3-embedding:4b`로 질의를 임베딩하고
+     DB의 모델 지문이 같을 때만 검색한다. 운영 overlay의 `ollama` 컨테이너가 같은 모델을 받아 서버 안에서 실행한다(외부 포트 없음, 첫 기동에 약 2.5GB 다운로드).
+     2026-11-01 실측: 컨테이너에서 받은 모델 지문이 로컬과 동일(`df5bd2e3…`), 같은 문장 코사인 0.995~0.997, `OLLAMA_CONTEXT_LENGTH=4096`으로 메모리 3.3GB
+     (법령 조각 최장 1,091자). `.env`의 `OLLAMA_EMBED_MODEL=mxbai-embed-large`는 비어 있는 RAG 문서 테이블용 설정이라 현재 검색에 쓰이지 않는다.
+     임베딩 모델을 바꾸면 코퍼스를 `embed_property_laws`로 다시 만들어야 한다.
    - 재설정 메일: `RESEND_API_KEY`가 없으면 링크가 서버 로그에 찍힌다. 베타 동안 운영자 수동 전달로 갈지, Resend 도메인 인증을 할지 정한다.
 4. **DNS:** `SERVICE_DOMAIN`의 A(또는 AAAA) 레코드를 서버 IP로 지정한다. 80/443이 열려 있어야 Caddy가 인증서를 받는다.
 5. **데이터 옮기기:** 실거래·공시가격(약 2GB)을 다시 수집하지 않고 로컬 최신 백업을 복원한다.
