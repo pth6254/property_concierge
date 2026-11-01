@@ -1,0 +1,44 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "web": {
+      "root": "web",
+      "framework": "nextjs"
+    },
+    "platform": {
+      "root": ".",
+      "entrypoint": "infrastructure/docker/Dockerfile.platform",
+      "bindings": [
+        { "type": "service", "service": "intelligence", "format": "url", "env": "PYTHON_AI_URL" }
+      ]
+    },
+    "intelligence": {
+      "root": ".",
+      "entrypoint": "infrastructure/docker/Dockerfile.intelligence",
+      "command": [
+        "sh",
+        "-c",
+        "alembic -c services/intelligence/alembic.ini upgrade head && uvicorn api.main:app --host 0.0.0.0 --port 8080 --workers 1"
+      ],
+      "bindings": [
+        { "type": "service", "service": "platform", "format": "url", "env": "CORE_STORAGE_URL" }
+      ]
+    }
+  },
+  "daemons": {
+    "job-worker": {
+      "root": ".",
+      "entrypoint": "infrastructure/docker/Dockerfile.intelligence",
+      "command": ["python", "-m", "api.job_worker"],
+      "instances": { "icn1": 1 },
+      "bindings": [
+        { "type": "service", "service": "platform", "format": "url", "env": "CORE_STORAGE_URL" }
+      ]
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": { "service": "platform" } },
+    { "source": "/ready", "destination": { "service": "platform" } },
+    { "source": "/(.*)", "destination": { "service": "web" } }
+  ]
+}
