@@ -309,6 +309,44 @@ sh scripts/compose.sh local --profile maintenance up -d --build
 
 `TRANSACTION_REFRESH_INTERVAL_HOURS`, `TRANSACTION_REFRESH_MONTHS`, `TRANSACTION_REFRESH_WORKERS`, `TRANSACTION_REFRESH_SIDO`로 요청량을 조절한다. 처음 활성화할 때는 계획 작업 수와 국토부 API 할당량을 확인한다. 한 번의 배치가 실패하면 오류를 기록하고 다음 주기에 다시 시도하며, 수집 실패를 빈 거래월로 저장하지 않는다. 매물 원문 수집과 법령 코퍼스 갱신은 이 서비스에 포함되지 않는다.
 
+<a id="server-deploy"></a>
+
+## 운영 서버 배포 절차 (VM 한 대, 권장)
+
+비공개 베타·포트폴리오 시연(2026-11-01 기준 목적)은 VM 한 대에 `production` 모드로 전체를 올린다. Caddy가 HTTPS 인증서를 받고
+웹·API를 같은 도메인으로 제공하므로 접속 IP 신뢰(Caddy → Spring → Python)·쿠키 `lax`·유지보수 서비스를 로컬 검증 구성 그대로 쓴다.
+
+1. **서버:** Ubuntu LTS, 최소 4 vCPU·8GB RAM·50GB SSD(재학습 중에도 응답을 지키려면 8 vCPU·16GB). arm64도 가능하다 —
+   베이스 이미지 전부와 CatBoost(`manylinux2014_aarch64`)가 arm64를 지원한다(2026-11-01 확인). 나머지 Python 패키지는 첫 빌드에서 확인한다.
+   방화벽은 22·80·443만 연다. DB·Redis·Spring·Python 포트는 `production` 모드에서 외부에 열리지 않는다.
+2. **설치:** Docker Engine·Compose 플러그인, `git clone` 후 저장소 루트에서 작업한다. `.env`는 로컬 파일을 복사하지 말고 `.env.example`로 새로 만든다.
+3. **`.env` 필수:** `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, `INTERNAL_SERVICE_SECRET`(32자 이상), `SERVICE_DOMAIN`, `APP_ENV=production`,
+   `MOLIT_API_KEY`, `VWORLD_API_KEY`·`VWORLD_DOMAIN`(키 등록 도메인과 일치), `KAKAO_REST_API_KEY`, `RBONE_API_KEY`(시점 보정 대체 경로),
+   LLM 키, `OPERATOR_USER_IDS`, Google 로그인을 쓰면 `GOOGLE_CLIENT_ID`·`GOOGLE_CLIENT_SECRET`
+   (콜백 `https://SERVICE_DOMAIN/api/auth/google/callback`은 overlay가 만든다. Google 콘솔에 같은 주소를 등록한다).
+   - **LLM·임베딩 제공자:** 로컬 `.env`는 `LLM_PROVIDER`·`EMBED_PROVIDER`가 호스트 Ollama다. 서버에 Ollama가 없으면 해당 기능이 실패한다.
+     `LLM_PROVIDER`는 OpenRouter 등으로 바꿀 수 있지만, **임베딩은 DB의 코퍼스 벡터를 만든 모델과 같아야** 검색이 맞는다.
+     임베딩 제공자를 바꾸면 코퍼스를 다시 임베딩해야 한다(서버에 같은 Ollama 임베딩 모델을 두는 방법도 있다). 배포 전에 정한다.
+   - 재설정 메일: `RESEND_API_KEY`가 없으면 링크가 서버 로그에 찍힌다. 베타 동안 운영자 수동 전달로 갈지, Resend 도메인 인증을 할지 정한다.
+4. **DNS:** `SERVICE_DOMAIN`의 A(또는 AAAA) 레코드를 서버 IP로 지정한다. 80/443이 열려 있어야 Caddy가 인증서를 받는다.
+5. **데이터 옮기기:** 실거래·공시가격(약 2GB)을 다시 수집하지 않고 로컬 최신 백업을 복원한다.
+   로컬 `backups/property_concierge_<시각>.dump`를 서버 `backups/`로 복사 →
+   `sh scripts/compose.sh production up -d pgvector` → `bash scripts/restore_db.sh backups/<덤프>.dump`(DB 이름을 입력해 확인).
+   로컬 테스트용 계정·이력도 함께 옮겨지므로 공개 전에 정리한다.
+6. **기동:** `sh scripts/compose.sh production --profile maintenance up -d --build`. API가 기동 시 Alembic을 먼저 적용한다.
+   아파트 모델은 이미지의 `data/models/r-apt`로 시작하고, 다음 완결월부터 `avm-retrain`이 서버에서 재학습한다.
+7. **확인:**
+   - `https://SERVICE_DOMAIN/ready`, 서버 밖에서 `python scripts/check_external_readiness.py --url https://SERVICE_DOMAIN/ready`
+   - `bash scripts/restore_db.sh --check backups/<최신 덤프>.dump` (서버 복구 리허설)
+   - PowerShell/로컬에서 `E2E_BASE_URL=https://SERVICE_DOMAIN node scripts/verify_candidate_avm_browser.cjs --form --decision-flow`
+     (임시 계정을 만들고 끝나면 지운다. 실제 AVM·자금·비교·선택·새로고침)
+   - 로그인·Google 로그인·로그아웃, 레이트 리밋이 사용자 IP 기준인지, `docker logs property_concierge-database-backup-1`
+8. **백업 보관:** 정기 백업은 서버의 `backups/`에만 쌓이고 자동 삭제가 없다(하루 약 99MB). 다른 저장소로의 복사와 보관 기간을 정한다.
+9. **업데이트:** `git pull` → `sh scripts/compose.sh production build api core frontend` →
+   `sh scripts/compose.sh production --profile maintenance up -d --no-deps --force-recreate api core job-worker frontend operations-monitor transaction-refresh avm-retrain`
+   → `/ready` 확인. 이미지만 지정한 서비스(`job-worker`·`avm-retrain` 등)는 `api` 빌드로 만든 이미지를 쓰므로 `api`를 먼저 빌드한다.
+   **되돌리기:** 이전 커밋으로 돌아가 같은 명령을 실행한다. 마이그레이션 문제면 직전 백업을 복원한다.
+
 <a id="vercel-deploy"></a>
 
 ## Vercel 웹 + 별도 백엔드 서버 배포
