@@ -1,0 +1,43 @@
+# Vercel이 웹(Next.js)을 맡고 이 서버는 API·데이터·작업 실행기만 운영한다. compose.yml에 겹쳐 쓴다.
+#   sh scripts/compose.sh vercel --profile maintenance up -d --build
+# 브라우저 → Vercel 도메인(/api/* 리라이트) → API_DOMAIN의 Caddy(Caddyfile.api) → Spring. 브라우저 입장에서 같은 출처라
+# 쿠키는 SameSite=lax를 유지한다(AGENTS 2-8). 웹 컨테이너는 띄우지 않는다.
+services:
+  api:
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      FORWARDED_ALLOW_IPS: 172.31.244.2
+      COOKIE_SAMESITE: lax
+      FRONTEND_URL: https://${WEB_DOMAIN:?WEB_DOMAIN(Vercel 웹 도메인)을 설정하세요}
+      CORS_ORIGINS: https://${WEB_DOMAIN:?}
+  core:
+    ports: !reset []
+    environment:
+      APP_ENV: production
+      COOKIE_SAMESITE: lax
+      # Google 콜백·재설정 링크는 사용자가 보는 웹 도메인이어야 한다. 콜백도 Vercel 리라이트로 Spring에 온다.
+      FRONTEND_URL: https://${WEB_DOMAIN:?}
+      GOOGLE_REDIRECT_URI: https://${WEB_DOMAIN:?}/api/auth/google/callback
+  frontend:
+    # Vercel이 웹을 배포하므로 이 서버에서는 실행하지 않는다(명시적으로 프로필을 켤 때만 실행).
+    profiles: ["docker-web"]
+  gateway:
+    depends_on: !override
+      core:
+        condition: service_healthy
+    environment:
+      API_DOMAIN: "${API_DOMAIN:?API_DOMAIN(예 api.example.com)을 설정하세요}"
+      EDGE_PROXY_SECRET: "${EDGE_PROXY_SECRET:?Vercel과 같은 32자 이상 EDGE_PROXY_SECRET을 설정하세요}"
+    ports: !override ["80:80", "443:443"]
+    volumes: !override
+      - ./infrastructure/proxy/Caddyfile.api:/etc/caddy/Caddyfile:ro
+      - gateway_data:/data
+      - gateway_config:/config
+    networks:
+      ingress:
+        ipv4_address: 172.30.92.2
+
+volumes:
+  gateway_data:
+  gateway_config:

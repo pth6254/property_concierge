@@ -1,0 +1,32 @@
+# Vercel 웹 + 별도 백엔드 서버 배포의 API 전용 게이트웨이 (compose.vercel.yml).
+# 브라우저는 Vercel 도메인의 /api/*로 요청하고 Vercel이 리라이트로 이 서버에 넘긴다(같은 출처라 쿠키는 SameSite=lax).
+# Vercel proxy.ts가 붙인 공유 비밀(X-Edge-Proxy-Secret)이 맞을 때만 X-Client-IP를 X-Forwarded-For로 Spring에 넘긴다.
+# 비밀 없는 /api 직접 접속은 거부한다 — 열어두면 누구나 IP 헤더를 위조해 로그인 잠금·레이트 리밋을 우회한다(AGENTS 2-5).
+{$API_DOMAIN} {
+    encode zstd gzip
+
+    # 외부 상태 감시(check_external_readiness.py)는 비밀 없이 볼 수 있다. 개인 정보가 없다.
+    handle /ready {
+        reverse_proxy core:8080
+    }
+    handle /health {
+        reverse_proxy core:8080
+    }
+
+    @trusted {
+        path /api/*
+        header X-Edge-Proxy-Secret {$EDGE_PROXY_SECRET}
+    }
+    handle @trusted {
+        reverse_proxy core:8080 {
+            # Spring은 TRUSTED_PROXY_IPS(이 게이트웨이)가 보낸 X-Forwarded-For만 믿는다.
+            header_up X-Forwarded-For {http.request.header.X-Client-IP}
+            header_up -X-Client-IP
+            header_up -X-Edge-Proxy-Secret
+        }
+    }
+
+    handle {
+        respond 403
+    }
+}

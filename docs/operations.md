@@ -309,6 +309,30 @@ sh scripts/compose.sh local --profile maintenance up -d --build
 
 `TRANSACTION_REFRESH_INTERVAL_HOURS`, `TRANSACTION_REFRESH_MONTHS`, `TRANSACTION_REFRESH_WORKERS`, `TRANSACTION_REFRESH_SIDO`로 요청량을 조절한다. 처음 활성화할 때는 계획 작업 수와 국토부 API 할당량을 확인한다. 한 번의 배치가 실패하면 오류를 기록하고 다음 주기에 다시 시도하며, 수집 실패를 빈 거래월로 저장하지 않는다. 매물 원문 수집과 법령 코퍼스 갱신은 이 서비스에 포함되지 않는다.
 
+<a id="vercel-deploy"></a>
+
+## Vercel 웹 + 별도 백엔드 서버 배포
+
+Vercel에는 `web/`(Next.js)만 올린다. Spring·Python·PostgreSQL·Redis·작업 실행기·유지보수 서비스는 백엔드 서버에서
+`sh scripts/compose.sh vercel --profile maintenance up -d --build`로 운영한다(웹 컨테이너는 실행하지 않음).
+
+- **요청 경로:** 브라우저 → `https://WEB_DOMAIN/api/*` → Vercel 리라이트(`web/next.config.ts`) → `https://API_DOMAIN`의
+  Caddy(`infrastructure/proxy/Caddyfile.api`) → Spring. 브라우저 입장에서 같은 출처라 `COOKIE_SAMESITE=lax`, CORS 불필요.
+- **접속 IP:** Vercel을 거치면 Spring에는 Vercel 서버 IP만 보여 로그인 잠금·레이트 리밋이 모든 사용자에게 함께 걸린다.
+  `web/src/proxy.ts`가 `/api` 요청에 `X-Edge-Proxy-Secret`과 실제 접속 IP(`X-Client-IP`)를 붙이고(사용자가 보낸 같은 헤더는 덮어씀),
+  Caddy는 비밀이 맞을 때만 그 IP를 `X-Forwarded-For`로 Spring에 넘긴다. 비밀이 없거나 틀린 `/api` 직접 접속과 웹 경로는 403이다.
+  `/ready`·`/health`는 외부 감시를 위해 비밀 없이 열린다. 검증: `sh scripts/verify_edge_gateway.sh`(격리 네트워크, 6항목).
+- **Next 로그인 라우트 제거:** `web/src/app/api/auth/*` 라우트는 리라이트보다 먼저 실행되면서 접속 IP를 넘기지 않았다.
+  Docker에서는 Caddy가 `/api`를 Spring으로 바로 보내 쓰이지 않던 경로라 지우고 리라이트로 통일했다.
+- **Vercel 프로젝트 설정:** Root Directory `web`, 환경변수 `NEXT_PUBLIC_API_URL=https://API_DOMAIN`(리라이트 대상이라 **빌드 시점**에 필요),
+  `EDGE_PROXY_SECRET`(서버 전용, 백엔드 `.env`와 같은 값). 미리보기 배포도 같은 백엔드를 부르므로 미리보기에도 두 값을 넣는다.
+  미리보기 도메인에서도 로그인은 되지만 Google 콜백·재설정 링크는 `WEB_DOMAIN`(운영 웹)으로 간다.
+- **백엔드 `.env`:** `WEB_DOMAIN`, `API_DOMAIN`, `EDGE_PROXY_SECRET`. Spring의 `FRONTEND_URL`·`GOOGLE_REDIRECT_URI`는 overlay가 `WEB_DOMAIN`으로 만든다.
+  Google 콘솔에 `https://WEB_DOMAIN/api/auth/google/callback`을 등록한다. VWorld 키는 등록 도메인과 `VWORLD_DOMAIN`이 맞아야 한다.
+- **배포 후 확인할 것(미리보기에서 실측):** 로그인·로그아웃·Google 로그인, 레이트 리밋이 사용자별 IP로 걸리는지,
+  시세추정 작업 폴링, 권리 PDF 업로드 크기(Vercel 리라이트의 요청 본문·시간 제한은 문서로 확정하지 못했다), `/ready` 외부 감시.
+- 같은 비밀이 유출되면 IP 위조가 가능해지므로 Vercel·백엔드 양쪽에서 함께 교체한다.
+
 <a id="avm-retrain"></a>
 
 ## 아파트 AVM 매달 재학습

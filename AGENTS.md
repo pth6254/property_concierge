@@ -171,6 +171,10 @@ uvicorn 은 `proxy_headers=True` 가 기본이지만 `forwarded_allow_ips` 기�
 ⚠️ `"*"` 로 열어두고 앱이 외부에 직접 노출되면 누구나 헤더를 위조해 우회할 수 있다.
 프록시 주소를 정확히 지정할 것.
 
+**Vercel 웹 배포(2026-11-01):** Vercel을 거치면 Spring에는 Vercel 서버 IP만 보인다. `web/src/proxy.ts`가 공유 비밀(`EDGE_PROXY_SECRET`)과
+실제 접속 IP를 붙이고, 백엔드 `infrastructure/proxy/Caddyfile.api`가 비밀이 맞을 때만 그 IP를 `X-Forwarded-For`로 넘긴다.
+비밀 없는 `/api` 직접 접속은 403이다. 이 검사를 빼거나 Vercel IP 대역 전체를 신뢰하지 않는다. 검증은 `scripts/verify_edge_gateway.sh`.
+
 ### 2-6. LLM 수치 가드레일을 우회하지 않는다
 
 `services/intelligence/backend/opinion_guard.py` 는 LLM 출력에서 **컨텍스트로 주입한 수치 외의 숫자가 든 문장을
