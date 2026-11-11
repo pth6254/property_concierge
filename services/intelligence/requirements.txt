@@ -1,47 +1,47 @@
 # ── HTTP / 비동기 ─────────────────────────────────────────────
-aiohappyeyeballs==2.6.2
-aiohttp==3.13.5
+aiohappyeyeballs==2.7.1
+aiohttp==3.14.5
 aiosignal==1.4.0
-anyio==4.13.0
-certifi==2026.5.20
-charset-normalizer==3.4.7
+anyio==4.16.0
+certifi==2026.10.23
+charset-normalizer==3.5.2
 frozenlist==1.8.0
 h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
 httpx-sse==0.4.3
-idna==3.17
+idna==3.20
 multidict==6.7.1
-propcache==0.5.2
+propcache==0.5.4
 requests==2.34.2
 requests-toolbelt==1.0.0
-urllib3==2.7.0
-yarl==1.24.2
+urllib3==2.8.0
+yarl==1.25.1
 
 # ── FastAPI / 서버 ────────────────────────────────────────────
-annotated-doc==0.0.4
-fastapi==0.136.3
-PyJWT==2.9.0
+annotated-doc==0.0.5
+fastapi==0.162.2
+PyJWT==2.15.1
 bcrypt==4.2.1
 slowapi==0.1.10
-python-multipart==0.0.30
-starlette==1.2.1
-uvicorn==0.48.0
+python-multipart==0.0.33
+starlette==1.10.0
+uvicorn==0.54.0
 websockets==17.4
 
 # ── 관측성 (선택 — SENTRY_DSN 설정 시에만 활성화) ────────────────
-sentry-sdk[fastapi]==2.19.2
+sentry-sdk[fastapi]==2.74.0
 
 # ── LangChain ────────────────────────────────────────────────
-langchain==1.3.2
-langchain-classic==1.0.7
+langchain==1.4.9
+langchain-classic==1.0.8
 langchain-community==0.4.2
-langchain-core==1.4.0
+langchain-core==1.7.6
 langchain-ollama==1.1.0
-langchain-openai==1.2.2
-langchain-protocol==0.0.16
-langchain-text-splitters==1.1.2
-langsmith==0.8.8
+langchain-openai==1.7.4
+langchain-protocol==0.0.21
+langchain-text-splitters==1.1.3
+langsmith==0.14.17
 
 # ── LLM 프로바이더 (선택) ─────────────────────────────────────
 # LLM_PROVIDER=openrouter/openai → langchain-openai 설치됨
@@ -51,54 +51,54 @@ langsmith==0.8.8
 # langchain-google-genai
 
 # ── LangGraph ────────────────────────────────────────────────
-langgraph==1.2.2
-langgraph-checkpoint==4.1.1
-langgraph-prebuilt==1.1.0
-langgraph-sdk==0.3.15
+langgraph==1.2.20
+langgraph-checkpoint==4.3.1
+langgraph-prebuilt==1.1.1
+langgraph-sdk==0.4.14
 
 # ── Pydantic ─────────────────────────────────────────────────
-annotated-types==0.7.0
-pydantic==2.13.4
-pydantic-settings==2.14.1
-pydantic_core==2.46.4
+annotated-types==0.8.0
+pydantic==2.14.3
+pydantic-settings==2.16.2
+pydantic_core==2.50.4
 
 # ── 데이터베이스 (PostgreSQL / pgvector / Redis) ───────────────
-alembic==1.15.2
-greenlet==3.5.1
-pgvector==0.4.2
-psycopg2-binary==2.9.12
-SQLAlchemy==2.0.50
+alembic==1.20.1
+greenlet==3.5.6
+pgvector==0.5.1
+psycopg2-binary==2.9.13
+SQLAlchemy==2.1.8
 redis==8.1.0
 
 # ── Ollama ───────────────────────────────────────────────────
-ollama==0.6.2
+ollama==0.6.3
 
 # ── LangChain 보조 ───────────────────────────────────────────
 attrs==26.1.0
 cachetools==7.1.4
-click==8.4.1
+click==8.5.1
 dataclasses-json==0.6.7
 Jinja2==3.1.6
-jsonpatch==1.33
-jsonpointer==3.1.1
+jsonpatch==1.44
+jsonpointer==3.10
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 marshmallow==3.26.2
-MarkupSafe==3.0.3
-mypy_extensions==1.1.0
+MarkupSafe==3.0.4
+mypy_extensions==1.2.0
 numpy==2.4.6
-orjson==3.11.9
-ormsgpack==1.12.2
-packaging==26.2
+orjson==3.13.0
+ormsgpack==1.13.0
+packaging==26.3
 pandas==3.1.1
-protobuf==7.35.0
+protobuf==7.36.2
 PyYAML==6.0.3
 referencing==0.37.0
-rpds-py==2026.5.1
-tenacity==9.1.4
+rpds-py==2026.9.1
+tenacity==9.2.1
 typing-inspect==0.9.0
-typing-inspection==0.4.2
-typing_extensions==4.15.0
+typing-inspection==0.4.5
+typing_extensions==4.16.0
 uuid_utils==0.16.0
 xxhash==3.7.0
 zstandard==0.25.0
@@ -109,9 +109,9 @@ catboost==1.2.10
 
 # ── 날짜·직렬화 ──────────────────────────────────────────────
 python-dateutil==4.0.0
-python-dotenv==1.2.2
-pytz==2026.2
+python-dotenv==1.2.4
+pytz==2026.6
 six==1.17.0
-tzdata==2026.2
+tzdata==2026.6
 pypdf
-playwright==1.63.0
+playwright==1.64.1
