@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import ConciergeWidget from "@/components/ConciergeWidget";
 import { AuthProvider } from "@/lib/auth";
 import ServiceFeedbackForm from "@/components/ServiceFeedbackForm";
+import ClientErrorListener from "@/components/ClientErrorListener";
 
 const pretendard = localFont({
   src: "./fonts/PretendardVariable.woff2",
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Navbar />
           <main className="min-h-screen min-w-0 p-4 pb-24 md:ml-[236px] md:p-6 md:pb-24">{children}<ServiceFeedbackForm key="feedback" /></main>
           <ConciergeWidget />
+          <ClientErrorListener />
         </AuthProvider>
       </body>
     </html>

@@ -13,6 +13,8 @@
     <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>runtime</scope></dependency>
     <dependency><groupId>com.fasterxml.jackson.module</groupId><artifactId>jackson-module-kotlin</artifactId></dependency>
     <dependency><groupId>org.jetbrains.kotlin</groupId><artifactId>kotlin-reflect</artifactId></dependency>
+    <!-- 오류 추적. SENTRY_DSN이 없으면 초기화하지 않는다(ErrorReporting.kt). 자동 설정 starter는 4xx ApiFailure까지 보고해 쓰지 않는다. -->
+    <dependency><groupId>io.sentry</groupId><artifactId>sentry</artifactId><version>8.62.0</version></dependency>
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
     <dependency><groupId>org.testcontainers</groupId><artifactId>postgresql</artifactId><scope>test</scope></dependency>
   </dependencies>
