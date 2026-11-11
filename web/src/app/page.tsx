@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -92,6 +92,9 @@ function StageCard({ href, icon: Icon, title, desc, cta }: StageItem) {
   );
 }
 
+// 날짜 표시는 구독할 변화가 없다. 서버 값("")으로 하이드레이션한 뒤 브라우저 값으로 한 번 다시 그린다.
+const noSubscription = () => () => {};
+
 export default function HomePage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -118,9 +121,11 @@ export default function HomePage() {
   const activeCases = (cases ?? []).filter(item => item.status !== "archived")
     .sort((a, b) => b.updated.localeCompare(a.updated)).slice(0, 3);
 
-  const today = new Date().toLocaleDateString("ko-KR", {
+  // 날짜는 브라우저에서만 그린다. 서버(UTC)와 사용자(한국 시간)의 날짜가 자정~오전 9시에 달라
+  // 서버 HTML과 화면이 어긋나는 하이드레이션 오류(React #418)가 났다(2026-11-12 브라우저 검증에서 발견).
+  const today = useSyncExternalStore(noSubscription, () => new Date().toLocaleDateString("ko-KR", {
     year: "numeric", month: "long", day: "numeric", weekday: "long",
-  });
+  }), () => "");
 
   const displayName =
     user?.name ||
