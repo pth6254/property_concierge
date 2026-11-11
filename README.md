@@ -49,6 +49,7 @@ flowchart LR
 | AI 컨시어지·법률 챗봇 | 조건 해석·등록 매물 검색·동네/단지 탐색·AVM·자금·비교·법령 RAG, 대화 기억·새로고침 복원 | [챗봇](docs/features/chat.md) |
 | 동네 탐색 | 시·도 → 시·군·구 → 법정동, 동일 조건 실거래 통계·아파트 단지 탐색 | [동네 탐색](docs/features/exploration.md) |
 | 거래 준비 | 선택 후보의 일정·확인자·결과·근거·문제·외부 대기 기록 | [화면 흐름](docs/features/decision.md#navigation) |
+| 변화 알림 | 분석 만료·원본 매물 변경·매물 7일 재확인·같은 단지 새 실거래를 알림함과 메뉴 개수로 안내. 메일·푸시 없음 | [변화 알림함](docs/features/decision.md#notifications) |
 | 운영 | 관리자 권한·준비 상태·큐/실행기 감시·재수집·백업·작업 복구 | [운영](docs/operations.md) |
 
 ## 시스템 구조

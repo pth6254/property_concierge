@@ -276,6 +276,12 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 컨시어지와 공유하는 필수 조건·물건 종류 판정은 `candidate_funding.missing_funding_inputs`·`funding_property_type` 한 곳에 둔다.
 조회 경로에서 호출하지 않는다. 회귀는 `tests/test_candidate_quick_review.py`, 화면은 `scripts/verify_candidate_quick_review_browser.cjs`다.
 
+**변화 알림함**(2026-11-11)은 새 판단 기준을 만들지 않는다. 분석 만료·원본 변경·매물 7일 재확인·실거래 연결은 각각 기존 `analysis_freshness`·`sourceStatus`·
+`needs_confirmation`·`find_trades`를 그대로 쓴다. 조건 계산은 Python `notification_conditions.py`, 저장·읽음·해결은 Spring `NotificationStore`다.
+Spring은 넘긴 본인 자료에 없는 ID의 조건을 버리고, 계산 실패를 해결로 처리하지 않는다. 새 실거래는 `first_seen_at` 기준이며 기록 전 거래(`NULL`)를 새 거래로 보지 않는다.
+공급·미확인 면적 후보에는 실거래 알림을 만들지 않는다. 메일·푸시 발송은 없다. 회귀는 `tests/test_notification_conditions.py`·Kotlin `NotificationIT`,
+화면은 `scripts/verify_notifications_browser.cjs`다. 계약은 [변화 알림함](docs/features/decision.md#notifications)을 따른다.
+
 ### 2-13. 매물 거래 상태·자료 시점·확인 출처를 섞지 않는다
 
 사용자 등록 호가·실거래·AVM 추정가는 다른 자료다. 출처와 확인 시각을 유지하고,
@@ -487,7 +493,7 @@ sh scripts/compose.sh local up -d --build   # 운영 (override 배제)
 - `test` — PostgreSQL·Redis 서비스 컨테이너 + `alembic -c services/intelligence/alembic.ini upgrade head` + `pytest` + 오프라인 평가.
 - `frontend` — `tsc --noEmit` + `npm run lint` + `npm run build`
 - `spring` — 먼저 Kotlin의 단위·전용 Testcontainers 저장/권한/롤백 검사를 실행한다. 이어서 별도 API·작업 실행기를
-  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 11종(2026-11-11 후보 한 번에 검토 추가)을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
+  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 12종(2026-11-11 후보 한 번에 검토·변화 알림함 추가)을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
   주소 등록·선택 별칭·매물 변경 재검토를 포함하며 결과 JSON과 화면 이미지를 아티팩트로 보관한다.
 
 **동작·API 변경 후에는 양쪽을 모두 돌려볼 것.** 백엔드만 고쳤다고 프론트가 안전한 게 아니다
@@ -584,7 +590,7 @@ node scripts/verify_decision_assessment_browser.cjs
 새 사용자가 다른 작업을 지시하면 그 범위를 따르고, 위 목록을 이미 실행한 작업으로 설명하지 않는다.
 
 **코드 쪽**
-- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 11종이 있다.
+- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 12종이 있다.
 - 후보 → 자금 화면의 입력 전달·저장·새로고침과 판단 축 표시는 브라우저로 검증했다.
   홈 → `/appraisal`, 샘플 추천 → `/simulation`의 프리필은 별도 브라우저 검증이 필요하다.
 - 실제 AVM과 권리 PDF까지 연결한 전체 흐름의 품질 검증은 아직 별도 작업이다.
