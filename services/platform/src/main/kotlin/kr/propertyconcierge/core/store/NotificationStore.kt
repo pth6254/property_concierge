@@ -38,11 +38,27 @@ class NotificationStore(private val jdbc: JdbcTemplate, private val json: Object
 
     fun sync(owner: Long, minIntervalSeconds: Long) {
         val key = "notifications:synced:$owner"
+        val lock = "notifications:syncing:$owner"
         val current = System.currentTimeMillis() / 1000.0
         val last = redis.opsForValue().get(key)?.toDoubleOrNull()
-        if (last != null && current - last < minIntervalSeconds) return
-        // 동시에 두 번 실행돼도 같은 조건은 고유 키로 한 번만 저장되므로 잠금 없이 시각만 기록한다.
-        redis.opsForValue().set(key, current.toString(), Duration.ofHours(1))
+        // 같은 사용자의 계산은 한 번에 하나만 한다. 동시에 온 요청(알림함의 이중 요청, 메뉴 개수 조회 등)이 계산을 건너뛰고
+        // 바로 목록을 읽으면 아직 해결 처리 전 목록을 돌려준다(2026-11-11 CI·재현 확인). 진행 중이면 끝나기를 기다린다.
+        if (last != null && current - last < minIntervalSeconds) { awaitSync(lock); return }
+        if (redis.opsForValue().setIfAbsent(lock, "1", Duration.ofSeconds(60)) != true) { awaitSync(lock); return }
+        try {
+            redis.opsForValue().set(key, current.toString(), Duration.ofHours(1))
+            compute(owner, key, current)
+        } finally {
+            redis.delete(lock)
+        }
+    }
+
+    /** 진행 중인 계산을 최대 10초 기다린다. 넘으면 저장된 결과를 그대로 쓴다. */
+    private fun awaitSync(lock: String) {
+        repeat(100) { if (redis.hasKey(lock) != true) return; Thread.sleep(100) }
+    }
+
+    private fun compute(owner: Long, key: String, current: Double) {
         val caseIds = jdbc.queryForList("SELECT id FROM purchase_cases WHERE user_id=? AND status<>'archived' ORDER BY id LIMIT 100", Long::class.java, owner)
         val snapshots = caseIds.mapNotNull { cases.aggregate(owner, it) }
         val stale = listings.needingConfirmation(owner, 2000).map { item -> mapOf("id" to item.path("id").asLong(),

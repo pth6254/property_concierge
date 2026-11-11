@@ -102,4 +102,26 @@ class NotificationIT : PlatformIntegrationSupport() {
         assertEquals(1, body(request("POST", "/api/notifications/read-all", cookie = owner)).path("updated").asInt())
         assertEquals(0, body(request("GET", "/api/notifications/summary", cookie = owner)).path("unread_count").asInt())
     }
+
+    @Test fun `동시에 들어온 요청은 진행 중인 계산이 끝난 뒤 결과를 읽는다`() {
+        // 알림함의 이중 요청에서 두 번째 요청이 계산을 건너뛰고 해결 전 목록을 돌려주던 경합(2026-11-11 CI·재현)을 막는다.
+        val (ownerId, owner) = register()
+        val caseId = case(owner)
+        val started = java.util.concurrent.CountDownLatch(1)
+        notificationConditions = {
+            started.countDown(); Thread.sleep(700)
+            answer(listOf(condition("analysis_expired", "candidate:0:x", "a", caseId)))
+        }
+        redis.delete("notifications:synced:$ownerId")
+        val first = java.util.concurrent.Executors.newSingleThreadExecutor()
+        try {
+            val pending = first.submit<JsonNode> { body(request("GET", "/api/notifications", cookie = owner)) }
+            assertTrue(started.await(10, java.util.concurrent.TimeUnit.SECONDS))
+            val second = body(request("GET", "/api/notifications", cookie = owner))
+            assertEquals(1, second.path("items").size(), "계산 중에 들어온 요청도 계산이 끝난 결과를 돌려줌")
+            assertEquals(1, pending.get(10, java.util.concurrent.TimeUnit.SECONDS).path("items").size())
+        } finally {
+            first.shutdownNow()
+        }
+    }
 }
