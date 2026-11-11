@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import {
-  Home, Tag, MapPin, TrendingUp, Columns2, ShieldCheck,
+  Home, Tag, MapPin, Calculator, Columns2, ShieldCheck,
   MessageSquareText, FileText, History, Menu, X, BriefcaseBusiness, SearchCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -31,7 +31,8 @@ const GROUPS: NavGroup[] = [
     label: "분석",
     items: [
       { href: "/appraisal",      label: "AI 시세추정",     icon: Tag },
-      { href: "/simulation",     label: "투자 시뮬레이션", icon: TrendingUp },
+      // 매수 자금 검토(다섯 판단 축의 자금성)에 쓰는 화면이라 '투자'가 아니라 자금·세금으로 부른다.
+      { href: "/simulation",     label: "자금·세금 계산",  icon: Calculator },
     ],
   },
   {

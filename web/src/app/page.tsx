@@ -10,7 +10,7 @@ import { nextCaseStep } from "@/lib/caseProgress";
 import { formatWonKorean } from "@/lib/moneyInput";
 import type { ActivityItem, PurchaseCase } from "@/lib/types";
 import {
-  Search, Tag, MapPin, TrendingUp, Columns2, ShieldCheck, SearchCheck, BriefcaseBusiness,
+  Search, Tag, MapPin, Calculator, Columns2, ShieldCheck, SearchCheck, BriefcaseBusiness,
   MessageSquareText, ArrowRight, type LucideIcon,
 } from "lucide-react";
 
@@ -47,7 +47,7 @@ const STAGES: Stage[] = [
 
 const QUICK_TOOLS: StageItem[] = [
   { href: "/appraisal", icon: Tag, title: "AI 시세추정", desc: "같은 단지 실거래가 충분하면 참고 시세를 추정하고, 부족하면 보류합니다.", cta: "바로 추정" },
-  { href: "/simulation", icon: TrendingUp, title: "투자 시뮬레이션", desc: "대출·세금 조건으로 필요 현금과 수익을 계산합니다.", cta: "바로 계산" },
+  { href: "/simulation", icon: Calculator, title: "자금·세금 계산", desc: "대출·세금 조건으로 필요 현금과 수익을 계산합니다.", cta: "바로 계산" },
 ];
 
 const JOURNEY_CHIPS = ["① 매물 모으기", "② 후보 검토", "③ 계약 전 점검"];
