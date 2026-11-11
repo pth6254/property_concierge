@@ -33,6 +33,8 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_
     assert.equal(fixture.status,0,fixture.stderr);const choices=JSON.parse(fixture.stdout);
     const page=await context.newPage();page.setDefaultTimeout(30000);const errors=[];page.on('pageerror',error=>errors.push(error.message));
     await page.route('**/api/listings/address/search?*',route=>route.fulfill({json:choices}));
+    // 화면 준비 전에 '매물 등록'을 눌러 해시만 바뀐 경우와 같은 상태: 해시로 들어와도 등록 폼이 열린다.
+    await page.goto('/listings#register-listing');await page.getByLabel('주소·단지명 검색',{exact:true}).waitFor();
     await page.goto('/listings');await page.getByRole('link',{name:'매물 등록',exact:true}).click();
     assert.equal(await page.getByLabel('별칭 (선택)',{exact:true}).getAttribute('required'),null);
     await page.getByLabel('주소·단지명 검색',{exact:true}).fill('테헤란로 123');
