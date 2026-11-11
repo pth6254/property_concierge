@@ -433,6 +433,9 @@ class Transaction(Base):
     transaction_type: Mapped[str | None] = mapped_column(String(30), default=None)
     cancellation_date: Mapped[str | None] = mapped_column(String(8), default=None)
     is_cancelled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # 이 거래를 처음 수집한 시각(epoch 초). 국토부 응답에는 신고일이 없어, 회고 평가가 '그 시점에 이미 신고돼 있던 거래'만
+    # 쓰려면 직접 남겨야 한다. 월 재수집(삭제 후 삽입)에도 같은 거래는 값을 유지한다. NULL은 기록 시작(2026-11) 전부터 있던 거래다.
+    first_seen_at: Mapped[float | None] = mapped_column(Float, default=None)
 
     __table_args__ = (
         Index("idx_tx_key", "endpoint", "category", "lawd_cd", "deal_ym"),

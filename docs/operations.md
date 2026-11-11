@@ -383,6 +383,10 @@ Vercel에는 `web/`(Next.js)만 올린다. Spring·Python·PostgreSQL·Redis·�
 있으면 12개월 롤링 평가(약 1시간, CPU 사용)와 사전 기준 판정 후 통과할 때만 아파트 모델을 교체한다. 교체 모델·이력·판정 보고서는
 Docker 볼륨 `avm_models`의 `r-apt/`·`history/`·`reports/`에 있다. API·작업 실행기는 이 볼륨을 읽기 전용으로 붙이고 재시작 없이 새 모델을 읽는다.
 
+**완결월은 2개월 전 달이다(2026-11-11 변경).** 실거래 신고 기한이 계약 후 30일이라 직전 달은 아직 덜 찼다. 직전 달을 쓰던 2026-11-01 재학습은
+10월 26일까지의 신고분만으로 10월을 평가·보정했다. manifest의 `complete_through`가 완결 자료로 학습한 마지막 달이며, 이 값이 없는
+이전 산출물(이미지 모델 포함)은 마지막 학습 달을 미완결로 보고 그 전 달까지로 계산한다. 그래서 첫 배포 직후 이미지 모델이 한 달 늦으면 한 번 재학습한다.
+
 ```bash
 docker logs property_concierge-avm-retrain-1 --tail 20        # status: up_to_date / kept / deployed
 docker exec property_concierge-avm-retrain-1 python -m backend.tools.retrain_apartment_avm   --live-dir /app/data/models-live/r-apt --force --dry-run         # 교체 없이 평가·판정만

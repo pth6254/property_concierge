@@ -339,6 +339,7 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
   혼합 AVM 구간은 검증 구간 잔차의 분위수로 정한 참고 구간이다(`interval_basis=calibrated_holdout_quantiles`). 재학습·교체 시 같은 평가를 다시 통과한다.
 - **아파트 혼합 AVM은 매달 재학습한다** (2026-10-12, `backend/tools/retrain_apartment_avm.py`, Compose `avm-retrain` 유지보수 서비스).
   새 완결월이 생기면 12개월 롤링 평가 → `rolling_avm.ACCEPTANCE` 판정 → ML 참고 추정 기준 통과 시에만 교체하고, A1 승인은 그 달 판정을 따른다.
+  완결월은 신고 기한(계약 후 30일) 때문에 **2개월 전 달**이며 `transaction_store`의 완결 월과 같다. 직전 달로 되돌리지 않는다(2026-11-01 재학습이 덜 찬 10월을 썼다).
   교체 모델은 볼륨 `avm_models`(`AVM_APARTMENT_LIVE_DIR`)에 두고 이전 모델은 `history/`, 판정 보고서는 `reports/`에 남긴다.
   볼륨이 비면 이미지의 `data/models/r-apt`를 쓴다. 판정 기준을 바꾸려면 결과를 보기 전에 바꾸고 그 사실을 문서에 남긴다.
 - **아파트 비교사례 시점 보정은 단지·면적대 고정효과 지수 + 최근 3개월 추세 연장(V4)이다** (2026-10-12, `backend/valuation/time_index.py`).

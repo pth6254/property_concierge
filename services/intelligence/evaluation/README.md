@@ -314,7 +314,15 @@ VWorld `getApartHousingPriceAttr`로 수집한 호별 공시가격(`apartment_un
 ### R-APT 매달 재학습 (2026-10-12)
 
 `python -m backend.tools.retrain_apartment_avm --live-dir <폴더> [--force] [--dry-run]`. Compose에서는 `avm-retrain`(maintenance 프로필)이
-하루마다 확인한다(`AVM_RETRAIN_CHECK_HOURS`). 완결월은 직전 달이며, 학습 기준월이 그 달 이상이면 아무것도 하지 않는다.
+하루마다 확인한다(`AVM_RETRAIN_CHECK_HOURS`). 완결월은 **2개월 전 달**이며, manifest의 `complete_through`가 그 달 이상이면 아무것도 하지 않는다.
+- **완결월 정정 (2026-11-11):** 처음에는 직전 달을 완결월로 봐서 2026-11-01 재학습이 10월 26일까지의 신고분만으로 10월을 평가 월·보정 구간에 썼다
+  (볼륨 보고서 `rolling-202610`, `trained_through 2026-10-26`). 신고 기한(계약 후 30일)을 지키는 `transaction_store`의 완결 월과 맞췄다.
+  `complete_through`가 없는 이전 산출물은 마지막 학습 달을 미완결로 보고 한 달 앞까지로 계산해, 다음 완결월(2026-12-01의 10월)에 다시 학습한다.
+  판정 기준(`ACCEPTANCE`)은 바꾸지 않았다.
+- **남은 한계:** 롤링 평가는 지금 DB에 있는 거래를 거래일 기준으로만 나눈다. 운영에서는 예측 시점에 최근 1~2개월 거래가 덜 신고돼 있으므로
+  비교사례 변수와 시점 보정 추세가 평가보다 불리할 수 있다. 2026-11-11부터 `transactions.first_seen_at`(최초 수집 시각)을 남긴다.
+  이 값으로 '그 시점에 수집돼 있던 거래'만 쓰는 평가를 하려면 기록이 몇 달 쌓여야 하며, 기존 행(NULL)과 과거 월을 나중에 처음 수집한 행은
+  신고 시점을 나타내지 않는다.
 - 롤링 평가: 최근 12개월, 학습 창 최대 24개월(근거용 12개월은 그 앞에서 더 읽음). 위 롤링 평가와 같은 규칙·같은 사전 기준.
 - 교체 조건: ML 참고 추정(A2·A3)의 구간 적중·가격대별 적중·신뢰도 기준 통과. 미달이면 기존 모델 유지(`status=kept`).
   A1 혼합 적용은 그 달의 A1 판정 결과를 manifest `a1_hybrid_approved`에 그대로 기록한다.

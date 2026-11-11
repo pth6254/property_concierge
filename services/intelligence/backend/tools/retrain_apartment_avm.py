@@ -30,8 +30,20 @@ def shift(ym: str, months: int) -> str:
 
 
 def last_complete_month(today: date) -> str:
-    # 진행 중인 달은 신고가 덜 들어와 평가·보정을 왜곡한다. 직전 달까지를 완결월로 본다.
-    return shift(f"{today.year:04d}{today.month:02d}", -1)
+    # 실거래 신고 기한은 계약일로부터 30일이라 직전 달 말 계약은 이번 달 말까지 들어온다. 직전 달을 완결월로 보던 때
+    # 2026-11-01 재학습이 10월 26일까지 신고분만으로 10월을 평가·보정에 썼다. transaction_store의 완결 월(2개월 전)과 맞춘다.
+    return shift(f"{today.year:04d}{today.month:02d}", -2)
+
+
+def covered_month(manifest: dict | None) -> str:
+    """모델이 완결 자료로 학습한 마지막 달. 이 값이 last_complete_month보다 이르면 다시 학습한다."""
+    if not manifest:
+        return ""
+    if manifest.get("complete_through"):
+        return str(manifest["complete_through"])
+    trained = (manifest.get("trained_through") or "")[:7].replace("-", "")
+    # 기록이 없는 이전 산출물은 직전 달을 완결월로 보던 규칙으로 만들어져 마지막 학습 달이 덜 신고된 상태였다.
+    return shift(trained, -1) if len(trained) == 6 else ""
 
 
 def plan_months(earliest: str, last: str) -> dict:
@@ -91,9 +103,9 @@ def run(live: Path, regions: tuple[str, ...], today: date, force: bool = False, 
     # 라이브 모델이 아직 없으면 이미지에 포함된 모델의 학습 기준월로 판단한다(첫 배포 직후 중복 재학습 방지).
     from backend.valuation.apartment_avm import bundled_dir
     manifest = current_manifest(live) or current_manifest(bundled_dir())
-    trained = (manifest or {}).get("trained_through", "")[:7].replace("-", "")
-    if manifest and trained >= last and not force:
-        return {"status": "up_to_date", "trained_through": trained, "last_complete_month": last}
+    covered = covered_month(manifest)
+    if manifest and covered >= last and not force:
+        return {"status": "up_to_date", "complete_through": covered, "last_complete_month": last}
     months = plan_months(earliest or _earliest_month(regions), last)
     base = segment_avm.SegmentConfig(regions, months["train_start"], months["train_start"], months["train_start"], months["train_start"],
                                      models=(SERVICE_SPEC,), segment="apartment", interval=.85)
@@ -118,11 +130,11 @@ def run(live: Path, regions: tuple[str, ...], today: date, force: bool = False, 
     from backend.valuation import models as price_models
     price_models.save(model, staging, meta | {"deployment": "service", "regions": list(regions),
                                               "a1_hybrid_approved": decision["a1_hybrid_approved"], "evaluation_report": str(report_path),
-                                              "retrained_at": stamp})
+                                              "retrained_at": stamp, "complete_through": last})
     verify(staging)
     previous = swap(staging, live, live.parent / "history")
-    return summary | {"status": "deployed", "trained_through": meta["trained_through"], "previous": str(previous) if previous else None,
-                      "report": str(report_path)}
+    return summary | {"status": "deployed", "trained_through": meta["trained_through"], "complete_through": last,
+                      "previous": str(previous) if previous else None, "report": str(report_path)}
 
 
 def _earliest_month(regions) -> str:
