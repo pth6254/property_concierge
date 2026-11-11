@@ -14,6 +14,22 @@ def profile_funding_inputs(profile: dict, overrides: dict | None = None) -> dict
     return ConciergeFunding.model_validate(values).model_dump(exclude_none=True)
 
 
+def funding_property_type(category: str | None) -> str | None:
+    """후보 물건 종류를 계산기의 property_type으로 바꾼다. 모르는 유형은 None(입력 필요)."""
+    from api.candidate_appraisal import PROPERTY_TYPES
+    types = {key: value[1] for key, value in PROPERTY_TYPES.items()}
+    types.update(non_residential="상업용", industrial="산업용")
+    return types.get(category or "")
+
+
+def missing_funding_inputs(values: dict) -> list[str]:
+    """계산 기본값(대출 50%·금리 4% 등)으로 조용히 채우지 않도록 사용자가 정해야 할 조건을 확인한다."""
+    required = ["cash_available", "loan_ratio", "owned_homes", "adjusted_area"]
+    if values.get("loan_ratio", 1) > 0:
+        required += ["annual_interest_rate", "loan_years", "repayment_type", "existing_loan_annual_payment"]
+    return [key for key in required if key not in values]
+
+
 def funding_summary(request, calculated: dict) -> dict:
     from backend.services.core_calculations import calculate
     return calculate("funding_summary", {"request": request.model_dump(mode="json"), "calculated": calculated})

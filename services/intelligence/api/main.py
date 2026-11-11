@@ -21,7 +21,7 @@ for _p in [_PROJECT_ROOT, _BACKEND_DIR, _API_DIR]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from api.routes import appraisal, chat, comparison, concierge, recommendation, rights
+from api.routes import appraisal, candidate_review, chat, comparison, concierge, recommendation, rights
 from api import data_routes, analysis_routes
 from backend.cache_db import init_cache_db as _init_cache
 from db.base import init_db
@@ -33,27 +33,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ─────────────────────────────────────────
-#  에러 추적 (Sentry) — SENTRY_DSN 미설정 시 완전히 비활성.
-#
-# 지금까지는 실사용자가 겪은 에러를 재현할 방법이 로그(stdout)뿐이었다.
-# DSN이 없으면 sentry_sdk.init을 아예 호출하지 않으므로 로컬 개발·CI에는
-# 영향이 없다 — 운영에서 발급받은 DSN을 .env에 넣는 순간에만 켜진다.
-# send_default_pii=False로 고정한다: 이 서비스는 주소 마스킹·질문 축약
-# 저장 등 개인정보 최소화 원칙을 이미 지키고 있는데, Sentry가 기본값으로
-# 요청 IP·쿠키까지 전송하게 두면 그 원칙이 에러 리포팅 경로에서만 깨진다.
-# ─────────────────────────────────────────
-_SENTRY_DSN = os.getenv("SENTRY_DSN", "")
-if _SENTRY_DSN:
-    import sentry_sdk
+# 에러 추적 (Sentry) — SENTRY_DSN 미설정 시 완전히 비활성. 작업 실행기와 같은 초기화를 쓴다(api/error_tracking.py).
+from api.error_tracking import init_error_tracking
 
-    sentry_sdk.init(
-        dsn=_SENTRY_DSN,
-        environment=os.getenv("APP_ENV", "development"),
-        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
-        send_default_pii=False,
-    )
-    logger.info("Sentry 에러 추적 활성화 (environment=%s)", os.getenv("APP_ENV", "development"))
+init_error_tracking("intelligence-api")
 
 
 @asynccontextmanager
@@ -124,7 +107,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _router in (appraisal.router, recommendation.router, comparison.router,
+for _router in (appraisal.router, recommendation.router, comparison.router, candidate_review.router,
                 concierge.router, rights.router, chat.router, data_routes.router, analysis_routes.router):
     app.include_router(_router)
 

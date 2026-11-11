@@ -205,6 +205,8 @@ def ensure_group() -> None:
 
 def serve() -> None:
     logging.basicConfig(level=logging.INFO)
+    from api.error_tracking import init_error_tracking
+    init_error_tracking("job-worker")
     ensure_group()
     from api.operational_health import worker_heartbeat
     def pulse():

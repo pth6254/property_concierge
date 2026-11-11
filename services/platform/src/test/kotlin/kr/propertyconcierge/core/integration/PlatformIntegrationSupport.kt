@@ -52,6 +52,8 @@ abstract class PlatformIntegrationSupport {
     protected var validatedRows: List<JsonNode> = emptyList()
     protected var tradesFailure = false
     protected var duringReport: (() -> Unit)? = null
+    // 변화 알림 조건 계산(Python) 대역. 받은 요청을 넘겨 테스트가 응답을 정한다. 없으면 조건 없음.
+    protected var notificationConditions: ((JsonNode) -> JsonNode)? = null
 
     @BeforeEach
     fun isolate() {
@@ -68,7 +70,7 @@ abstract class PlatformIntegrationSupport {
             factory.hostName == redisAddress.host && factory.port == redisAddress.port)
         jdbc.execute("TRUNCATE users,legal_regions RESTART IDENTITY CASCADE")
         factory.connection.use { it.serverCommands().flushDb() }
-        validatedRows = emptyList(); duringReport = null; tradesFailure = false
+        validatedRows = emptyList(); duringReport = null; tradesFailure = false; notificationConditions = null
         // 모의하는 것은 외부 분석 경계뿐이다. 회원·저장·권한·수식·트랜잭션은 실제 Spring이다.
         doAnswer { invocation ->
             check(!TransactionSynchronizationManager.isActualTransactionActive()) { "분석 호출은 DB 트랜잭션 밖이어야 합니다" }
@@ -89,6 +91,7 @@ abstract class PlatformIntegrationSupport {
                             "area_sqm" to 84.9, "price_won" to 1_000_000_000L, "price_per_sqm_won" to 11_778_563L))))
                 }
                 "simulation/report" -> { duringReport?.invoke(); json.readTree("""{"report":"표현 경계 대역","report_output":{}}""") }
+                "analysis/notification-conditions" -> notificationConditions?.invoke(data) ?: json.readTree("""{"conditions":[],"trade_subjects":[]}""")
                 else -> throw AssertionError("등록하지 않은 외부 분석 경계: $path")
             }
         }.`when`(python).analyze(anyString(), any(Any::class.java) ?: Any())

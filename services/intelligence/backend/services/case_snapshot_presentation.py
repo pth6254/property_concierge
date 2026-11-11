@@ -102,3 +102,44 @@ def _region_dict(item: CaseRegion) -> dict:
         "period_from": item.period_from, "period_to": item.period_to,
         "stats_snapshot": item.stats_snapshot or {}, "created": item.created,
     }
+
+
+def decorate_stored_snapshot(snapshot: dict) -> dict:
+    """Spring이 소유자를 확인해 넘긴 저장 스냅샷을 화면·판단용 케이스로 만든다. 저장소·외부 호출을 하지 않는다.
+
+    케이스 조회(decision/decorate)와 변화 알림 조건 계산이 같은 결과(분석 유효기간·원본 상태·다음 행동)를 쓰도록 한 곳에 둔다.
+    """
+    from types import SimpleNamespace
+
+    histories = {int(key): SimpleNamespace(**value) for key, value in snapshot["histories"].items()}
+    result = _case_dict(SimpleNamespace(**snapshot["case"]), len(snapshot["properties"]))
+    properties, all_checks = [], []
+    review_fields = ("id", "created", "previous_snapshot", "applied_snapshot", "previous_decision",
+                     "invalidated_analyses", "previous_analyses", "previous_execution")
+    for stored in snapshot["properties"]:
+        item = SimpleNamespace(**stored["property"])
+        analyses = []
+        for raw in stored["analyses"]:
+            analysis = _analysis_dict(SimpleNamespace(**raw))
+            history = histories.get(raw["reference_id"])
+            if raw["analysis_type"] == "appraisal" and history:
+                analysis["summary"]["estimated_value"] = _appraisal_won(history.result or {})
+                analysis["summary"].update(_appraisal_evidence(history.result or {}))
+            analyses.append(analysis)
+        checks = [_checklist_dict(SimpleNamespace(**check)) for check in stored["checklist"]]
+        all_checks.extend(checks)
+        reviews = [{field: review.get(field) for field in review_fields} for review in stored["source_reviews"]]
+        properties.append(_property_dict(item, histories.get(item.history_id), analyses, checks,
+                                         stored["source_status"], reviews))
+    result["properties"] = properties
+    result["regions"] = [_region_dict(SimpleNamespace(**region)) for region in snapshot["regions"]]
+    for candidate in properties:
+        candidate["next_actions"] = candidate_next_actions(result, candidate)
+    done = sum(check["status"] == "done" for check in all_checks)
+    result["workspace"] = {
+        "checklist_total": len(all_checks), "checklist_done": done,
+        "warning_count": sum(check["status"] == "warning" for check in all_checks),
+        "blocked_count": sum(check["status"] == "blocked" for check in all_checks),
+        "progress_percent": round(done / len(all_checks) * 100) if all_checks else 0,
+    }
+    return result

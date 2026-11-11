@@ -35,8 +35,11 @@ class PythonClient(env: Environment, private val json: ObjectMapper) {
             return PythonReply(response.statusCode(), response.headers().map(), response.body())
         } catch (_: java.io.IOException) { throw ApiFailure(503, "분석 서비스에 연결하지 못했습니다. 잠시 후 다시 시도해주세요") }
     }
-    fun analyze(path: String, data: Any): JsonNode {
-        val result = send("POST", "/internal/v1/$path", json.writeValueAsBytes(data), contentType="application/json")
+    fun analyze(path: String, data: Any): JsonNode = analyzeAs(path, data, null)
+
+    /** Spring이 확인한 사용자를 행위자(X-AI-User-Id)로 넘긴다. 저장·작업 접수를 하는 내부 분석에 쓴다. */
+    fun analyzeAs(path: String, data: Any, userId: Long?): JsonNode {
+        val result = send("POST", "/internal/v1/$path", json.writeValueAsBytes(data), contentType="application/json", userId=userId)
         if (result.status !in 200..299) {
             val detail = runCatching { json.readTree(result.body).path("detail").asText() }.getOrNull()
             throw ApiFailure(result.status, detail?.takeIf { it.isNotBlank() } ?: "분석 요청을 처리하지 못했습니다")

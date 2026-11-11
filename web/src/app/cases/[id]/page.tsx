@@ -15,7 +15,10 @@ import CaseProgressGuide from "@/components/CaseProgressGuide";
 import { listingEntryHref } from "@/lib/listingNavigation";
 import { setSessionValue } from "@/lib/sessionStore";
 import { candidateSimulationSeed } from "@/lib/candidateSimulationSeed";
+import { candidateRightsSeed } from "@/lib/candidateRightsSeed";
+import CandidateQuickReview from "@/components/CandidateQuickReview";
 import type { BuyerProfile, CandidateAnalysis, CaseProperty, HistoryItem, PurchaseCase, PurchaseCaseStatus } from "@/lib/types";
+import { VALUATION_RESULT_LABELS, type ValuationAssessment } from "@/lib/valuation";
 
 const CASE_STATUS: { value: PurchaseCaseStatus; label: string }[] = [
   { value: "exploring", label: "지역 탐색" }, { value: "reviewing", label: "후보 검토" },
@@ -41,7 +44,12 @@ function analysisSummary(analysis: CandidateAnalysis): string {
   const summary = analysis.summary;
   if (analysis.analysis_type === "appraisal") {
     const verdict = textValue(summary.valuation_verdict);
-    return `${won(numberValue(summary.estimated_value))}${verdict ? ` · ${verdict}` : ""}`;
+    const value = numberValue(summary.estimated_value);
+    // 보류·지원 범위 밖처럼 가격이 없는 결과를 "미입력"으로 보이면 분석을 안 한 것처럼 읽힌다. 결과 종류를 보여준다.
+    const valuation = summary.valuation as Partial<ValuationAssessment> | null | undefined;
+    const kind = valuation?.result_kind ? VALUATION_RESULT_LABELS[valuation.result_kind] : null;
+    if (value == null) return kind ?? "가격 결과 없음 · 리포트 확인";
+    return `${won(value)}${kind && valuation?.result_kind !== "market_reference" ? ` · ${kind}` : ""}${verdict ? ` · ${verdict}` : ""}`;
   }
   if (analysis.analysis_type === "simulation") {
     const loan = numberValue(summary.loan_amount);
@@ -232,10 +240,11 @@ function CandidateCard({ property, caseId, profile, reload }: { property: CasePr
         {review.previous_execution.length > 0 && <span className="mt-1 block">변경 전 실행 항목: {review.previous_execution.map(task => `${task.title}(${task.status}${task.outcome ? ` · ${task.outcome}` : ""})`).join(", ")}</span>}
       </p>)}
     </details>}
+    {property.status !== "rejected" && <CandidateQuickReview property={property} caseId={caseId} reload={reload} />}
     <div className="mt-4 grid gap-2 md:grid-cols-3">{(["appraisal", "simulation", "rights"] as const).map((type) => {
       const analysis = analyses.get(type);
       const href = type === "appraisal" ? `/appraisal?caseId=${caseId}&candidateId=${property.id}` : `/${type}`;
-      const prepare = () => { if (type === "simulation") setSessionValue("simFromListing", JSON.stringify(candidateSimulationSeed(property, caseId, profile))); if (type === "rights") setSessionValue("rightsCandidate", JSON.stringify({ market_price: property.appraisal?.estimated_value ?? property.asking_price, address: property.address, case_id: caseId, candidate_id: property.id })); };
+      const prepare = () => { if (type === "simulation") setSessionValue("simFromListing", JSON.stringify(candidateSimulationSeed(property, caseId, profile))); if (type === "rights") setSessionValue("rightsCandidate", JSON.stringify(candidateRightsSeed(property, caseId))); };
       const warning = Boolean(analysis && (analysis.status === "stale" || (type === "rights" && textValue(analysis.summary.risk_grade) !== "safe") || (type === "simulation" && property.next_actions?.some(action => action.target === "simulation"))));
       return <Link key={type} href={href} onClick={prepare} className={`rounded-lg border p-3 text-xs hover:border-emerald-300 ${warning ? "border-amber-200 bg-amber-50" : ""}`}><div className="flex justify-between"><strong>{ANALYSIS_LABEL[type]} 분석</strong>{analysis ? warning ? <AlertTriangle size={15} className="text-amber-600" /> : <CheckCircle2 size={15} className="text-emerald-600" /> : <Circle size={15} className="text-slate-300" />}</div><p className="mt-1 truncate text-slate-500">{analysis ? `${analysis.status === "stale" ? "갱신 필요 · " : ""}${analysisSummary(analysis)}` : type === "rights" ? "서류 업로드 필요" : type === "simulation" ? "금융 조건 입력 필요" : "분석 필요"}</p></Link>;
     })}</div>

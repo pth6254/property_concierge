@@ -163,6 +163,9 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
       CORE_HEALTH_URL: http://core:8080/health
+    # 정기 백업 실패·26시간 무응답도 외부 알림(OPS_ALERT_WEBHOOK_URL)에 포함하려고 기록 파일만 읽는다.
+    volumes:
+      - ./backups:/app/backups:ro
     command: ["python", "-m", "api.operational_health"]
 
   transaction-refresh:
@@ -216,6 +219,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-real_estate_db}
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
       BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-0}
     volumes:
       - ./backups:/backups
       - ./scripts/run_scheduled_backup.sh:/run_scheduled_backup.sh:ro

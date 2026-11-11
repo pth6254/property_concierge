@@ -5,7 +5,7 @@
 > 사람이 읽는 셋업·기능 설명은 `README.md` 에 있다. 여기에는 **코드를 고칠 때 알아야 할
 > 제약과 함정**만 적는다.
 
-문서 갱신: **2026-10-06**. 최근 구현·실행 검증은 **2026-10-05** 기록이다.
+문서 갱신: **2026-11-11**. 9절의 전체 검증 표는 **2026-10-05** 기록이며, 그 뒤 변경은 각 절에 날짜와 함께 적었다.
 이어받을 때는 이 파일의 **2-14(현재 AVM 계약) → 8(다음 작업) → 9(최근 검증 범위)**와
 [인수인계 문서](docs/project-handoff.md)를 함께 읽는다. 문서 갱신일을 서비스 재검증일로 해석하지 않는다.
 
@@ -271,6 +271,17 @@ JWT 는 stateless 라 발급 후에는 서버가 취소할 방법이 원래 없�
 회귀 테스트는 `tests/test_funding_consistency.py`, 화면 검증은
 `scripts/verify_candidate_funding_browser.cjs`다. [자금 입력 기준](docs/features/decision.md#funding-input)을 따른다.
 
+**후보 한 번에 검토**(`candidate_quick_review.py`, 2026-11-11)도 이 규칙을 따른다. 유효한 분석(저장 상태 `completed`, 자금은 분석 매수가 = 현재 희망가)은
+다시 실행하지 않고, 자금을 다시 계산할 때는 저장된 개별 조건 + 현재 희망가를 쓴다. 계산 기본값으로 빈 조건을 채우지 않는다.
+컨시어지와 공유하는 필수 조건·물건 종류 판정은 `candidate_funding.missing_funding_inputs`·`funding_property_type` 한 곳에 둔다.
+조회 경로에서 호출하지 않는다. 회귀는 `tests/test_candidate_quick_review.py`, 화면은 `scripts/verify_candidate_quick_review_browser.cjs`다.
+
+**변화 알림함**(2026-11-11)은 새 판단 기준을 만들지 않는다. 분석 만료·원본 변경·매물 7일 재확인·실거래 연결은 각각 기존 `analysis_freshness`·`sourceStatus`·
+`needs_confirmation`·`find_trades`를 그대로 쓴다. 조건 계산은 Python `notification_conditions.py`, 저장·읽음·해결은 Spring `NotificationStore`다.
+Spring은 넘긴 본인 자료에 없는 ID의 조건을 버리고, 계산 실패를 해결로 처리하지 않는다. 새 실거래는 `first_seen_at` 기준이며 기록 전 거래(`NULL`)를 새 거래로 보지 않는다.
+공급·미확인 면적 후보에는 실거래 알림을 만들지 않는다. 메일·푸시 발송은 없다. 회귀는 `tests/test_notification_conditions.py`·Kotlin `NotificationIT`,
+화면은 `scripts/verify_notifications_browser.cjs`다. 계약은 [변화 알림함](docs/features/decision.md#notifications)을 따른다.
+
 ### 2-13. 매물 거래 상태·자료 시점·확인 출처를 섞지 않는다
 
 사용자 등록 호가·실거래·AVM 추정가는 다른 자료다. 출처와 확인 시각을 유지하고,
@@ -306,7 +317,7 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
 
 | 유형 | 현재 결과와 실행 조건 |
 |---|---|
-| 아파트 | 개별 호실 범위·전용면적·단지명·주소·기준일 입력 조건 확인 후, 최근 6개월·동일 단지·면적 ±10% 유효 거래 5건 이상이면 기존 비교 엔진 실행. `market_reference` 또는 `withheld` |
+| 아파트 | 개별 호실 범위·전용면적·단지명·주소·기준일 입력 조건 확인 후, 최근 6개월·동일 단지·면적 ±10% 유효 거래 5건 이상이면 비교 엔진 실행(A1). manifest가 A1 혼합을 승인하면 혼합 가격을 쓴다. `market_reference` 또는 `withheld` |
 | 아파트 5건 미만 (2026-10-12) | 같은 단지 12개월(A2)·같은 단지 다른 면적 또는 같은 동 유사 단지(A3) 근거로 혼합 AVM의 `model_estimate`(ML 참고 추정). `comparison_eligible=false`. 근거 없음(A4)은 `withheld` |
 | 오피스텔·연립다세대·단독/다가구 | 별도 기준·자료 검증 전 `withheld`. 아파트 모델로 대체하지 않음 |
 | 상가·업무용 | 현재 월세·운영비·환원율 가정에 따른 `conditional_scenario` 또는 `withheld`. Kotlin `IncomeValuationCalculator`가 계산 |
@@ -334,11 +345,13 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
 - **ML(CatBoost)은 아파트 혼합 AVM(R-APT)에만 쓴다** (2026-10-12 사용자 결정으로 이전 "운영 연결 금지" 규칙을 바꿈).
   `backend/valuation/apartment_avm.py`는 시간 분할 평가 후 `avm-segment --final`로 만든 `data/models/r-apt`
   (manifest `deployment=service`, 파일 해시 검증)만 읽고, 없거나 실패하면 기존 규칙으로 처리한다. 다른 유형·A4의 대체로 쓰지 않는다.
-  A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 현재 산출물은 두 기간 평가에서 기존 규칙보다
-  일관되게 낫지 않아 `false`였으나, 시점 보정 V4 반영 후 12개월 롤링 평가(운영 규칙 대비 MAPE 5.48%→4.91%, 사전 기준 전부 통과)로 `true`가 됐다(2026-10-12). `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
+  A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 처음 산출물은 두 기간 평가에서 기존 규칙보다
+  일관되게 낫지 않아 `false`였으나, 시점 보정 V4 반영 후 12개월 롤링 평가(운영 규칙 대비 MAPE 5.48%→4.91%, 사전 기준 전부 통과)로 `true`가 됐다(2026-10-12).
+  이후 공시가격 변수 산출물(2026-10-24)과 매달 재학습(2026-11-01 볼륨 모델)도 `true`다. 승인 여부는 매달 판정이 바꿀 수 있으므로 현재 값은 manifest로 확인한다. `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
   혼합 AVM 구간은 검증 구간 잔차의 분위수로 정한 참고 구간이다(`interval_basis=calibrated_holdout_quantiles`). 재학습·교체 시 같은 평가를 다시 통과한다.
 - **아파트 혼합 AVM은 매달 재학습한다** (2026-10-12, `backend/tools/retrain_apartment_avm.py`, Compose `avm-retrain` 유지보수 서비스).
   새 완결월이 생기면 12개월 롤링 평가 → `rolling_avm.ACCEPTANCE` 판정 → ML 참고 추정 기준 통과 시에만 교체하고, A1 승인은 그 달 판정을 따른다.
+  완결월은 신고 기한(계약 후 30일) 때문에 **2개월 전 달**이며 `transaction_store`의 완결 월과 같다. 직전 달로 되돌리지 않는다(2026-11-01 재학습이 덜 찬 10월을 썼다).
   교체 모델은 볼륨 `avm_models`(`AVM_APARTMENT_LIVE_DIR`)에 두고 이전 모델은 `history/`, 판정 보고서는 `reports/`에 남긴다.
   볼륨이 비면 이미지의 `data/models/r-apt`를 쓴다. 판정 기준을 바꾸려면 결과를 보기 전에 바꾸고 그 사실을 문서에 남긴다.
 - **아파트 비교사례 시점 보정은 단지·면적대 고정효과 지수 + 최근 3개월 추세 연장(V4)이다** (2026-10-12, `backend/valuation/time_index.py`).
@@ -357,6 +370,19 @@ API 변경 시 `web/src/lib/valuation.ts`·`api.ts`·`types.ts`와 `contracts/v1
 회귀는 `tests/test_valuation_policy.py`·`tests/test_valuation_support.py`, Kotlin 저장 검사는
 `services/platform/src/test/kotlin/kr/propertyconcierge/core/store/ValuationEvidenceIT.kt`, 화면 검사는
 `scripts/verify_valuation_support_browser.cjs`다. 상세 입력·제약은 [적용 계약](docs/features/decision.md#valuation-implementation)을 따른다.
+
+### 2-15. 오류 보고와 보안 헤더의 경계를 유지한다 (2026-11-11)
+
+`SENTRY_DSN` 하나로 Spring·Python API·작업 실행기·웹 화면 오류를 보고하며, 비어 있으면 어디서도 초기화하지 않는다.
+- Spring `ErrorReportingResolver`는 응답을 바꾸지 않고(null 반환) 5xx·예상 밖 예외만 보고한다. 4xx(입력·권한·없는 자료)는 보고하지 않는다.
+  자동 설정 `sentry-spring-boot-starter`로 바꾸지 않는다 — 기본값이 4xx `ApiFailure`까지 오류로 보낸다.
+- 화면 오류는 `/api/client-errors`(Spring)로 보낸다. 브라우저에 Sentry SDK·DSN(`NEXT_PUBLIC_*`)을 두지 않는다. 경로의 ID·질의 문자열과 문구의 이메일을 가리는
+  `ErrorReporter.clientRoute`·`clientMessage`를 우회하지 않으며, 요청 본문·쿠키·IP를 보고에 넣지 않는다.
+- 화면 CSP는 `web/next.config.ts`에서 외부 출처를 모두 막는다. 외부 스크립트·이미지·API를 쓰려면 출처를 명시적으로 추가하고, `*`·`https:` 전체 허용을 넣지 않는다.
+  nonce 방식으로 바꾸면 모든 화면이 동적 렌더링이 되므로(3-4 영역) 별도 결정 없이 바꾸지 않는다. HSTS는 HTTPS인 운영 Caddy에만 둔다.
+- 운영 알림(`operations-monitor` → `OPS_ALERT_WEBHOOK_URL`)은 연속 확인·마지막 알림 기록으로 중복을 막는다. 웹훅 주소(토큰 포함)를 로그에 남기지 않는다.
+
+회귀는 Kotlin `ErrorReportingTest`·`ClientErrorIT`, Python `tests/test_operational_alerts.py`다. 운영 절차는 [오류 추적·운영 알림](docs/operations.md#administration-오류-추적운영-알림보안-헤더)을 따른다.
 
 ---
 
@@ -467,7 +493,7 @@ sh scripts/compose.sh local up -d --build   # 운영 (override 배제)
 - `test` — PostgreSQL·Redis 서비스 컨테이너 + `alembic -c services/intelligence/alembic.ini upgrade head` + `pytest` + 오프라인 평가.
 - `frontend` — `tsc --noEmit` + `npm run lint` + `npm run build`
 - `spring` — 먼저 Kotlin의 단위·전용 Testcontainers 저장/권한/롤백 검사를 실행한다. 이어서 별도 API·작업 실행기를
-  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 10종을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
+  띄우고 서비스 계약·계산·프록시와 브라우저 흐름 12종(2026-11-11 후보 한 번에 검토·변화 알림함 추가)을 검증한다. Kotlin JUnit XML·로그도 아티팩트로 보관한다.
   주소 등록·선택 별칭·매물 변경 재검토를 포함하며 결과 JSON과 화면 이미지를 아티팩트로 보관한다.
 
 **동작·API 변경 후에는 양쪽을 모두 돌려볼 것.** 백엔드만 고쳤다고 프론트가 안전한 게 아니다
@@ -519,8 +545,8 @@ node scripts/verify_decision_assessment_browser.cjs
   ±10% 적중률 69~84%지만 **동일동·구 매칭은 8~33%** 다.
   신뢰도는 이 실측치를 블렌딩해 하향 보정된다(`services/intelligence/backend/confidence.py`).
   이 과거 기록을 현재 `PC-AVM-1.0-runtime-1`의 정확도나 전국 성능으로 인용하지 않는다.
-- **아파트 혼합 AVM(R-APT)의 현재 평가 기록**은 `services/intelligence/evaluation/README.md`의 R-APT 절이다. A1 혼합은 미승인,
-  A2·A3 ML 참고 추정만 서비스에 쓴다. 아래 `avm-compare` 기록은 그 이전의 단독 CatBoost 비교다.
+- **아파트 혼합 AVM(R-APT)의 현재 평가 기록**은 `services/intelligence/evaluation/README.md`의 R-APT 절이다. 서울 25개 구 12개월 롤링 평가로
+  A1 혼합이 승인됐고 A2·A3는 ML 참고 추정(`model_estimate`)으로 쓴다(2-14). 아래 `avm-compare` 기록은 그 이전의 단독 CatBoost 비교다.
 - **CatBoost 단독 모델은 오프라인 후보 모델이다.** `evaluation avm-compare`는 시간 분리한 아파트 거래에서 기존
   `residential_agent` 재생과 비교한다. 정답 가격·단가를 특성에 넣거나 최종 평가를 early stopping에 사용하지 않는다.
   서비스 기준선을 자동 교체하지 않는다. 첫 비교는 기준 미달이며 결과를 보고 튜닝하면 이후 기간으로 다시 검증한다.
@@ -553,9 +579,10 @@ node scripts/verify_decision_assessment_browser.cjs
 1. 새 `PC-AVM-1.0-runtime-1`을 실제 아파트 거래로 평가한다. 기존 기준선·후보 모델과 같은 시점 분할에서
    가격 산출률/보류율, 산출된 표본의 MAPE·±10% 적중률, 지역·가격대별 편차를 함께 기록한다.
    보류를 정답·0원으로 처리하거나 산출 성공 건만으로 전체 품질을 높게 보고하지 않는다.
+   (2026-10-12~24: **서울 25개 구 아파트**는 12개월 롤링 평가로 수행했다. 다른 지역·유형과 신고 지연을 재현한 시점 기준 평가는 남아 있다.)
 2. 오차·보류 원인을 단지 식별·주소·면적·거래 신선도·표본 부족으로 나눠 데이터와 비교 기준을 개선한다.
    CatBoost는 기존 기준선을 넘는 별도 검증을 통과한 뒤 적용 범위를 결정한다. 평가를 보고 튜닝했으면 이후 기간으로 다시 확인한다.
-   (2026-10-12: A2·A3 ML 참고 추정 연결. A1 혼합은 2026-10 이후 완료월로 다시 평가해 통과하면 `--approve-a1-hybrid`로 켠다.)
+   (2026-10-12: A2·A3 ML 참고 추정 연결, V4 시점 보정 후 A1 혼합 승인. 2026-10-24: 공시가격 변수 채택. 이후 판정은 매달 재학습이 한다.)
 3. 대표 아파트의 등록 → 실제 AVM → 자금 → 비교 → 선택 → 변경 재검토 → 복원을 연결하고,
    연결 성공과 시장가격 정확도를 별도로 평가한다. 비아파트는 유형별 자료·정답셋·평가 기준을 확보한 순서로 확대한다.
 
@@ -563,7 +590,7 @@ node scripts/verify_decision_assessment_browser.cjs
 새 사용자가 다른 작업을 지시하면 그 범위를 따르고, 위 목록을 이미 실행한 작업으로 설명하지 않는다.
 
 **코드 쪽**
-- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 10종이 있다.
+- **프론트엔드 단위 테스트 0건.** CI에는 타입체크·린트·빌드와 브라우저 흐름 12종이 있다.
 - 후보 → 자금 화면의 입력 전달·저장·새로고침과 판단 축 표시는 브라우저로 검증했다.
   홈 → `/appraisal`, 샘플 추천 → `/simulation`의 프리필은 별도 브라우저 검증이 필요하다.
 - 실제 AVM과 권리 PDF까지 연결한 전체 흐름의 품질 검증은 아직 별도 작업이다.
@@ -576,6 +603,8 @@ node scripts/verify_decision_assessment_browser.cjs
 - **Resend 도메인 인증 미완료** — 위 7절 참고. 그 전까지 재설정은 운영자가 로그의 링크를
   수동 전달하는 방식으로만 가능하다.
 - **Google OAuth 리다이렉트 URI 가 localhost 로만 등록**되어 있다. 실도메인 등록 필요.
+- **오류 추적·외부 알림은 코드만 준비됐다(2026-11-11).** 실제 Sentry 프로젝트 DSN과 알림 웹훅을 운영 `.env`에 넣고 수신을 확인해야 한다.
+  백업의 서버 밖 보관(다른 저장소 복사)은 아직 없다.
 - **국토부 API 지역 시딩은 서울 25개 구 매매 거래에 적용했다.** 매물 원문은 정기 수집하지 않는다. 로컬 Docker의 실거래 갱신은 2026-09-27에 `transaction-refresh` 유지보수 프로필을 활성화했다. 다른 배포 환경에서는 별도로 활성화해야 한다.
 
 **제품 쪽**
@@ -628,7 +657,8 @@ node scripts/verify_decision_assessment_browser.cjs
 근거는 `evaluation-results/platform/`, `valuation-support-browser.json`, `valuation-policy-live.json`과
 해당 화면 이미지다(뒤의 두 파일도 `evaluation-results/` 아래). 이 폴더는 로컬 생성물이므로 새 체크아웃에 없을 수 있다.
 전체 기록은 [검증 상태와 경계](docs/project-handoff.md#검증-상태와-경계)를 따른다.
-원격 GitHub Actions 완료, 새 정책의 실거래 정확도·보류율, LLM 대화 품질, 전국 데이터 제공률을 검증한 기록은 아니다.
+위 표 자체는 원격 GitHub Actions 결과, 새 정책의 실거래 정확도·보류율, LLM 대화 품질, 전국 데이터 제공률을 검증한 기록이 아니다.
+원격 CI는 이후 실행되고 있다(예: 2026-11-08 `00ca6b1` push의 `CI` 워크플로 성공). 원격 결과는 `gh run list`로 확인하고 로컬 통과와 구분해 적는다.
 2026-10-03 아파트 300건 비교의 기존 AVM MAPE 12.70%·CatBoost 19.82%도 **이전 기준선의 오프라인 기록**이다.
 2026-10-04 VWorld 실제 필지 1건 확인은 별도 기록이며 키 상태·전국 제공률이 현재도 같다고 단정하지 않는다.
 

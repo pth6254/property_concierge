@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { LandInformationDetails } from "@/components/LandInformationDetails";
-import type { ValuationAssessment, ValuationSupportResult } from "@/lib/valuation";
+import { VALUATION_RESULT_LABELS as KINDS, type ValuationSupportResult } from "@/lib/valuation";
 import { DataTable, InfoTable, NumberedList, PastTradeNotice, ReportShell, Sections, type InfoRow } from "@/components/ReportDocument";
 
 /*
@@ -14,7 +14,6 @@ const money = (value: number | null | undefined) => value == null ? "미산출" 
 const pct = (value: number | null) => value == null ? "미산출" : `${value.toLocaleString("ko-KR", { maximumFractionDigits: 4 })}%`;
 const perSqm = (value: number | null | undefined) => value == null ? "—" : `${Math.round(value / 10_000).toLocaleString("ko-KR")}만원/㎡`;
 
-const KINDS: Record<ValuationAssessment["result_kind"], string> = { market_reference: "시장가격 참고", model_estimate: "ML 참고 추정", conditional_scenario: "조건부 시나리오", public_reference: "공개자료 참고", partial_reference: "구성 부분 참고", withheld: "추정 보류", unsupported: "지원 범위 밖" };
 const SCOPES: Record<string, string> = { single_unit: "개별 호실", whole_building: "건물 전체", land_and_building: "토지와 건물 전체", single_parcel: "단일 필지", unknown: "미확인" };
 const AREAS: Record<string, string> = { exclusive: "전용면적", supply: "공급면적", gross: "연면적", land: "토지면적", unknown: "면적 기준 미확인" };
 const SUBTYPES: Record<string, string> = { apartment: "아파트", officetel: "오피스텔", row_house: "연립다세대", detached: "단독·다가구", commercial: "상가", office: "사무실", factory: "공장", warehouse: "창고", land: "토지" };

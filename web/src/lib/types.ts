@@ -600,3 +600,41 @@ export interface SimulationRequest {
   annual_income?: number;
   existing_loan_annual_payment?: number;
 }
+
+/** 후보 한 번에 검토 응답. services/intelligence/schemas/candidate_review.py와 같은 계약이다. */
+export interface CandidateQuickReview {
+  case_id: number;
+  candidate_id: number;
+  funding: {
+    status: "current" | "calculated" | "needs_input" | "error";
+    input_source?: "profile" | "saved" | null;
+    missing: string[];
+    summary?: { purchase_price?: number | null; required_cash?: number | null; cash_shortfall?: number | null; monthly_payment?: number | null } | null;
+    warnings: string[];
+    message?: string | null;
+  };
+  appraisal: {
+    status: "current" | "queued" | "needs_input" | "error";
+    job_id?: string | null;
+    missing: string[];
+    input_url?: string | null;
+    message?: string | null;
+  };
+  rights: { status: "current" | "stale" | "needs_document" };
+}
+
+/** 변화 알림. 조건 계산은 services/intelligence/backend/services/notification_conditions.py, 저장은 Spring NotificationStore. */
+export type NotificationKind = "trade_update" | "analysis_expired" | "listing_reconfirm" | "source_changed";
+export interface NotificationItem {
+  id: number;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  link: string;
+  case_id: number | null;
+  property_id: number | null;
+  listing_id: number | null;
+  created: string;
+  read_at: string | null;
+}
+export interface NotificationList { items: NotificationItem[]; unread_count: number }

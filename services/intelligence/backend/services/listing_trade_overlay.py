@@ -74,8 +74,9 @@ def find_trades(*, legal_region_code: str, name: str, area_sqm: float, months: i
             continue
         seen.add(identity)
         won = row.price * 10_000  # 국토부 신고 금액은 만원 단위
+        # first_seen_at: 서비스가 이 거래를 처음 수집한 시각(epoch 초). 기록 시작 전 거래는 None이다(변화 알림이 새 거래를 고를 때 쓴다).
         trades.append({"deal_date": day.isoformat(), "floor": str(row.floor or ""), "area_sqm": row.area_sqm,
-                       "price_won": won, "price_per_sqm_won": round(won / row.area_sqm)})
+                       "price_won": won, "price_per_sqm_won": round(won / row.area_sqm), "first_seen_at": row.first_seen_at})
     trades.sort(key=lambda item: item["deal_date"], reverse=True)
     return {"available": bool(trades), "reason": "" if trades else "면적이 비슷한 거래가 기간 안에 없습니다",
             "complex_name": sorted(names)[0], "match": match, "window_months": months, "area_tolerance_pct": round(tolerance * 100),

@@ -45,6 +45,22 @@ SAMPLE_FIELDS = [
 ]
 
 
+# 재수집 때 같은 거래인지 대조하는 필드. 해제 여부·지번 보완·파생값(평·㎡당 가격)이 바뀌어도 최초 수집 시각을 잃지 않도록
+# 거래 자체를 가리키는 값만 쓴다. 금액·면적이 정정되면 새 거래로 보고 정정본을 처음 본 시각을 남긴다.
+_IDENTITY_FIELDS = ("deal_year", "deal_month", "deal_day", "price", "area_sqm", "floor", "apt_name", "dong",
+                    "building_area_sqm", "land_area_sqm", "property_detail")
+
+
+def _identity(values) -> tuple:
+    def normalize(value):
+        if value is None:
+            return ""
+        if isinstance(value, float):
+            return f"{value:.2f}"
+        return str(value).strip()
+    return tuple(normalize(values.get(field)) for field in _IDENTITY_FIELDS)
+
+
 def is_month_completed(endpoint: str, category: str, lawd_cd: str, deal_ym: str) -> bool:
     """배치 수집에서는 TTL과 무관하게 완료된 월을 다시 받지 않는다."""
     init_store()
@@ -163,21 +179,24 @@ def put_month(endpoint: str, category: str, lawd_cd: str, deal_ym: str, samples:
     빈 결과가 TTL 동안 고착된다.
     """
     init_store()
+    now = time.time()
+    month = (Transaction.endpoint == endpoint, Transaction.category == category,
+             Transaction.lawd_cd == lawd_cd, Transaction.deal_ym == deal_ym)
     try:
         with session_scope() as session:
-            session.execute(
-                delete(Transaction).where(
-                    Transaction.endpoint == endpoint,
-                    Transaction.category == category,
-                    Transaction.lawd_cd == lawd_cd,
-                    Transaction.deal_ym == deal_ym,
-                )
-            )
+            # 삭제 전에 기존 거래의 최초 수집 시각을 모아 둔다. 같은 값의 거래가 여러 건이면 이른 시각부터 하나씩 배정한다.
+            previous: dict[tuple, list] = {}
+            for row in session.execute(select(Transaction).where(*month)).scalars():
+                previous.setdefault(_identity({f: getattr(row, f) for f in _IDENTITY_FIELDS}), []).append(row.first_seen_at)
+            for seen in previous.values():
+                seen.sort(key=lambda value: -1.0 if value is None else value)  # NULL(기록 시작 전)이 가장 이르다
+            session.execute(delete(Transaction).where(*month))
             if samples:
                 session.add_all([
                     Transaction(
                         endpoint=endpoint, category=category, lawd_cd=lawd_cd, deal_ym=deal_ym,
                         **{f: s.get(f) for f in SAMPLE_FIELDS},
+                        first_seen_at=_first_seen(previous, s, now),
                     )
                     for s in samples
                 ])
@@ -193,6 +212,11 @@ def put_month(endpoint: str, category: str, lawd_cd: str, deal_ym: str, samples:
             session.execute(stmt)
     except Exception as e:
         print(f"[tx_store] 적재 오류: {e}")
+
+
+def _first_seen(previous: dict[tuple, list], sample: dict, now: float) -> float | None:
+    seen = previous.get(_identity(sample))
+    return seen.pop(0) if seen else now
 
 
 def list_ingested_months(endpoint: str, category: str, lawd_cd: str) -> list[str]:

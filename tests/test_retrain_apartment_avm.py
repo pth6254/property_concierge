@@ -42,11 +42,35 @@ def _run(live, verdict, today=date(2026, 11, 20), **kwargs):
 
 
 def test_month_plan_matches_the_rolling_evaluation_setup():
-    assert retrain.last_complete_month(date(2026, 10, 12)) == "202609"
+    # 신고 기한(계약 후 30일) 때문에 직전 달은 아직 덜 찼다. 11월 1일에도 9월까지만 완결월이다.
+    assert retrain.last_complete_month(date(2026, 10, 12)) == "202608"
+    assert retrain.last_complete_month(date(2026, 11, 1)) == "202609"
+    assert retrain.last_complete_month(date(2027, 1, 3)) == "202611"
     assert retrain.plan_months("202310", "202609") == {"train_start": "202410", "test_from": "202510", "test_to": "202609",
                                                        "final_validation_start": "202608"}
     # 자료가 쌓이면 학습 창은 최근 24개월로 미끄러진다.
     assert retrain.plan_months("202310", "202709")["train_start"] == "202510"
+
+
+def test_legacy_manifest_counts_its_last_month_as_incomplete():
+    # 2026-11-01 재학습본: 직전 달 규칙으로 10월 26일까지 신고분만 학습했다. 완결 자료는 9월까지로 본다.
+    legacy = {"trained_through": "2026-10-26", "a1_hybrid_approved": True}
+    assert retrain.covered_month(legacy) == "202609"
+    assert retrain.covered_month({"trained_through": "2026-10-31", "complete_through": "202610"}) == "202610"
+    assert retrain.covered_month(None) == "" and retrain.covered_month({}) == ""
+
+
+def test_legacy_model_waits_until_its_month_is_complete_then_retrains(tmp_path):
+    live = tmp_path / "r-apt"
+    _run(live, _verdict())
+    manifest = json.loads((live / "model.json").read_text(encoding="utf-8"))
+    manifest.pop("complete_through")
+    manifest["trained_through"] = "2026-10-26"
+    (live / "model.json").write_text(json.dumps(manifest), encoding="utf-8")
+    assert _run(live, _verdict(), today=date(2026, 11, 8))["status"] == "up_to_date"
+    retrained = _run(live, _verdict(), today=date(2026, 12, 1))
+    assert retrained["status"] == "deployed" and retrained["complete_through"] == "202610"
+    assert json.loads((live / "model.json").read_text(encoding="utf-8"))["complete_through"] == "202610"
 
 
 def test_deploys_when_criteria_pass_and_keeps_previous_in_history(tmp_path):
@@ -55,7 +79,9 @@ def test_deploys_when_criteria_pass_and_keeps_previous_in_history(tmp_path):
     assert first["status"] == "deployed" and first["previous"] is None
     manifest = json.loads((live / "model.json").read_text(encoding="utf-8"))
     assert manifest["deployment"] == "service" and manifest["a1_hybrid_approved"] is True
-    assert _fake_train.config.validation_start == "202609" and _fake_train.config.band_by == "level"
+    assert manifest["complete_through"] == "202609"  # 11월 20일 기준 완결월
+    assert _fake_train.config.validation_start == "202608" and _fake_train.config.test_end == "202609"
+    assert _fake_train.config.band_by == "level"
     second = _run(live, _verdict(a1=False), force=True)
     assert second["status"] == "deployed" and (tmp_path / "history").exists()
     assert json.loads((live / "model.json").read_text(encoding="utf-8"))["a1_hybrid_approved"] is False
@@ -88,7 +114,7 @@ def test_runtime_prefers_live_model_and_reloads_after_swap(tmp_path, monkeypatch
 
 def test_first_start_uses_bundled_model_month_before_retraining(tmp_path, monkeypatch):
     bundled = tmp_path / "bundled"
-    _run(bundled, _verdict())  # 이미지에 들어 있는 모델(2026-10까지 학습)
+    _run(bundled, _verdict())  # 이미지에 들어 있는 모델(완결 자료 2026-09까지 학습)
     monkeypatch.setenv("AVM_APARTMENT_MODEL_DIR", str(bundled))
     result = _run(tmp_path / "live", _verdict(), today=date(2026, 11, 20))
     assert result["status"] == "up_to_date" and not (tmp_path / "live").exists()

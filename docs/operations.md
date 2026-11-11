@@ -107,6 +107,38 @@ CI는 보호된 `real_estate_test`에 가상 거래를 준비한 뒤 동일 브�
 실제 서비스 데이터로 돌린 결과와 CI 가상 거래 결과는 검증 범위가 다르다.
 브라우저 증거는 `evaluation-results/service-quality-browser.json`과 화면 이미지에 저장한다.
 
+<a id="administration-오류-추적운영-알림보안-헤더"></a>
+
+### 오류 추적·운영 알림·보안 헤더 (2026-11-11)
+
+**오류 추적:** `SENTRY_DSN` 하나로 Spring·Python API·작업 실행기·웹 화면 오류를 보고한다. 비어 있으면 어느 곳도 초기화하지 않는다.
+- Spring(`ErrorReporting.kt`): 응답을 바꾸지 않는 예외 관찰기가 5xx·예상 밖 예외만 보낸다. 입력 오류·권한·없는 자료 등 4xx는 보내지 않는다.
+  외부 공급자·분석 서비스 연결 실패(`ApiFailure` 5xx)는 경고, 그 밖의 예외는 오류 수준이다. 경로는 매핑 패턴(`/api/cases/{caseId}`)만 남긴다.
+- Python: API와 작업 실행기가 `api/error_tracking.py`로 같은 설정을 쓴다. 실행기의 작업 실패는 `logger.exception` 기록이 이벤트가 된다.
+- 웹: `error.tsx`·`global-error.tsx`와 처리되지 않은 오류·Promise 거부를 `POST /api/client-errors`로 보낸다. 로그인 없이 받고 IP당 10분 30건으로 제한한다.
+  브라우저에 Sentry SDK·DSN을 두지 않으므로 CSP를 `'self'`로 유지하고 광고 차단기에 막히지 않는다. 대신 스택은 압축된 번들 기준이다.
+  경로의 숫자·긴 ID와 질의 문자열, 문구의 이메일은 가린다. DSN이 없으면 Spring 로그에 `화면 오류 보고` 한 줄로 남는다.
+- 요청 본문·쿠키·IP는 보내지 않는다(`send_default_pii=False`와 같은 원칙).
+
+**운영 알림:** `operations-monitor`가 `/ready`와 같은 점검(DB·법정동 기준정보·Redis·실행기·대기열·Spring)과 정기 백업 기록
+(`backups/backup-status.json`의 실패·26시간 무성공)을 `OPS_ALERT_WEBHOOK_URL`로 보낸다. 같은 문제 조합이 2회(약 30초) 연속돼야 보내고,
+마지막으로 알린 조합을 Redis에 둬 재시작해도 같은 장애를 반복해 알리지 않는다. Redis 장애 중에도 메모리 기준으로 알리며, 전달 실패는 다음 점검에서 다시 보낸다.
+감시 시작이 정상이면 복구 알림을 보내지 않는다. 본문은 Slack 호환 `{"text": ...}`이고 Discord는 웹훅 주소 끝에 `/slack`을 붙인다.
+서버 자체가 꺼지면 이 컨테이너도 멈추므로 호스트 밖 감시(`check_external_readiness.py` 또는 GitHub readiness 워크플로)를 함께 둔다.
+백업 서비스를 쓰지 않아 기록 파일이 없으면 백업 알림은 보내지 않는다.
+
+**보안 헤더:** 화면은 Next(`web/next.config.ts`)가 CSP·`X-Frame-Options: DENY`·`nosniff`·Referrer/Permissions-Policy·COOP를 붙인다
+(Docker와 Vercel 공통). CSP는 외부 출처를 모두 막는다. 외부 스크립트·이미지·API를 화면에서 쓰려면 이 파일의 출처를 먼저 추가한다.
+nonce 방식은 모든 화면을 요청마다 동적 렌더링으로 바꾸므로 쓰지 않고 `script-src`에 `'unsafe-inline'`을 둔다.
+Caddy는 API를 포함한 공통 헤더와 서버 이름 제거를 맡고, HTTPS인 `Caddyfile`·`Caddyfile.api`만 HSTS(1년, 하위 도메인 제외)를 붙인다.
+의존성 갱신은 `.github/dependabot.yml`이 주 1회(Actions는 월 1회) 묶음 PR로 연다. 가격 모델·임베딩 관련 Python 패키지 PR은 평가를 다시 확인한 뒤 병합한다.
+
+검증(2026-11-11 로컬): Kotlin 단위 59건·Testcontainers 통합 27건(오류 보고 판정·경로 정규화·접수/거부·기존 응답 상태 유지 포함),
+Python 알림·운영 13건, 프론트 타입·린트·빌드, Caddy 설정 3종 `caddy validate`. 로컬 Docker 교체 후 `/ready` 정상, 화면·API 응답 헤더,
+없는 경로 404 화면, `/api/client-errors` 204·422와 로그의 이메일·ID 가림, 백업 기록 읽기를 확인했다. 실행 중 서비스에서 후보 자금 13항목·판단 축 13항목
+브라우저 흐름과 임시 계정으로 19개 화면의 CSP 위반·런타임 오류 없음도 확인했다. 실제 Sentry 프로젝트 수신과 실제 웹훅(Slack 등) 수신은 DSN·주소가 없어 확인하지 않았다.
+오류 화면(`error.tsx`) 자체의 브라우저 표시는 강제 오류를 만들 화면이 없어 빌드까지만 확인했다.
+
 <a id="administration-준비-상태와-알림"></a>
 
 ### 준비 상태와 알림
@@ -116,7 +148,7 @@ CI는 보호된 `real_estate_test`에 가상 거래를 준비한 뒤 동일 브�
 - 실행기는 5초마다 Redis에 생존 신호를 기록한다. 30초 이상 없으면 중단으로 판단한다.
 - 미전달 대기 100건 초과 또는 가장 오래된 대기 작업이 120초 초과이면 지연으로 표시한다.
 - 별도 `operations-monitor` 컨테이너가 15초마다 확인하고 상태 전환을 Redis 알림함(최근 200개)과 로그에 남긴다.
-  외부 메일·메신저는 발송하지 않는다. Redis 장애는 로그에만 기록할 수 있다.
+  `OPS_ALERT_WEBHOOK_URL`(HTTPS)을 설정하면 같은 전환을 외부 웹훅으로도 보낸다(위 [오류 추적·운영 알림](#administration-오류-추적운영-알림보안-헤더)).
 - 호스트 전체 종료는 자체 모니터로 감지할 수 없다. 외부 `/ready` 감시와 HTTPS 배포는 별도 운영 설정이 필요하다.
   `/ready`를 API 기동 의존성으로 바꾸면 실행기 시작과 순환 대기가 생기므로 `/health`를 유지한다.
 
@@ -332,6 +364,7 @@ sh scripts/compose.sh local --profile maintenance up -d --build
      (법령 조각 최장 1,091자). `.env`의 `OLLAMA_EMBED_MODEL=mxbai-embed-large`는 비어 있는 RAG 문서 테이블용 설정이라 현재 검색에 쓰이지 않는다.
      임베딩 모델을 바꾸면 코퍼스를 `embed_property_laws`로 다시 만들어야 한다.
    - 재설정 메일: `RESEND_API_KEY`가 없으면 링크가 서버 로그에 찍힌다. 베타 동안 운영자 수동 전달로 갈지, Resend 도메인 인증을 할지 정한다.
+   - 관측: `SENTRY_DSN`(Spring·Python·웹 오류 공통), `OPS_ALERT_WEBHOOK_URL`(서버 내부 장애·백업 실패 알림). 둘 다 비어 있으면 로그에만 남는다.
 4. **DNS:** `SERVICE_DOMAIN`의 A(또는 AAAA) 레코드를 서버 IP로 지정한다. 80/443이 열려 있어야 Caddy가 인증서를 받는다.
 5. **데이터 옮기기:** 실거래·공시가격(약 2GB)을 다시 수집하지 않고 로컬 최신 백업을 복원한다.
    로컬 `backups/property_concierge_<시각>.dump`를 서버 `backups/`로 복사 →
@@ -345,8 +378,10 @@ sh scripts/compose.sh local --profile maintenance up -d --build
    - PowerShell/로컬에서 `E2E_BASE_URL=https://SERVICE_DOMAIN node scripts/verify_candidate_avm_browser.cjs --form --decision-flow`
      (임시 계정을 만들고 끝나면 지운다. 실제 AVM·자금·비교·선택·새로고침)
    - 로그인·Google 로그인·로그아웃, 레이트 리밋이 사용자 IP 기준인지, `docker logs property_concierge-database-backup-1`
-8. **백업 보관:** 정기 백업은 서버의 `backups/`에만 쌓이고 자동 삭제가 없다(하루 약 99MB). 다른 저장소로의 복사와 보관 기간을 정한다.
-9. **업데이트:** `git pull` → `sh scripts/compose.sh production build api core frontend` →
+8. **백업 보관:** 정기 백업은 서버의 `backups/`에 쌓인다(1회 약 120MB, 2026-11 기준. 컨테이너 재시작 때마다 1회 추가).
+   `BACKUP_RETENTION_DAYS`(`.env.example` 14일)가 지나면 새 백업이 검증된 뒤 오래된 `property_concierge_*.dump`를 지운다. 0이거나 미설정이면 지우지 않는다
+   (기존 로컬 설치는 `.env`에 값이 없어 그대로 보관). 서버 디스크와 함께 사라지지 않도록 다른 저장소로의 복사는 별도로 정한다.
+9. **업데이트:** `git pull` → `sh scripts/compose.sh production build --pull api core frontend`(베이스 이미지 보안 패치 반영) →
    `sh scripts/compose.sh production --profile maintenance up -d --no-deps --force-recreate api core job-worker frontend operations-monitor transaction-refresh avm-retrain`
    → `/ready` 확인. 이미지만 지정한 서비스(`job-worker`·`avm-retrain` 등)는 `api` 빌드로 만든 이미지를 쓰므로 `api`를 먼저 빌드한다.
    **되돌리기:** 이전 커밋으로 돌아가 같은 명령을 실행한다. 마이그레이션 문제면 직전 백업을 복원한다.
@@ -383,6 +418,10 @@ Vercel에는 `web/`(Next.js)만 올린다. Spring·Python·PostgreSQL·Redis·�
 있으면 12개월 롤링 평가(약 1시간, CPU 사용)와 사전 기준 판정 후 통과할 때만 아파트 모델을 교체한다. 교체 모델·이력·판정 보고서는
 Docker 볼륨 `avm_models`의 `r-apt/`·`history/`·`reports/`에 있다. API·작업 실행기는 이 볼륨을 읽기 전용으로 붙이고 재시작 없이 새 모델을 읽는다.
 
+**완결월은 2개월 전 달이다(2026-11-11 변경).** 실거래 신고 기한이 계약 후 30일이라 직전 달은 아직 덜 찼다. 직전 달을 쓰던 2026-11-01 재학습은
+10월 26일까지의 신고분만으로 10월을 평가·보정했다. manifest의 `complete_through`가 완결 자료로 학습한 마지막 달이며, 이 값이 없는
+이전 산출물(이미지 모델 포함)은 마지막 학습 달을 미완결로 보고 그 전 달까지로 계산한다. 그래서 첫 배포 직후 이미지 모델이 한 달 늦으면 한 번 재학습한다.
+
 ```bash
 docker logs property_concierge-avm-retrain-1 --tail 20        # status: up_to_date / kept / deployed
 docker exec property_concierge-avm-retrain-1 python -m backend.tools.retrain_apartment_avm   --live-dir /app/data/models-live/r-apt --force --dry-run         # 교체 없이 평가·판정만
@@ -395,7 +434,7 @@ docker exec property_concierge-avm-retrain-1 python -m backend.tools.retrain_apa
 실패가 늘면 상한을 낮춘다. 이전 공공데이터포털 공시가격 API(PblntfPublicWrtPrcInfo)는 폐기돼 쓰지 않는다.
 
 **용량 실측 (2026-10-24 로컬, 서울 25개 구):** 상시 컨테이너 메모리 합계 약 3GB(DB 1.9GB, Spring 0.5GB, API 0.4GB 등).
-DB 2.1GB(공시가격 1.9GB, 실거래 0.1GB), 정기 백업 1회 약 99MB(자동 삭제 없음 → 한 달 약 3GB, 다른 저장소 이전·보관 기간 결정 필요).
+DB 2.1GB(공시가격 1.9GB, 실거래 0.1GB), 정기 백업 1회 약 99MB(2026-11 약 120MB. 보관 기간은 `BACKUP_RETENTION_DAYS`, 배포 절차 8 참고).
 12개월 롤링 평가(재학습 1회)는 8코어 중 약 5코어, 모델당 최대 RSS 약 1.4GB, 한 달 1회 약 1시간이다. 공시가격 수집은 한 번에 끝나면
 이후 해마다 새 기준연도 약 7,300회만 부른다. 권장 최소 사양: 4 vCPU·8GB RAM·50GB SSD(재학습 중에도 서비스 응답을 지키려면 8 vCPU·16GB).
 

@@ -87,8 +87,14 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
             "listing_id" to id, "changes" to changes, "needs_confirmation" to needs, "saved" to saved, "current" to facts))
     }
     fun snapshot(owner: Long, caseId: Long): JsonNode? {
+        val aggregate = aggregate(owner, caseId) ?: return null
+        // DB 연결을 반환한 뒤 원격 분석한다. 느린 AI가 트랜잭션을 점유하지 않게 한다.
+        return python.analyze("decision/decorate", mapOf("snapshot" to aggregate))
+    }
+    /** 소유자의 케이스를 한 시점의 저장 상태로 모은다(가공 전). 변화 알림은 여러 케이스를 한 번에 Python에 넘겨 같은 가공을 거친다. */
+    fun aggregate(owner: Long, caseId: Long): Map<String, Any?>? =
         // 개별 조회 사이의 변경으로 예산·후보·분석이 다른 시점의 상태가 되지 않도록 한다.
-        val aggregate = snapshotTransaction.execute {
+        snapshotTransaction.execute {
             val case = owned(owner, caseId) ?: return@execute null
             val properties = rows("SELECT * FROM case_properties WHERE case_id=? ORDER BY created,id", caseId)
             val history = rows("SELECT * FROM history WHERE user_id=? AND id IN (SELECT history_id FROM case_properties WHERE case_id=?)", owner, caseId)
@@ -100,10 +106,7 @@ class CaseStore(private val jdbc: JdbcTemplate, private val json: ObjectMapper, 
                     "checklist" to rows("SELECT * FROM candidate_checklist_items WHERE property_id=? ORDER BY sort_order,id", id),
                     "source_reviews" to rows("SELECT * FROM candidate_source_reviews WHERE property_id=? AND user_id=? ORDER BY id DESC", id, owner))
             }, "histories" to history, "regions" to rows("SELECT * FROM case_regions WHERE case_id=? ORDER BY created,id", caseId))
-        } ?: return null
-        // DB 연결을 반환한 뒤 원격 분석한다. 느린 AI가 트랜잭션을 점유하지 않게 한다.
-        return python.analyze("decision/decorate", mapOf("snapshot" to aggregate))
-    }
+        }
     private fun snapshotFields(source: JsonNode, id: Long): ObjectNode = json.createObjectNode().apply {
         for (field in listOf("name", "alias", "address_details", "asking_price", "address", "area_sqm", "status", "legal_region_code", "property_type", "confirmed_at"))
             set<JsonNode>(field, source.get(field))

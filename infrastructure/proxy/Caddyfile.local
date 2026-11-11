@@ -1,5 +1,11 @@
 :3000 {
     encode zstd gzip
+    # 로컬 HTTP라 HSTS는 넣지 않는다(운영 Caddyfile만). 화면 CSP는 Next가 붙인다.
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
     handle /health {
         reverse_proxy core:8080
     }

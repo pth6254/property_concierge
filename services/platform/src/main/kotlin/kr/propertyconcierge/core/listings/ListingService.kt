@@ -95,6 +95,11 @@ class ListingService(private val jdbc: JdbcTemplate, private val json: ObjectMap
             $observed ORDER BY i.confirmed_at DESC,i.id DESC""", *params.toTypedArray())
         return mapOf("items" to rows.map(::view), "total" to count, "page" to filters.page, "page_size" to filters.pageSize)
     }
+    /** 다시 확인해야 하는 거래 가능 매물(확인 후 7일 경과 또는 확인 뒤 원문 재수집). 판단 기준은 view의 needs_confirmation과 같다. */
+    fun needingConfirmation(owner: Long, limit: Int = 500): List<ObjectNode> =
+        jdbc.queryForList("""SELECT i.*,latest.*,seen.* FROM imported_listings i $observed
+            WHERE i.user_id=? AND i.status='active' AND (i.confirmed_at<? OR latest.last_collection_at>i.confirmed_at)
+            ORDER BY i.confirmed_at,i.id LIMIT ?""", owner, now() - staleSeconds, limit).map(::view)
     fun get(owner: Long, id: Long): ObjectNode {
         val row = jdbc.queryForList("SELECT i.*,latest.*,seen.* FROM imported_listings i $observed WHERE i.user_id=? AND i.id=?", owner, id).firstOrNull()
             ?: throw ApiFailure(404, "매물을 찾을 수 없습니다")

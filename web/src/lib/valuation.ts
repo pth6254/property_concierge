@@ -95,3 +95,6 @@ export type ModelContext = {
   comparable_weight: number | null; comparable_per_sqm: number | null; applied: boolean;
   evidence_first?: string | null; evidence_last?: string | null;
 };
+
+/** 결과 종류의 화면 이름. 보고서·평가 카드·후보 카드가 같은 이름을 쓴다. */
+export const VALUATION_RESULT_LABELS: Record<ValuationAssessment["result_kind"], string> = { market_reference: "시장가격 참고", model_estimate: "ML 참고 추정", conditional_scenario: "조건부 시나리오", public_reference: "공개자료 참고", partial_reference: "구성 부분 참고", withheld: "추정 보류", unsupported: "지원 범위 밖" };
