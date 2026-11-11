@@ -4,6 +4,14 @@
 # 비밀 없는 /api 직접 접속은 거부한다 — 열어두면 누구나 IP 헤더를 위조해 로그인 잠금·레이트 리밋을 우회한다(AGENTS 2-5).
 {$API_DOMAIN} {
     encode zstd gzip
+    # API 전용 도메인이라 화면에 넣을 일이 없다. 브라우저는 Vercel 도메인으로만 들어오고 이 도메인은 Vercel 리라이트가 부른다.
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
 
     # 외부 상태 감시(check_external_readiness.py)는 비밀 없이 볼 수 있다. 개인 정보가 없다.
     handle /ready {

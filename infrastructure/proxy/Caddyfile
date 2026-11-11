@@ -1,5 +1,13 @@
 {$SERVICE_DOMAIN} {
     encode zstd gzip
+    # 화면 CSP·X-Frame-Options는 Next(web/next.config.ts)가 붙인다. 여기서는 API 응답을 포함한 전체 공통 헤더와 HSTS를 둔다.
+    # HSTS는 이 도메인만 대상이다. 같은 도메인의 다른 하위 도메인이 아직 HTTP일 수 있어 includeSubDomains·preload는 넣지 않는다.
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
     handle /ready {
         reverse_proxy core:8080
     }
