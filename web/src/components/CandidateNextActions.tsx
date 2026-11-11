@@ -5,6 +5,7 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { setSessionValue } from "@/lib/sessionStore";
 import { candidateSimulationSeed } from "@/lib/candidateSimulationSeed";
+import { candidateRightsSeed } from "@/lib/candidateRightsSeed";
 import type { BuyerProfile, CaseProperty } from "@/lib/types";
 
 export default function CandidateNextActions({ property, caseId, profile, reload, checklistBasePath = "" }: {
@@ -34,10 +35,7 @@ export default function CandidateNextActions({ property, caseId, profile, reload
   };
   const prepare = (target: string) => {
     if (target === "simulation") setSessionValue("simFromListing", JSON.stringify(candidateSimulationSeed(property, caseId, profile)));
-    if (target === "rights") setSessionValue("rightsCandidate", JSON.stringify({
-      market_price: property.appraisal?.estimated_value ?? property.asking_price,
-      address: property.address, case_id: caseId, candidate_id: property.id,
-    }));
+    if (target === "rights") setSessionValue("rightsCandidate", JSON.stringify(candidateRightsSeed(property, caseId)));
   };
 
   return <section className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4" aria-label={`${property.name} 다음 행동`}>

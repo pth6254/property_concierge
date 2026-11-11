@@ -261,6 +261,9 @@ export const api = {
   }) => req<import("@/lib/types").CaseFundingScenarioResult>(`/cases/${caseId}/funding-scenarios`, {
     method: "POST", body: JSON.stringify(data),
   }),
+  // 자금 계산·저장과 시세추정 작업 접수를 한 번에 실행한다. 조회가 아니라 사용자 요청이며 유효한 분석은 다시 실행하지 않는다.
+  candidateQuickReview: (caseId: number, propertyId: number) =>
+    req<import("@/lib/types").CandidateQuickReview>(`/cases/${caseId}/properties/${propertyId}/quick-review`, { method: "POST" }),
   caseRecommendations: (caseId:number,regionCode:string,requireCompleteAddress=false) => req<{
     results:import("@/lib/types").ComplexRecommendation[];
     address_pending?:import("@/lib/types").ComplexAddressPending[]; error?:string;

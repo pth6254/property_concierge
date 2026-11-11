@@ -600,3 +600,25 @@ export interface SimulationRequest {
   annual_income?: number;
   existing_loan_annual_payment?: number;
 }
+
+/** 후보 한 번에 검토 응답. services/intelligence/schemas/candidate_review.py와 같은 계약이다. */
+export interface CandidateQuickReview {
+  case_id: number;
+  candidate_id: number;
+  funding: {
+    status: "current" | "calculated" | "needs_input" | "error";
+    input_source?: "profile" | "saved" | null;
+    missing: string[];
+    summary?: { purchase_price?: number | null; required_cash?: number | null; cash_shortfall?: number | null; monthly_payment?: number | null } | null;
+    warnings: string[];
+    message?: string | null;
+  };
+  appraisal: {
+    status: "current" | "queued" | "needs_input" | "error";
+    job_id?: string | null;
+    missing: string[];
+    input_url?: string | null;
+    message?: string | null;
+  };
+  rights: { status: "current" | "stale" | "needs_document" };
+}

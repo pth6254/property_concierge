@@ -36,7 +36,8 @@ def _case(user_id, context):
 def simulate_investment(criteria, user_id, candidate_context=None, *, funding=None):
     from schemas.funding_request import SimulationRequest
     from backend.services.funding_execution_client import execute_simulation
-    from backend.services.candidate_funding import funding_issues, profile_funding_inputs
+    from backend.services.candidate_funding import (funding_issues, funding_property_type,
+                                                    missing_funding_inputs, profile_funding_inputs)
     tool = "simulate_investment"
     case = _case(user_id, candidate_context)
     candidate = next((p for p in (case or {}).get("properties", [])
@@ -47,25 +48,20 @@ def simulate_investment(criteria, user_id, candidate_context=None, *, funding=No
     # 케이스 공통 조건을 기본값으로 쓰되 대화에서 지정한 값이 우선한다.
     profile = (case or {}).get("buyer_profile") or {}
     values = profile_funding_inputs(profile, funding)
-    required = ["cash_available", "loan_ratio", "owned_homes", "adjusted_area"]
-    if values.get("loan_ratio", 1) > 0:
-        required += ["annual_interest_rate", "loan_years", "repayment_type", "existing_loan_annual_payment"]
-    missing = [key for key in required if key not in values]
+    missing = missing_funding_inputs(values)
     data = {"case_id": case["id"], "candidate_id": candidate["id"], "candidate_name": candidate["name"],
             "funding_inputs": values, "result_url": f"/cases/{case['id']}"}
     if not candidate.get("asking_price"):
         missing.append("asking_price")
-    from api.candidate_appraisal import PROPERTY_TYPES
-    property_types = {key: value[1] for key, value in PROPERTY_TYPES.items()}
-    property_types.update(non_residential="상업용", industrial="산업용")
-    if candidate.get("category") not in property_types:
+    property_type = funding_property_type(candidate.get("category"))
+    if property_type is None:
         missing.append("property_type")
     if missing:
         labels = {**FUNDING_LABELS, "asking_price": "후보 희망가", "property_type": "후보 물건 종류"}
         data["answer"] = f"{candidate['name']}의 자금 분석에 필요한 조건을 알려주세요: " + ", ".join(labels[k] for k in missing) + ". 입력한 조건은 이 후보에 한해 이어서 사용합니다."
         return ConciergeToolResult(tool=tool, status="needs_input", missing_fields=missing, data=data)
     req = SimulationRequest(case_id=case["id"], candidate_id=candidate["id"],
-        purchase_price=candidate["asking_price"], property_type=property_types[candidate["category"]], **values)
+        purchase_price=candidate["asking_price"], property_type=property_type, **values)
     result = execute_simulation(req, {"id": user_id})
     summary = result.get("candidate_funding")
     if result.get("error") or not summary:

@@ -21,7 +21,7 @@ for _p in [_PROJECT_ROOT, _BACKEND_DIR, _API_DIR]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from api.routes import appraisal, chat, comparison, concierge, recommendation, rights
+from api.routes import appraisal, candidate_review, chat, comparison, concierge, recommendation, rights
 from api import data_routes, analysis_routes
 from backend.cache_db import init_cache_db as _init_cache
 from db.base import init_db
@@ -107,7 +107,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-for _router in (appraisal.router, recommendation.router, comparison.router,
+for _router in (appraisal.router, recommendation.router, comparison.router, candidate_review.router,
                 concierge.router, rights.router, chat.router, data_routes.router, analysis_routes.router):
     app.include_router(_router)
 

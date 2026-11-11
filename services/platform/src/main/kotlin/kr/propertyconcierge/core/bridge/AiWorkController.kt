@@ -37,6 +37,19 @@ class AiWorkController(private val jobs: AiJobStore, private val sessions: Sessi
         }
         return enqueue(task, mapOf("request" to valid, "expected_candidate_inputs" to expected), owner)
     }
+    /**
+     * 후보 한 번에 검토: 공통 조건 자금 계산·저장과 시세추정 작업 접수를 사용자 요청 한 번으로 실행한다.
+     * 계산·저장·작업 접수는 Python이 기존 내부 계약(/internal/v1/simulation·작업 저장)으로 다시 Spring을 부른다.
+     * 소유 확인을 여기서 먼저 해 타인 후보는 Python까지 가지 않고 404다. 시세추정 작업을 만들므로 AVM 접수와 같은 한도를 둔다.
+     */
+    @PostMapping("/api/cases/{caseId:[0-9]+}/properties/{propertyId:[0-9]+}/quick-review")
+    fun quickReview(request: HttpServletRequest, @PathVariable caseId: Long, @PathVariable propertyId: Long): JsonNode {
+        val owner = sessions.required(request).id
+        limits.check("quick-review", request.remoteAddr, 5, 60)
+        val args = json.valueToTree<JsonNode>(mapOf("case_id" to caseId, "property_id" to propertyId, "user_id" to owner))
+        if (cases.dispatch("validate_candidate", args) != true) throw ApiFailure(404, "검토 후보가 없습니다")
+        return python.analyzeAs("ai/candidate-review", mapOf("case_id" to caseId, "candidate_id" to propertyId), owner)
+    }
     private fun enqueue(task: String, payload: Any, owner: Long?): Map<String, Any?> = mapOf("job_id" to jobs.dispatch("create_task",
         json.valueToTree(mapOf("task_type" to task, "payload" to payload, "owner_id" to owner))))
     @PostMapping("/api/listings/collection/jobs")

@@ -180,6 +180,57 @@
         "title": "AppraisalSnapshot",
         "type": "object"
       },
+      "CandidateQuickReviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "candidate_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Candidate Id",
+            "type": "integer"
+          },
+          "case_id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Case Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "case_id",
+          "candidate_id"
+        ],
+        "title": "CandidateQuickReviewRequest",
+        "type": "object"
+      },
+      "CandidateQuickReviewResponse": {
+        "properties": {
+          "appraisal": {
+            "$ref": "#/components/schemas/QuickReviewAppraisal"
+          },
+          "candidate_id": {
+            "title": "Candidate Id",
+            "type": "integer"
+          },
+          "case_id": {
+            "title": "Case Id",
+            "type": "integer"
+          },
+          "funding": {
+            "$ref": "#/components/schemas/QuickReviewFunding"
+          },
+          "rights": {
+            "$ref": "#/components/schemas/QuickReviewRights"
+          }
+        },
+        "required": [
+          "case_id",
+          "candidate_id",
+          "funding",
+          "appraisal",
+          "rights"
+        ],
+        "title": "CandidateQuickReviewResponse",
+        "type": "object"
+      },
       "CaseRegionCreate": {
         "properties": {
           "budget_max_won": {
@@ -1072,6 +1123,163 @@
           "total_interest"
         ],
         "title": "LoanSummary",
+        "type": "object"
+      },
+      "QuickReviewAppraisal": {
+        "properties": {
+          "input_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Url"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "current",
+              "queued",
+              "needs_input",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QuickReviewAppraisal",
+        "type": "object"
+      },
+      "QuickReviewFunding": {
+        "properties": {
+          "input_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "profile",
+                  "saved"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Source"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "current",
+              "calculated",
+              "needs_input",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QuickReviewFunding",
+        "type": "object"
+      },
+      "QuickReviewRights": {
+        "properties": {
+          "status": {
+            "enum": [
+              "current",
+              "stale",
+              "needs_document"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "QuickReviewRights",
         "type": "object"
       },
       "RateSensitivityCell": {
@@ -2021,6 +2229,81 @@
         "summary": "Run Appraisal Endpoint",
         "tags": [
           "appraisal"
+        ]
+      }
+    },
+    "/internal/v1/ai/candidate-review": {
+      "post": {
+        "operationId": "candidate_review_internal_v1_ai_candidate_review_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-ai-user-id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Ai-User-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CandidateQuickReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CandidateQuickReviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Candidate Review",
+        "tags": [
+          "candidate-review"
         ]
       }
     },
