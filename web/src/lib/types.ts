@@ -622,3 +622,19 @@ export interface CandidateQuickReview {
   };
   rights: { status: "current" | "stale" | "needs_document" };
 }
+
+/** 변화 알림. 조건 계산은 services/intelligence/backend/services/notification_conditions.py, 저장은 Spring NotificationStore. */
+export type NotificationKind = "trade_update" | "analysis_expired" | "listing_reconfirm" | "source_changed";
+export interface NotificationItem {
+  id: number;
+  kind: NotificationKind;
+  title: string;
+  body: string;
+  link: string;
+  case_id: number | null;
+  property_id: number | null;
+  listing_id: number | null;
+  created: string;
+  read_at: string | null;
+}
+export interface NotificationList { items: NotificationItem[]; unread_count: number }

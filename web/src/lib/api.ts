@@ -261,6 +261,11 @@ export const api = {
   }) => req<import("@/lib/types").CaseFundingScenarioResult>(`/cases/${caseId}/funding-scenarios`, {
     method: "POST", body: JSON.stringify(data),
   }),
+  // 변화 알림함. 목록·개수 조회 때 서버가 최소 간격을 두고 조건을 다시 계산한다(목록 10초·개수 5분).
+  notifications: () => req<import("@/lib/types").NotificationList>("/notifications", { cache: "no-store" }),
+  notificationSummary: () => req<{ unread_count: number }>("/notifications/summary", { cache: "no-store" }),
+  readNotification: (id: number) => req<void>(`/notifications/${id}/read`, { method: "POST" }),
+  readAllNotifications: () => req<{ updated: number }>("/notifications/read-all", { method: "POST" }),
   // 자금 계산·저장과 시세추정 작업 접수를 한 번에 실행한다. 조회가 아니라 사용자 요청이며 유효한 분석은 다시 실행하지 않는다.
   candidateQuickReview: (caseId: number, propertyId: number) =>
     req<import("@/lib/types").CandidateQuickReview>(`/cases/${caseId}/properties/${propertyId}/quick-review`, { method: "POST" }),

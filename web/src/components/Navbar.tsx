@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { NOTIFICATIONS_CHANGED } from "@/lib/notifications";
 import {
-  Home, Tag, MapPin, Calculator, Columns2, ShieldCheck,
+  Home, Tag, MapPin, Calculator, Columns2, ShieldCheck, Bell,
   MessageSquareText, FileText, History, Menu, X, BriefcaseBusiness, SearchCheck,
   type LucideIcon,
 } from "lucide-react";
@@ -17,7 +19,10 @@ type NavGroup = { label: string | null; items: NavItem[]; collapsible?: boolean 
 const GROUPS: NavGroup[] = [
   {
     label: null,
-    items: [{ href: "/", label: "홈", icon: Home, exact: true }],
+    items: [
+      { href: "/", label: "홈", icon: Home, exact: true },
+      { href: "/notifications", label: "변화 알림", icon: Bell },
+    ],
   },
   {
     label: "의사결정",
@@ -76,11 +81,12 @@ function Wordmark() {
 const isActive = (path: string, { href, exact }: NavItem) =>
   exact ? path === href : path === href || path.startsWith(href + "/");
 
-function NavList({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
+function NavList({ path, unread, onNavigate }: { path: string; unread: number; onNavigate?: () => void }) {
   return (
     <nav className="flex-1 overflow-y-auto px-2.5 py-3">
       {GROUPS.map((group, gi) => {
-        const links = group.items.map(item => <NavLink key={item.href} item={item} active={isActive(path, item)} onNavigate={onNavigate} />);
+        const links = group.items.map(item => <NavLink key={item.href} item={item} active={isActive(path, item)} onNavigate={onNavigate}
+          badge={item.href === "/notifications" ? unread : 0} />);
         if (group.collapsible) return (
           <details key={gi} open={group.items.some(item => isActive(path, item))} className="group mb-4">
             <summary className="mb-1.5 flex cursor-pointer list-none items-center justify-between rounded px-3 text-[10.5px] font-bold uppercase tracking-[0.14em] text-white/40 hover:text-white/70">
@@ -104,7 +110,7 @@ function NavList({ path, onNavigate }: { path: string; onNavigate?: () => void }
   );
 }
 
-function NavLink({ item: { href, label, icon: Icon }, active, onNavigate }: { item: NavItem; active: boolean; onNavigate?: () => void }) {
+function NavLink({ item: { href, label, icon: Icon }, active, onNavigate, badge = 0 }: { item: NavItem; active: boolean; onNavigate?: () => void; badge?: number }) {
   return (
     <Link
       href={href}
@@ -121,6 +127,7 @@ function NavLink({ item: { href, label, icon: Icon }, active, onNavigate }: { it
       )}
       <Icon size={16} className="shrink-0 opacity-85" />
       {label}
+      {badge > 0 && <span aria-label={`읽지 않은 알림 ${badge}건`} className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10.5px] font-bold leading-none text-white">{badge > 99 ? "99+" : badge}</span>}
     </Link>
   );
 }
@@ -186,7 +193,7 @@ function UserFooter() {
  *
  * 링크 클릭뿐 아니라 브라우저 뒤로가기 같은 경로 변경에도 동일하게 동작한다.
  */
-function MobileNav({ path }: { path: string }) {
+function MobileNav({ path, unread }: { path: string; unread: number }) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -196,10 +203,11 @@ function MobileNav({ path }: { path: string }) {
         <Wordmark />
         <button
           onClick={() => setOpen(true)}
-          aria-label="메뉴 열기"
-          className="rounded-md p-1 text-white/80 hover:text-white"
+          aria-label={unread > 0 ? `메뉴 열기 (읽지 않은 알림 ${unread}건)` : "메뉴 열기"}
+          className="relative rounded-md p-1 text-white/80 hover:text-white"
         >
           <Menu size={22} />
+          {unread > 0 && <span aria-hidden="true" className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-accent" />}
         </button>
       </div>
 
@@ -222,7 +230,7 @@ function MobileNav({ path }: { path: string }) {
                 <X size={20} />
               </button>
             </div>
-            <NavList path={path} onNavigate={() => setOpen(false)} />
+            <NavList path={path} unread={unread} onNavigate={() => setOpen(false)} />
             <UserFooter />
           </div>
         </div>
@@ -233,6 +241,22 @@ function MobileNav({ path }: { path: string }) {
 
 export default function Navbar() {
   const path = usePathname();
+  const { user } = useAuth();
+  const userId = user?.id;
+  const [unread, setUnread] = useState(0);
+  // 화면을 옮길 때마다 읽지 않은 알림 수를 확인한다. 서버는 5분에 한 번만 조건을 다시 계산하고 그 사이에는 저장된 개수만 돌려준다.
+  // 알림함에서 읽으면 창 이벤트로 바로 다시 읽는다.
+  useEffect(() => {
+    if (userId == null) return;
+    let cancelled = false;
+    const load = () => {
+      api.notificationSummary().then(result => { if (!cancelled) setUnread(result.unread_count); }).catch(() => undefined);
+    };
+    load();
+    window.addEventListener(NOTIFICATIONS_CHANGED, load);
+    return () => { cancelled = true; window.removeEventListener(NOTIFICATIONS_CHANGED, load); };
+  }, [path, userId]);
+  const shown = userId == null ? 0 : unread;
 
   return (
     <>
@@ -244,11 +268,11 @@ export default function Navbar() {
             매물 탐색부터 계약·세금까지, 한 곳에서
           </div>
         </div>
-        <NavList path={path} />
+        <NavList path={path} unread={shown} />
         <UserFooter />
       </aside>
 
-      <MobileNav key={path} path={path} />
+      <MobileNav key={path} path={path} unread={shown} />
     </>
   );
 }
