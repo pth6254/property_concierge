@@ -5,7 +5,7 @@
 > 사람이 읽는 셋업·기능 설명은 `README.md` 에 있다. 여기에는 **코드를 고칠 때 알아야 할
 > 제약과 함정**만 적는다.
 
-문서 갱신: **2026-10-06**. 최근 구현·실행 검증은 **2026-10-05** 기록이다.
+문서 갱신: **2026-11-11**. 9절의 전체 검증 표는 **2026-10-05** 기록이며, 그 뒤 변경은 각 절에 날짜와 함께 적었다.
 이어받을 때는 이 파일의 **2-14(현재 AVM 계약) → 8(다음 작업) → 9(최근 검증 범위)**와
 [인수인계 문서](docs/project-handoff.md)를 함께 읽는다. 문서 갱신일을 서비스 재검증일로 해석하지 않는다.
 
@@ -306,7 +306,7 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
 
 | 유형 | 현재 결과와 실행 조건 |
 |---|---|
-| 아파트 | 개별 호실 범위·전용면적·단지명·주소·기준일 입력 조건 확인 후, 최근 6개월·동일 단지·면적 ±10% 유효 거래 5건 이상이면 기존 비교 엔진 실행. `market_reference` 또는 `withheld` |
+| 아파트 | 개별 호실 범위·전용면적·단지명·주소·기준일 입력 조건 확인 후, 최근 6개월·동일 단지·면적 ±10% 유효 거래 5건 이상이면 비교 엔진 실행(A1). manifest가 A1 혼합을 승인하면 혼합 가격을 쓴다. `market_reference` 또는 `withheld` |
 | 아파트 5건 미만 (2026-10-12) | 같은 단지 12개월(A2)·같은 단지 다른 면적 또는 같은 동 유사 단지(A3) 근거로 혼합 AVM의 `model_estimate`(ML 참고 추정). `comparison_eligible=false`. 근거 없음(A4)은 `withheld` |
 | 오피스텔·연립다세대·단독/다가구 | 별도 기준·자료 검증 전 `withheld`. 아파트 모델로 대체하지 않음 |
 | 상가·업무용 | 현재 월세·운영비·환원율 가정에 따른 `conditional_scenario` 또는 `withheld`. Kotlin `IncomeValuationCalculator`가 계산 |
@@ -334,8 +334,9 @@ Python의 `services/intelligence/schemas/valuation.py`와 `backend/valuation/pol
 - **ML(CatBoost)은 아파트 혼합 AVM(R-APT)에만 쓴다** (2026-10-12 사용자 결정으로 이전 "운영 연결 금지" 규칙을 바꿈).
   `backend/valuation/apartment_avm.py`는 시간 분할 평가 후 `avm-segment --final`로 만든 `data/models/r-apt`
   (manifest `deployment=service`, 파일 해시 검증)만 읽고, 없거나 실패하면 기존 규칙으로 처리한다. 다른 유형·A4의 대체로 쓰지 않는다.
-  A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 현재 산출물은 두 기간 평가에서 기존 규칙보다
-  일관되게 낫지 않아 `false`였으나, 시점 보정 V4 반영 후 12개월 롤링 평가(운영 규칙 대비 MAPE 5.48%→4.91%, 사전 기준 전부 통과)로 `true`가 됐다(2026-10-12). `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
+  A1(공개 기준 충족)에는 manifest `a1_hybrid_approved=true`일 때만 혼합 가격을 쓴다. 처음 산출물은 두 기간 평가에서 기존 규칙보다
+  일관되게 낫지 않아 `false`였으나, 시점 보정 V4 반영 후 12개월 롤링 평가(운영 규칙 대비 MAPE 5.48%→4.91%, 사전 기준 전부 통과)로 `true`가 됐다(2026-10-12).
+  이후 공시가격 변수 산출물(2026-10-24)과 매달 재학습(2026-11-01 볼륨 모델)도 `true`다. 승인 여부는 매달 판정이 바꿀 수 있으므로 현재 값은 manifest로 확인한다. `model_estimate`는 시장가격 비교·가격 체크리스트 완료에 쓰지 않는다(Kotlin `limitedValuation` 포함).
   혼합 AVM 구간은 검증 구간 잔차의 분위수로 정한 참고 구간이다(`interval_basis=calibrated_holdout_quantiles`). 재학습·교체 시 같은 평가를 다시 통과한다.
 - **아파트 혼합 AVM은 매달 재학습한다** (2026-10-12, `backend/tools/retrain_apartment_avm.py`, Compose `avm-retrain` 유지보수 서비스).
   새 완결월이 생기면 12개월 롤링 평가 → `rolling_avm.ACCEPTANCE` 판정 → ML 참고 추정 기준 통과 시에만 교체하고, A1 승인은 그 달 판정을 따른다.
@@ -520,8 +521,8 @@ node scripts/verify_decision_assessment_browser.cjs
   ±10% 적중률 69~84%지만 **동일동·구 매칭은 8~33%** 다.
   신뢰도는 이 실측치를 블렌딩해 하향 보정된다(`services/intelligence/backend/confidence.py`).
   이 과거 기록을 현재 `PC-AVM-1.0-runtime-1`의 정확도나 전국 성능으로 인용하지 않는다.
-- **아파트 혼합 AVM(R-APT)의 현재 평가 기록**은 `services/intelligence/evaluation/README.md`의 R-APT 절이다. A1 혼합은 미승인,
-  A2·A3 ML 참고 추정만 서비스에 쓴다. 아래 `avm-compare` 기록은 그 이전의 단독 CatBoost 비교다.
+- **아파트 혼합 AVM(R-APT)의 현재 평가 기록**은 `services/intelligence/evaluation/README.md`의 R-APT 절이다. 서울 25개 구 12개월 롤링 평가로
+  A1 혼합이 승인됐고 A2·A3는 ML 참고 추정(`model_estimate`)으로 쓴다(2-14). 아래 `avm-compare` 기록은 그 이전의 단독 CatBoost 비교다.
 - **CatBoost 단독 모델은 오프라인 후보 모델이다.** `evaluation avm-compare`는 시간 분리한 아파트 거래에서 기존
   `residential_agent` 재생과 비교한다. 정답 가격·단가를 특성에 넣거나 최종 평가를 early stopping에 사용하지 않는다.
   서비스 기준선을 자동 교체하지 않는다. 첫 비교는 기준 미달이며 결과를 보고 튜닝하면 이후 기간으로 다시 검증한다.
@@ -554,9 +555,10 @@ node scripts/verify_decision_assessment_browser.cjs
 1. 새 `PC-AVM-1.0-runtime-1`을 실제 아파트 거래로 평가한다. 기존 기준선·후보 모델과 같은 시점 분할에서
    가격 산출률/보류율, 산출된 표본의 MAPE·±10% 적중률, 지역·가격대별 편차를 함께 기록한다.
    보류를 정답·0원으로 처리하거나 산출 성공 건만으로 전체 품질을 높게 보고하지 않는다.
+   (2026-10-12~24: **서울 25개 구 아파트**는 12개월 롤링 평가로 수행했다. 다른 지역·유형과 신고 지연을 재현한 시점 기준 평가는 남아 있다.)
 2. 오차·보류 원인을 단지 식별·주소·면적·거래 신선도·표본 부족으로 나눠 데이터와 비교 기준을 개선한다.
    CatBoost는 기존 기준선을 넘는 별도 검증을 통과한 뒤 적용 범위를 결정한다. 평가를 보고 튜닝했으면 이후 기간으로 다시 확인한다.
-   (2026-10-12: A2·A3 ML 참고 추정 연결. A1 혼합은 2026-10 이후 완료월로 다시 평가해 통과하면 `--approve-a1-hybrid`로 켠다.)
+   (2026-10-12: A2·A3 ML 참고 추정 연결, V4 시점 보정 후 A1 혼합 승인. 2026-10-24: 공시가격 변수 채택. 이후 판정은 매달 재학습이 한다.)
 3. 대표 아파트의 등록 → 실제 AVM → 자금 → 비교 → 선택 → 변경 재검토 → 복원을 연결하고,
    연결 성공과 시장가격 정확도를 별도로 평가한다. 비아파트는 유형별 자료·정답셋·평가 기준을 확보한 순서로 확대한다.
 
@@ -629,7 +631,8 @@ node scripts/verify_decision_assessment_browser.cjs
 근거는 `evaluation-results/platform/`, `valuation-support-browser.json`, `valuation-policy-live.json`과
 해당 화면 이미지다(뒤의 두 파일도 `evaluation-results/` 아래). 이 폴더는 로컬 생성물이므로 새 체크아웃에 없을 수 있다.
 전체 기록은 [검증 상태와 경계](docs/project-handoff.md#검증-상태와-경계)를 따른다.
-원격 GitHub Actions 완료, 새 정책의 실거래 정확도·보류율, LLM 대화 품질, 전국 데이터 제공률을 검증한 기록은 아니다.
+위 표 자체는 원격 GitHub Actions 결과, 새 정책의 실거래 정확도·보류율, LLM 대화 품질, 전국 데이터 제공률을 검증한 기록이 아니다.
+원격 CI는 이후 실행되고 있다(예: 2026-11-08 `00ca6b1` push의 `CI` 워크플로 성공). 원격 결과는 `gh run list`로 확인하고 로컬 통과와 구분해 적는다.
 2026-10-03 아파트 300건 비교의 기존 AVM MAPE 12.70%·CatBoost 19.82%도 **이전 기준선의 오프라인 기록**이다.
 2026-10-04 VWorld 실제 필지 1건 확인은 별도 기록이며 키 상태·전국 제공률이 현재도 같다고 단정하지 않는다.
 
