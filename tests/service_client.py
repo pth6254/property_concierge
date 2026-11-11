@@ -2,10 +2,14 @@
 from __future__ import annotations
 
 import os
-import httpx
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from fastapi.testclient import TestClient
+from starlette import testclient as _starlette_testclient
+
+# Starlette 1.10+는 httpx2가 설치돼 있으면(langsmith가 함께 설치) TestClient를 httpx2로 만들고, 없으면 httpx를 쓴다.
+# 전달 계층도 같은 라이브러리여야 응답 스트림을 받아들인다. 다르면 "async request with a sync Client"로 모든 HTTP 검사가 실패했다.
+httpx = _starlette_testclient.httpx
 
 on_job_submitted = None
 _server = None
