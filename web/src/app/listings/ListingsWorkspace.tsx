@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import ExternalListingLink from "@/components/ExternalListingLink";
 import { COLLECTION_LABELS } from "@/components/ListingCollector";
@@ -28,6 +28,15 @@ function saveBlockReason(item: ImportedListing): string {
   return "";
 }
 
+// 주소 해시(#register-listing)도 등록 폼을 여는 신호로 쓴다. 화면이 준비(하이드레이션)되기 전에 '매물 등록'을 누르면
+// onClick이 아직 붙지 않아 해시만 바뀌고 폼이 닫힌 채 남았다(2026-11-11 CI 간헐 실패, 느린 연결의 사용자도 같은 증상).
+// 서버 렌더링 값은 false라 하이드레이션 불일치가 없고, 준비된 뒤 해시를 읽어 연다.
+function subscribeHash(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+const hashOpensRegistration = () => window.location.hash === "#register-listing";
+
 export default function ListingsWorkspace({ entry }: { entry: ListingEntryContext }) {
   const [source, setSource] = useState(""); const [csv, setCsv] = useState("");
   const [report, setReport] = useState<ListingImportResult | null>(null);
@@ -37,7 +46,11 @@ export default function ListingsWorkspace({ entry }: { entry: ListingEntryContex
   const [region, setRegion] = useState(""); const [districts, setDistricts] = useState<{code:string;name:string}[]>([]);
   const [dongs, setDongs] = useState<{code:string;name:string}[]>([]); const [dong, setDong] = useState("");
   const [fresh, setFresh] = useState(false); const [cases, setCases] = useState<PurchaseCase[]>([]); const [caseId, setCaseId] = useState(entry.caseId ?? "");
-  const [registrationOpen, setRegistrationOpen] = useState(Boolean(entry.name || entry.address));
+  // null은 사용자가 아직 열고 닫지 않은 상태다. 이때는 단지 정보로 들어왔거나 해시가 등록 폼을 가리키면 연다.
+  // 사용자가 직접 닫으면 해시가 남아 있어도 닫힌 채로 둔다.
+  const [registrationChoice, setRegistrationOpen] = useState<boolean | null>(entry.name || entry.address ? true : null);
+  const hashWantsRegistration = useSyncExternalStore(subscribeHash, hashOpensRegistration, () => false);
+  const registrationOpen = registrationChoice ?? hashWantsRegistration;
   const [loading, setLoading] = useState(true);
   const [casesLoading, setCasesLoading] = useState(true);
   const [focusedListing, setFocusedListing] = useState(entry.listingId ?? "");

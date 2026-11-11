@@ -148,9 +148,17 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Install browser dependencies
         working-directory: web
+        # --with-deps는 Ubuntu 패키지 서버에서 글꼴·라이브러리를 받는다. 2026-11-11 러너에서 그 서버의 DNS 조회가 한 시간 넘게 실패해
+        # 코드와 무관하게 모든 PR이 막혔다. 러너 이미지에 Chromium 실행 라이브러리는 이미 있으므로, 받기에 실패하면 브라우저만 설치하고 진행한다.
+        # 정말로 필요한 라이브러리가 없으면 다음 단계의 브라우저 실행이 실패해 드러난다.
         run: |
           npm ci
-          npx playwright install --with-deps chromium
+          for attempt in 1 2 3; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "시스템 패키지 설치 실패(${attempt}/3)"; sleep 20
+          done
+          echo "::warning::Ubuntu 패키지를 받지 못해 브라우저만 설치합니다(시스템 글꼴·라이브러리는 러너 이미지 기본값)."
+          npx playwright install chromium
       - name: Start isolated infrastructure and build Kotlin tests
         run: |
           touch .env
