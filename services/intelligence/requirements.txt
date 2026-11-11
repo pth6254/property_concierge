@@ -22,7 +22,7 @@ yarl==1.25.1
 annotated-doc==0.0.5
 fastapi==0.162.2
 PyJWT==2.15.1
-bcrypt==4.2.1
+bcrypt==5.0.0
 slowapi==0.1.10
 python-multipart==0.0.33
 starlette==1.10.0
