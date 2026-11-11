@@ -58,6 +58,10 @@ updates:
     groups:
       intelligence-minor-patch:
         update-types: [minor, patch]
+    # SQLAlchemy 2.1은 postgresql:// 기본 드라이버를 psycopg(3)로 바꾼다. psycopg2에서 옮기는 작업을 따로 하기 전까지 2.0 줄을 유지한다(2026-11-11 PR #9).
+    ignore:
+      - dependency-name: "sqlalchemy"
+        versions: [">=2.1"]
 
   - package-ecosystem: github-actions
     directory: /
