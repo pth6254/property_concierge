@@ -360,6 +360,19 @@ API 변경 시 `web/src/lib/valuation.ts`·`api.ts`·`types.ts`와 `contracts/v1
 `services/platform/src/test/kotlin/kr/propertyconcierge/core/store/ValuationEvidenceIT.kt`, 화면 검사는
 `scripts/verify_valuation_support_browser.cjs`다. 상세 입력·제약은 [적용 계약](docs/features/decision.md#valuation-implementation)을 따른다.
 
+### 2-15. 오류 보고와 보안 헤더의 경계를 유지한다 (2026-11-11)
+
+`SENTRY_DSN` 하나로 Spring·Python API·작업 실행기·웹 화면 오류를 보고하며, 비어 있으면 어디서도 초기화하지 않는다.
+- Spring `ErrorReportingResolver`는 응답을 바꾸지 않고(null 반환) 5xx·예상 밖 예외만 보고한다. 4xx(입력·권한·없는 자료)는 보고하지 않는다.
+  자동 설정 `sentry-spring-boot-starter`로 바꾸지 않는다 — 기본값이 4xx `ApiFailure`까지 오류로 보낸다.
+- 화면 오류는 `/api/client-errors`(Spring)로 보낸다. 브라우저에 Sentry SDK·DSN(`NEXT_PUBLIC_*`)을 두지 않는다. 경로의 ID·질의 문자열과 문구의 이메일을 가리는
+  `ErrorReporter.clientRoute`·`clientMessage`를 우회하지 않으며, 요청 본문·쿠키·IP를 보고에 넣지 않는다.
+- 화면 CSP는 `web/next.config.ts`에서 외부 출처를 모두 막는다. 외부 스크립트·이미지·API를 쓰려면 출처를 명시적으로 추가하고, `*`·`https:` 전체 허용을 넣지 않는다.
+  nonce 방식으로 바꾸면 모든 화면이 동적 렌더링이 되므로(3-4 영역) 별도 결정 없이 바꾸지 않는다. HSTS는 HTTPS인 운영 Caddy에만 둔다.
+- 운영 알림(`operations-monitor` → `OPS_ALERT_WEBHOOK_URL`)은 연속 확인·마지막 알림 기록으로 중복을 막는다. 웹훅 주소(토큰 포함)를 로그에 남기지 않는다.
+
+회귀는 Kotlin `ErrorReportingTest`·`ClientErrorIT`, Python `tests/test_operational_alerts.py`다. 운영 절차는 [오류 추적·운영 알림](docs/operations.md#administration-오류-추적운영-알림보안-헤더)을 따른다.
+
 ---
 
 ## 3. 실측으로 확인한 함정
@@ -579,6 +592,8 @@ node scripts/verify_decision_assessment_browser.cjs
 - **Resend 도메인 인증 미완료** — 위 7절 참고. 그 전까지 재설정은 운영자가 로그의 링크를
   수동 전달하는 방식으로만 가능하다.
 - **Google OAuth 리다이렉트 URI 가 localhost 로만 등록**되어 있다. 실도메인 등록 필요.
+- **오류 추적·외부 알림은 코드만 준비됐다(2026-11-11).** 실제 Sentry 프로젝트 DSN과 알림 웹훅을 운영 `.env`에 넣고 수신을 확인해야 한다.
+  백업의 서버 밖 보관(다른 저장소 복사)은 아직 없다.
 - **국토부 API 지역 시딩은 서울 25개 구 매매 거래에 적용했다.** 매물 원문은 정기 수집하지 않는다. 로컬 Docker의 실거래 갱신은 2026-09-27에 `transaction-refresh` 유지보수 프로필을 활성화했다. 다른 배포 환경에서는 별도로 활성화해야 한다.
 
 **제품 쪽**
