@@ -345,7 +345,9 @@ sh scripts/compose.sh local --profile maintenance up -d --build
    - PowerShell/로컬에서 `E2E_BASE_URL=https://SERVICE_DOMAIN node scripts/verify_candidate_avm_browser.cjs --form --decision-flow`
      (임시 계정을 만들고 끝나면 지운다. 실제 AVM·자금·비교·선택·새로고침)
    - 로그인·Google 로그인·로그아웃, 레이트 리밋이 사용자 IP 기준인지, `docker logs property_concierge-database-backup-1`
-8. **백업 보관:** 정기 백업은 서버의 `backups/`에만 쌓이고 자동 삭제가 없다(하루 약 99MB). 다른 저장소로의 복사와 보관 기간을 정한다.
+8. **백업 보관:** 정기 백업은 서버의 `backups/`에 쌓인다(1회 약 120MB, 2026-11 기준. 컨테이너 재시작 때마다 1회 추가).
+   `BACKUP_RETENTION_DAYS`(`.env.example` 14일)가 지나면 새 백업이 검증된 뒤 오래된 `property_concierge_*.dump`를 지운다. 0이거나 미설정이면 지우지 않는다
+   (기존 로컬 설치는 `.env`에 값이 없어 그대로 보관). 서버 디스크와 함께 사라지지 않도록 다른 저장소로의 복사는 별도로 정한다.
 9. **업데이트:** `git pull` → `sh scripts/compose.sh production build api core frontend` →
    `sh scripts/compose.sh production --profile maintenance up -d --no-deps --force-recreate api core job-worker frontend operations-monitor transaction-refresh avm-retrain`
    → `/ready` 확인. 이미지만 지정한 서비스(`job-worker`·`avm-retrain` 등)는 `api` 빌드로 만든 이미지를 쓰므로 `api`를 먼저 빌드한다.
@@ -399,7 +401,7 @@ docker exec property_concierge-avm-retrain-1 python -m backend.tools.retrain_apa
 실패가 늘면 상한을 낮춘다. 이전 공공데이터포털 공시가격 API(PblntfPublicWrtPrcInfo)는 폐기돼 쓰지 않는다.
 
 **용량 실측 (2026-10-24 로컬, 서울 25개 구):** 상시 컨테이너 메모리 합계 약 3GB(DB 1.9GB, Spring 0.5GB, API 0.4GB 등).
-DB 2.1GB(공시가격 1.9GB, 실거래 0.1GB), 정기 백업 1회 약 99MB(자동 삭제 없음 → 한 달 약 3GB, 다른 저장소 이전·보관 기간 결정 필요).
+DB 2.1GB(공시가격 1.9GB, 실거래 0.1GB), 정기 백업 1회 약 99MB(2026-11 약 120MB. 보관 기간은 `BACKUP_RETENTION_DAYS`, 배포 절차 8 참고).
 12개월 롤링 평가(재학습 1회)는 8코어 중 약 5코어, 모델당 최대 RSS 약 1.4GB, 한 달 1회 약 1시간이다. 공시가격 수집은 한 번에 끝나면
 이후 해마다 새 기준연도 약 7,300회만 부른다. 권장 최소 사양: 4 vCPU·8GB RAM·50GB SSD(재학습 중에도 서비스 응답을 지키려면 8 vCPU·16GB).
 

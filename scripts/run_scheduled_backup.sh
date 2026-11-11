@@ -5,6 +5,12 @@
 set -eu
 mkdir -p /backups
 retry_seconds="${BACKUP_RETRY_SECONDS:-600}"
+# 보관 기간(일). 백업 1회가 약 120MB라 지우지 않으면 한 달에 3GB 이상 쌓인다. 0(기본)이면 지우지 않는다 —
+# 기존 설치가 업데이트만으로 백업을 잃지 않게 하고, 새 운영 .env는 .env.example의 값으로 켠다.
+retention_days="${BACKUP_RETENTION_DAYS:-0}"
+case "$retention_days" in
+  ''|*[!0-9]*) echo "BACKUP_RETENTION_DAYS는 0 이상의 정수여야 합니다" >&2; exit 2 ;;
+esac
 while true; do
   success=0
   for _ in $(seq 1 60); do
@@ -22,6 +28,11 @@ while true; do
       mv /backups/backup-status.json.tmp /backups/backup-status.json
       echo "정기 DB 백업 완료: ${bytes} bytes"
       success=1
+      # 새 백업이 복원 목록 검증까지 통과한 뒤에만 정리하므로 최신 백업은 항상 남는다.
+      if [ "$retention_days" -gt 0 ]; then
+        deleted=$(find /backups -maxdepth 1 -name 'property_concierge_*.dump' -mtime "+$retention_days" -print -delete | wc -l)
+        if [ "$deleted" -gt 0 ]; then echo "보관 기간 ${retention_days}일 초과 백업 ${deleted}개 삭제"; fi
+      fi
     else
       echo "정기 DB 백업 검증 실패" >&2
     fi
