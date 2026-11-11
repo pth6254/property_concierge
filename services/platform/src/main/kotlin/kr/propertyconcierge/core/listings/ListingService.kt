@@ -220,7 +220,8 @@ class ListingService(private val jdbc: JdbcTemplate, private val json: ObjectMap
                     throw ApiFailure(409, "${entry.path("row").asInt()}행: 같은 확인 시각의 내용이 다릅니다. 정확한 확인 시각을 입력해주세요")
                 val code = data.get("legal_region_code")?.takeUnless(JsonNode::isNull)?.asText()
                 val content = json.writeValueAsString(data)
-                val params = arrayOf(code, data.path("property_type").asText(), data.path("transaction_type").asText(),
+                // 문자열·숫자가 섞인 JDBC 인자다. 타입을 명시하지 않으면 Kotlin 2.4가 교집합 타입 추론을 오류로 거부한다.
+                val params = arrayOf<Any?>(code, data.path("property_type").asText(), data.path("transaction_type").asText(),
                     data.path("status").asText(), entry.path("price").asLong(), data.path("area_sqm").asDouble(), confirmed, content)
                 val id = if (existing == null) {
                     jdbc.queryForObject("""INSERT INTO imported_listings(user_id,source_name,external_id,legal_region_code,property_type,
