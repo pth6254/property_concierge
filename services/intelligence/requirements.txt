@@ -77,7 +77,7 @@ ollama==0.6.3
 
 # ── LangChain 보조 ───────────────────────────────────────────
 attrs==26.1.0
-cachetools==7.1.4
+cachetools==8.0.0
 click==8.5.1
 dataclasses-json==0.6.7
 Jinja2==3.1.6
