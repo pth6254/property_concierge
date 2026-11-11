@@ -27,7 +27,7 @@ slowapi==0.1.10
 python-multipart==0.0.30
 starlette==1.2.1
 uvicorn==0.48.0
-websockets==16.0
+websockets==17.4
 
 # ── 관측성 (선택 — SENTRY_DSN 설정 시에만 활성화) ────────────────
 sentry-sdk[fastapi]==2.19.2
