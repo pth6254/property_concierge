@@ -1,6 +1,5 @@
-import type { ValuationAssessment } from "@/lib/valuation";
+import { VALUATION_RESULT_LABELS as kinds, type ValuationAssessment } from "@/lib/valuation";
 
-const kinds = { market_reference: "시장가격 참고", model_estimate: "ML 참고 추정", conditional_scenario: "조건부 시나리오", public_reference: "공개자료 참고", partial_reference: "구성 부분 참고", withheld: "추정 보류", unsupported: "지원 범위 밖" };
 const scopes: Record<string, string> = { single_unit: "개별 호실", whole_building: "건물 전체", land_and_building: "토지와 건물", single_parcel: "단일 필지", unknown: "미확인" };
 const areas: Record<string, string> = { exclusive: "전용면적", supply: "공급면적", gross: "연면적", land: "토지면적", unknown: "면적 기준 미확인" };
 const methods: Record<string, string> = { sales_comparison: "실거래 비교", income_scenario: "임대료 수익 시나리오", land_public_data: "토지 공개정보", catboost: "CatBoost 가격 모델" };

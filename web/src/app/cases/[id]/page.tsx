@@ -16,6 +16,7 @@ import { listingEntryHref } from "@/lib/listingNavigation";
 import { setSessionValue } from "@/lib/sessionStore";
 import { candidateSimulationSeed } from "@/lib/candidateSimulationSeed";
 import type { BuyerProfile, CandidateAnalysis, CaseProperty, HistoryItem, PurchaseCase, PurchaseCaseStatus } from "@/lib/types";
+import { VALUATION_RESULT_LABELS, type ValuationAssessment } from "@/lib/valuation";
 
 const CASE_STATUS: { value: PurchaseCaseStatus; label: string }[] = [
   { value: "exploring", label: "지역 탐색" }, { value: "reviewing", label: "후보 검토" },
@@ -41,7 +42,12 @@ function analysisSummary(analysis: CandidateAnalysis): string {
   const summary = analysis.summary;
   if (analysis.analysis_type === "appraisal") {
     const verdict = textValue(summary.valuation_verdict);
-    return `${won(numberValue(summary.estimated_value))}${verdict ? ` · ${verdict}` : ""}`;
+    const value = numberValue(summary.estimated_value);
+    // 보류·지원 범위 밖처럼 가격이 없는 결과를 "미입력"으로 보이면 분석을 안 한 것처럼 읽힌다. 결과 종류를 보여준다.
+    const valuation = summary.valuation as Partial<ValuationAssessment> | null | undefined;
+    const kind = valuation?.result_kind ? VALUATION_RESULT_LABELS[valuation.result_kind] : null;
+    if (value == null) return kind ?? "가격 결과 없음 · 리포트 확인";
+    return `${won(value)}${kind && valuation?.result_kind !== "market_reference" ? ` · ${kind}` : ""}${verdict ? ` · ${verdict}` : ""}`;
   }
   if (analysis.analysis_type === "simulation") {
     const loan = numberValue(summary.loan_amount);
