@@ -13,6 +13,23 @@ updates:
     groups:
       web-minor-patch:
         update-types: [minor, patch]
+    # 큰 버전 업은 도구·프레임워크 지원을 확인한 뒤 별도 작업으로 올린다(2026-11-11: TypeScript 7·ESLint 10은
+    # typescript-eslint·eslint-config-next 미지원으로 설치·린트 실패). @types/node는 실행 환경(Node 22)에 맞춘다.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        versions: [">=23"]
 
   - package-ecosystem: maven
     directory: /services/platform
@@ -24,6 +41,10 @@ updates:
     groups:
       platform-minor-patch:
         update-types: [minor, patch]
+    # Spring Boot 4는 Jackson 3 등 대형 이전이라 별도 작업으로 진행한다(2026-11-11 PR #4 컴파일 실패).
+    ignore:
+      - dependency-name: "org.springframework.boot:spring-boot-starter-parent"
+        update-types: ["version-update:semver-major"]
 
   # 가격 모델(CatBoost)·임베딩 관련 패키지가 바뀌면 AVM 재학습·법령 검색 평가 결과가 달라질 수 있다.
   # 해당 PR은 테스트 통과만으로 병합하지 말고 services/intelligence/evaluation의 평가를 다시 확인한다.
