@@ -106,6 +106,33 @@ class ServiceFeedback(Base):
     created: Mapped[str] = mapped_column(String(32), default=_now_str)
 
 
+class UserNotification(Base):
+    """변화 알림함. 조건(kind·subject_key·fingerprint)이 바뀌면 새 알림이 되고, 더 이상 성립하지 않으면 resolved_at을 채운다.
+
+    조건 계산은 Python(notification_conditions.py), 저장·읽음·해결은 Spring(NotificationStore)이 한다.
+    케이스·후보·매물·계정이 삭제되면 관련 알림도 함께 지운다.
+    """
+    __tablename__ = "user_notifications"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    subject_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(120), nullable=False)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    link: Mapped[str] = mapped_column(String(300), nullable=False)
+    case_id: Mapped[int | None] = mapped_column(ForeignKey("purchase_cases.id", ondelete="CASCADE"), default=None, index=True)
+    property_id: Mapped[int | None] = mapped_column(ForeignKey("case_properties.id", ondelete="CASCADE"), default=None, index=True)
+    listing_id: Mapped[int | None] = mapped_column(ForeignKey("imported_listings.id", ondelete="CASCADE"), default=None, index=True)
+    created: Mapped[str] = mapped_column(String(32), nullable=False)
+    read_at: Mapped[str | None] = mapped_column(String(32), default=None)
+    resolved_at: Mapped[str | None] = mapped_column(String(32), default=None)
+    __table_args__ = (
+        Index("uq_user_notification_condition", "user_id", "kind", "subject_key", "fingerprint", unique=True),
+        Index("ix_user_notification_open", "user_id", "resolved_at", "read_at"),
+    )
+
+
 # ─────────────────────────────────────────
 #  시세추정 이력 (구 api/history_db.py)
 # ─────────────────────────────────────────

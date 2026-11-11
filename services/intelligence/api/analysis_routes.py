@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from api.internal_contracts import require_service
+from schemas.notifications import NotificationConditionRequest, NotificationConditionResponse
 router = APIRouter(prefix="/internal/v1/analysis", dependencies=[Depends(require_service)])
 class FundingScenarioRequest(BaseModel):
     property_ids: list[int] = Field(default_factory=list, max_length=4)
@@ -45,3 +46,10 @@ def personalized_complexes(body: RecommendationSnapshot):
         "max_area_sqm": profile.get("max_area_sqm"), "max_build_year": profile.get("max_build_year"),
         "market_months": profile.get("market_months", 12), "priority": profile.get("priority")}
     return result
+
+
+@router.post("/notification-conditions")
+def notification_conditions(body: NotificationConditionRequest) -> NotificationConditionResponse:
+    """저장된 케이스·매물·실거래에서 변화 알림 조건을 계산한다. 저장·외부 API·LLM을 호출하지 않는다."""
+    from backend.services.notification_conditions import notification_conditions as derive
+    return derive(body.snapshots, [item.model_dump() for item in body.listings], body.now)

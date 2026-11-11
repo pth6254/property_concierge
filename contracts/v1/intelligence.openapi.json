@@ -1125,6 +1125,201 @@
         "title": "LoanSummary",
         "type": "object"
       },
+      "NotificationCondition": {
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "case_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Case Id"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "analysis_expired",
+              "source_changed",
+              "listing_reconfirm",
+              "trade_update"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "link": {
+            "title": "Link",
+            "type": "string"
+          },
+          "listing_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Listing Id"
+          },
+          "property_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Property Id"
+          },
+          "subject_key": {
+            "title": "Subject Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "subject_key",
+          "fingerprint",
+          "title",
+          "body",
+          "link"
+        ],
+        "title": "NotificationCondition",
+        "type": "object"
+      },
+      "NotificationConditionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "listings": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationListing"
+            },
+            "maxItems": 5000,
+            "title": "Listings",
+            "type": "array"
+          },
+          "now": {
+            "exclusiveMinimum": 0.0,
+            "title": "Now",
+            "type": "number"
+          },
+          "snapshots": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "maxItems": 100,
+            "title": "Snapshots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "now"
+        ],
+        "title": "NotificationConditionRequest",
+        "type": "object"
+      },
+      "NotificationConditionResponse": {
+        "properties": {
+          "conditions": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationCondition"
+            },
+            "title": "Conditions",
+            "type": "array"
+          },
+          "trade_subjects": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Trade Subjects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "conditions",
+          "trade_subjects"
+        ],
+        "title": "NotificationConditionResponse",
+        "type": "object"
+      },
+      "NotificationListing": {
+        "additionalProperties": false,
+        "description": "재확인 대상 판단에 필요한 매물 사실만 받는다. 원문 URL·주소는 받지 않는다.",
+        "properties": {
+          "alias": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Alias",
+            "type": "string"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "id": {
+            "exclusiveMinimum": 0.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_collection_at": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Collection At"
+          },
+          "name": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          },
+          "needs_confirmation": {
+            "title": "Needs Confirmation",
+            "type": "boolean"
+          },
+          "status": {
+            "maxLength": 20,
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "needs_confirmation"
+        ],
+        "title": "NotificationListing",
+        "type": "object"
+      },
       "QuickReviewAppraisal": {
         "properties": {
           "input_url": {
@@ -3007,6 +3202,63 @@
           }
         },
         "summary": "Funding Scenarios"
+      }
+    },
+    "/internal/v1/analysis/notification-conditions": {
+      "post": {
+        "description": "저장된 케이스·매물·실거래에서 변화 알림 조건을 계산한다. 저장·외부 API·LLM을 호출하지 않는다.",
+        "operationId": "notification_conditions_internal_v1_analysis_notification_conditions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-internal-service-key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Service-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationConditionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationConditionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Notification Conditions"
       }
     },
     "/internal/v1/appraisal/summary": {
