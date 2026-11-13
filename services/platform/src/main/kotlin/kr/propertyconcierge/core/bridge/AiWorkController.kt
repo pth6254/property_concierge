@@ -6,7 +6,7 @@ import jakarta.servlet.http.HttpServletRequest
 import kr.propertyconcierge.core.ApiFailure
 import kr.propertyconcierge.core.auth.RedisLimits
 import kr.propertyconcierge.core.auth.SessionService
-import kr.propertyconcierge.core.auth.ChatQuota
+import kr.propertyconcierge.core.auth.AiQuota
 import kr.propertyconcierge.core.listings.ListingObservationStore
 import kr.propertyconcierge.core.store.AiJobStore
 import kr.propertyconcierge.core.store.CaseStore
@@ -17,17 +17,17 @@ import java.time.Duration
 @RestController
 class AiWorkController(private val jobs: AiJobStore, private val sessions: SessionService, private val python: PythonClient,
     private val cases: CaseStore, private val json: ObjectMapper, private val limits: RedisLimits,
-    private val redis: StringRedisTemplate, private val observations: ListingObservationStore, private val quota:ChatQuota) {
+    private val redis: StringRedisTemplate, private val observations: ListingObservationStore, private val quota: AiQuota) {
     @PostMapping("/api/appraisal/jobs", "/api/chat/jobs", "/api/concierge/jobs")
     fun create(request: HttpServletRequest, @RequestBody body: JsonNode): Map<String, Any?> {
         val task = request.requestURI.removePrefix("/api/").substringBefore('/')
-        val owner = if (task == "concierge") sessions.required(request).id else sessions.optional(request)?.id
+        // 작업 접수는 로그인 사용자만 한다(비로그인 직접 호출로 유료 모델 비용이 쓰이지 않게).
+        val owner = sessions.required(request).id
         limits.check("$task-jobs", request.remoteAddr, if (task == "chat") 10 else 5, 60)
         val valid = python.analyze("ai/validate", mapOf("task_type" to task, "request" to body))
-        if (task == "chat") quota.check(owner)
         var expected: Any? = null
         if (task == "appraisal" && (valid.hasNonNull("case_id") || valid.hasNonNull("candidate_id"))) {
-            if (owner == null || !valid.hasNonNull("case_id") || !valid.hasNonNull("candidate_id")) throw ApiFailure(404, "검토 후보가 없습니다")
+            if (!valid.hasNonNull("case_id") || !valid.hasNonNull("candidate_id")) throw ApiFailure(404, "검토 후보가 없습니다")
             val args = json.valueToTree<JsonNode>(mapOf("case_id" to valid.path("case_id").asLong(), "property_id" to valid.path("candidate_id").asLong(), "user_id" to owner))
             if (cases.dispatch("validate_candidate", args) != true) throw ApiFailure(404, "검토 후보가 없습니다")
             if (!valid.path("save_history").asBoolean(true)) throw ApiFailure(422, "후보 연결 분석은 이력 저장이 필요합니다")
@@ -35,6 +35,8 @@ class AiWorkController(private val jobs: AiJobStore, private val sessions: Sessi
             if (json.valueToTree<JsonNode>(expected).path("identity").path("area_basis").asText() == "supply")
                 throw ApiFailure(422, "공급면적을 전용면적으로 사용할 수 없습니다. 후보의 면적과 기준을 확인해주세요")
         }
+        // 입력·후보 확인을 통과해 실제로 접수하는 요청만 하루 한도에서 차감한다.
+        quota.check(owner, task)
         return enqueue(task, mapOf("request" to valid, "expected_candidate_inputs" to expected), owner)
     }
     /**
@@ -46,6 +48,8 @@ class AiWorkController(private val jobs: AiJobStore, private val sessions: Sessi
     fun quickReview(request: HttpServletRequest, @PathVariable caseId: Long, @PathVariable propertyId: Long): JsonNode {
         val owner = sessions.required(request).id
         limits.check("quick-review", request.remoteAddr, 5, 60)
+        // 시세추정 작업을 접수하므로 시세추정 하루 한도를 함께 쓴다.
+        quota.check(owner, "appraisal")
         val args = json.valueToTree<JsonNode>(mapOf("case_id" to caseId, "property_id" to propertyId, "user_id" to owner))
         if (cases.dispatch("validate_candidate", args) != true) throw ApiFailure(404, "검토 후보가 없습니다")
         return python.analyzeAs("ai/candidate-review", mapOf("case_id" to caseId, "candidate_id" to propertyId), owner)
