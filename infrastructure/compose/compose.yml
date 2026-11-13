@@ -67,6 +67,8 @@ services:
     env_file:
       - .env
     environment:
+      # 저장 시각·분석 기준일을 한국 날짜로 맞춘다(UTC면 오전 9시 전 기준일이 전날, 화면 시각이 9시간 이름). 2026-11-14 이전 기록은 UTC 문자열이다.
+      TZ: Asia/Seoul
       # app 테이블(auth/history/activity/cache/transactions/chat_corpus)과
       # RAG 벡터스토어(real_estate_docs)가 같은 pgvector 컨테이너를 공유한다.
       # 접속 문자열도 .env 의 비밀번호를 조합해 만든다 — 자격증명 하드코딩 금지.
@@ -110,6 +112,8 @@ services:
     env_file:
       - .env
     environment:
+      # 한국 시간으로 실행(api 서비스 주석 참고)
+      TZ: Asia/Seoul
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
       PYTHON_AI_URL: http://172.31.244.3:8000
@@ -140,6 +144,8 @@ services:
     env_file:
       - .env
     environment:
+      # 한국 시간으로 실행(api 서비스 주석 참고)
+      TZ: Asia/Seoul
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       PG_CONNECTION_STRING: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
@@ -160,6 +166,8 @@ services:
     env_file:
       - .env
     environment:
+      # 한국 시간으로 실행(api 서비스 주석 참고)
+      TZ: Asia/Seoul
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
       CORE_HEALTH_URL: http://core:8080/health
@@ -178,6 +186,8 @@ services:
     env_file:
       - .env
     environment:
+      # 한국 시간으로 실행(api 서비스 주석 참고)
+      TZ: Asia/Seoul
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
       TRANSACTION_REFRESH_INTERVAL_HOURS: ${TRANSACTION_REFRESH_INTERVAL_HOURS:-168}
@@ -197,6 +207,8 @@ services:
     env_file:
       - .env
     environment:
+      # 한국 시간으로 실행(api 서비스 주석 참고)
+      TZ: Asia/Seoul
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:?}@pgvector:5432/${POSTGRES_DB:-real_estate_db}
       REDIS_URL: redis://redis:6379/0
       AVM_APARTMENT_LIVE_DIR: /app/data/models-live/r-apt
@@ -215,6 +227,8 @@ services:
       pgvector:
         condition: service_healthy
     environment:
+      # 한국 시간으로 실행(api 서비스 주석 참고)
+      TZ: Asia/Seoul
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-real_estate_db}
       PGPASSWORD: ${POSTGRES_PASSWORD:?}
@@ -241,6 +255,8 @@ services:
       core:
         condition: service_healthy
     environment:
+      # 한국 시간으로 실행(api 서비스 주석 참고)
+      TZ: Asia/Seoul
       NEXT_PUBLIC_API_URL: http://core:8080
     networks:
       ingress:
