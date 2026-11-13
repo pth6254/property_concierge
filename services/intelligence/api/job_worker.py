@@ -169,7 +169,11 @@ def process_record(stream_id: str, fields: dict) -> None:
             job["result"] = result
             job["extra"] = extra
             if isinstance(result, dict) and result.get("error"):
-                job["status"], job["error"] = "error", str(result["error"])
+                # 노드 이름·예외 원문은 사용자 안내로 바꾸고 원문은 로그에만 남긴다(api/user_errors.py).
+                from api.user_errors import user_error
+                message = user_error(fields["task_type"], result["error"], job_id)
+                job["result"] = {**result, "error": message}
+                job["status"], job["error"] = "error", message
             else:
                 job["status"] = "done"
         except HTTPException as exc:

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SAMPLE_TOOLS } from "@/lib/features";
 import { api } from "@/lib/api";
 import { parseWon } from "@/lib/moneyInput";
 import { removeSessionValue, setSessionValue } from "@/lib/sessionStore";
@@ -47,7 +48,7 @@ function fmtEok(manwon: number): string {
 export default function RecommendationPage() {
   const router = useRouter();
 
-  // 추천 모드: 실거래 단지(전국) | 샘플 매물
+  // 추천 모드: 실거래 단지 | 샘플 매물(개발 빌드에서만, lib/features.ts)
   const [mode, setMode] = useState<"complex" | "listing">("complex");
 
   // 단지 추천 상태
@@ -154,14 +155,16 @@ export default function RecommendationPage() {
       <div className="flex items-start gap-6">
         {/* 메인 */}
         <div className="flex-1">
-          <h1 className="text-2xl font-bold mb-1">단지 추천·샘플</h1>
-          <p className="text-slate-500 text-sm mb-4">실거래 단지 추천과 가상 매물 체험 도구입니다. 실제 매수 검토는 동네 탐색과 매수 검토 케이스에서 진행하세요.</p>
+          <h1 className="text-2xl font-bold mb-1">{SAMPLE_TOOLS ? "단지 추천·샘플" : "실거래 단지 추천"}</h1>
+          <p className="text-slate-500 text-sm mb-4">{SAMPLE_TOOLS ? "실거래 단지 추천과 가상 매물 체험 도구입니다." : "최근 실거래를 기준으로 조건에 맞는 단지를 찾습니다."} 실제 매수 검토는 동네 탐색과 매수 검토 케이스에서 진행하세요.</p>
+          {/* 실거래 자료는 서울특별시만 수집했다. 다른 지역은 고를 수 있어도 거래가 없어 결과가 비므로 미리 알린다. */}
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">현재 실거래 자료는 <strong>서울특별시 아파트</strong>만 제공합니다. 다른 지역은 결과가 나오지 않습니다.</p>
           <a href="/explore" className="mb-4 inline-block text-sm font-semibold text-primary underline">동네 탐색에서 매수 검토 시작 →</a>
 
-          {/* 모드 토글 */}
-          <div className="flex gap-1 mb-5 bg-slate-100 rounded-xl p-1 w-fit">
+          {/* 모드 토글 — 운영 빌드에서는 가상 매물 모드가 없어 표시하지 않는다 */}
+          {SAMPLE_TOOLS && <div className="flex gap-1 mb-5 bg-slate-100 rounded-xl p-1 w-fit">
             {([
-              { key: "complex", label: "🏢 실거래 단지 추천 (전국)" },
+              { key: "complex", label: "🏢 실거래 단지 추천" },
               { key: "listing", label: "📋 샘플 매물 추천" },
             ] as const).map(({ key, label }) => (
               <button key={key} onClick={() => setMode(key)}
@@ -171,7 +174,7 @@ export default function RecommendationPage() {
                 {label}
               </button>
             ))}
-          </div>
+          </div>}
 
           {/* ══ 실거래 단지 추천 모드 ══ */}
           {mode === "complex" && (
@@ -179,7 +182,7 @@ export default function RecommendationPage() {
               <div className="bg-white rounded-xl shadow p-5 mb-5">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                   <div>
-                    <label className="block text-xs text-slate-500 mb-1">지역 (전국 시군구)</label>
+                    <label className="block text-xs text-slate-500 mb-1">지역 (시군구)</label>
                     <input className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                       placeholder="예: 춘천시, 해운대구, 서초구"
                       value={cxRegion} onChange={e => setCxRegion(e.target.value)}

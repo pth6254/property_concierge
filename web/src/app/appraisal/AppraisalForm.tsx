@@ -242,6 +242,10 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
     return "";
   })();
 
+  // 실거래 자료는 서울특별시만 수집한다. 다른 지역의 주거용은 근거 거래가 없어 항상 보류되므로 실행 전에 알린다.
+  // 토지 공개정보·상가/업무 수익 시나리오는 지역과 무관하게 동작해 막지 않는다.
+  const outsideSeoul = selectedType?.category === "주거용" && Boolean(selectedAddress.trim()) && !/^서울/.test(selectedAddress.trim());
+
   const apartmentMissing = selectedType?.detail !== "아파트" ? [] : [
     ...(areaSqm ? [] : ["면적(㎡)"]),
     ...(areaBasis === "unknown" ? ["분석 면적 기준"] : []),
@@ -594,6 +598,7 @@ export default function AppraisalForm({ caseId, candidateId }: { caseId?: number
             </div>
           </div>
 
+          {outsideSeoul && <p role="status" className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">서울특별시 밖의 주소입니다. 실거래 자료는 현재 서울만 제공해 주거용 시세는 근거 거래가 없어 보류됩니다.</p>}
           {candidateMismatch && caseId && candidateId && <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{candidateMismatch} <Link href={`/cases/${caseId}#candidate-${candidateId}`} className="font-semibold underline">케이스에서 후보 정보 수정</Link></div>}
           {error && <p className="text-red-500 text-sm mb-3">⚠️ {error}{errorHistoryId && <> <Link href={`/report/${errorHistoryId}`} className="font-semibold underline">저장된 결과 보기</Link></>}</p>}
 

@@ -384,6 +384,17 @@ API 변경 시 `web/src/lib/valuation.ts`·`api.ts`·`types.ts`와 `contracts/v1
 
 회귀는 Kotlin `ErrorReportingTest`·`ClientErrorIT`, Python `tests/test_operational_alerts.py`다. 운영 절차는 [오류 추적·운영 알림](docs/operations.md#administration-오류-추적운영-알림보안-헤더)을 따른다.
 
+### 2-16. 공개 전 운영 기본값을 되돌리지 않는다 (2026-11-14)
+
+- **AI·분석 요청은 로그인 필수이고 사용자별 하루 한도가 있다.** Spring `AiQuota`가 기능별(상담·컨시어지 50, 시세추정 30(한 번에 검토 포함), 추천·비교 30, 권리 20)
+  접수 건수를 한국 날짜 기준 Redis에 센다(`AI_DAILY_LIMIT_<기능>`로 조정). 비로그인 허용이나 IP 제한만으로 되돌리면 유료 모델 비용을 막을 수 없다. 회귀는 Kotlin `AiQuotaIT`.
+- **가상 매물 도구는 운영 빌드에서 숨긴다**(`web/src/lib/features.ts`, `/comparison`은 `/cases`로 이동). 개발 서버·CI에서는 보인다. 가상 매물을 실제 후보처럼 보이게 하지 않는다.
+- **작업 실패 문구는 `api/user_errors.py`를 거친다.** 노드 이름·예외 원문을 화면에 보내지 않고 오류 로그에 남긴다. 회귀는 `tests/test_user_errors.py`.
+- **서비스 컨테이너는 `TZ=Asia/Seoul`로 실행한다**(Compose). 저장 시각 문자열과 `date.today()` 기준일이 한국 날짜가 된다. 이전 기록은 UTC 문자열로 남아 있다.
+  알림 시각은 시간대 포함 ISO라 영향이 없다. 테스트 실행기(`run_spring_tests`·Testcontainers)는 Compose를 쓰지 않아 기존과 같다.
+- **개인정보처리방침(`web/src/app/privacy/page.tsx`)은 실제 수집·외부 전송과 맞춘다.** 새 수집 항목·외부 서비스를 추가하면 방침부터 고친다.
+  2026-11-14 개정안은 법률 검토 전 초안이며, 설정한 AI 제공자·백업 보관 기간(`BACKUP_RETENTION_DAYS=14`)과 일치해야 한다.
+
 ---
 
 ## 3. 실측으로 확인한 함정

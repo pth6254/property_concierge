@@ -81,8 +81,9 @@ export default function CandidateQuickReview({ property, caseId, reload }: {
           const job = await api.appraisalJob(pendingJob, controller.signal);
           if (job.step) setStep(job.step);
           if (job.status === "done") return await finish({ ok: true, historyId: job.history_id });
-          // 작업 오류 문구는 내부 단계 이름일 수 있어 단독으로 보이면 무슨 일인지 알기 어렵다. 앞에 맥락을 붙인다.
-          if (job.status === "error") return await finish({ ok: false, message: `시세추정을 완료하지 못했습니다${job.error ? `: ${job.error}` : "."}` });
+          // 서버가 내부 문구를 사용자 안내로 바꿔 준다(api/user_errors.py). 이미 '시세추정'으로 시작하는 안내에는 맥락을 다시 붙이지 않는다.
+          if (job.status === "error") return await finish({ ok: false, message: !job.error ? "시세추정을 완료하지 못했습니다."
+            : job.error.startsWith("시세추정") ? job.error : `시세추정을 완료하지 못했습니다: ${job.error}` });
         }
         await finish({ ok: false, message: "시세추정이 예상보다 오래 걸립니다. 완료되면 이 후보에 결과가 표시됩니다." });
       } catch (reason) {

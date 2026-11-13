@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { NOTIFICATIONS_CHANGED } from "@/lib/notifications";
+import { SAMPLE_TOOLS } from "@/lib/features";
 import {
   Home, Tag, MapPin, Calculator, Columns2, ShieldCheck, Bell,
   MessageSquareText, FileText, History, Menu, X, BriefcaseBusiness, SearchCheck,
@@ -47,12 +48,15 @@ const GROUPS: NavGroup[] = [
       { href: "/chat",   label: "법률·세금 AI",  icon: MessageSquareText },
     ],
   },
+  // 운영 빌드에서는 가상 매물 도구(샘플 매물 비교)를 빼고 실거래 단지 추천만 남긴다(lib/features.ts).
   {
-    label: "샘플 도구",
+    label: SAMPLE_TOOLS ? "샘플 도구" : "추가 도구",
     collapsible: true,
-    items: [
+    items: SAMPLE_TOOLS ? [
       { href: "/recommendation", label: "단지 추천·샘플", icon: MapPin },
       { href: "/comparison", label: "샘플 매물 비교", icon: Columns2 },
+    ] : [
+      { href: "/recommendation", label: "실거래 단지 추천", icon: MapPin },
     ],
   },
   {
