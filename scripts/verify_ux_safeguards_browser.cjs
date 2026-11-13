@@ -148,7 +148,9 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE_PATH || '../web/node_mo
     const sidebar=page.locator('aside');
     assert.equal(await sidebar.getByRole('link',{name:'샘플 매물 비교',exact:true}).isVisible(),false);
     assert.equal(await sidebar.getByRole('button',{name:'회원 탈퇴'}).isVisible(),false);
-    await sidebar.locator('summary',{hasText:'샘플 도구'}).click();await sidebar.getByRole('link',{name:'샘플 매물 비교',exact:true}).waitFor();
+    // 개발 서버(CI)는 접힌 샘플 도구를 펼치면 보이고, 운영 빌드는 가상 매물 비교를 아예 두지 않는다(web/src/lib/features.ts).
+    if(await sidebar.locator('summary',{hasText:'샘플 도구'}).count()){await sidebar.locator('summary',{hasText:'샘플 도구'}).click();await sidebar.getByRole('link',{name:'샘플 매물 비교',exact:true}).waitFor();}
+    else{await sidebar.locator('summary',{hasText:'추가 도구'}).click();await sidebar.getByRole('link',{name:'실거래 단지 추천',exact:true}).waitFor();assert.equal(await sidebar.getByRole('link',{name:'샘플 매물 비교',exact:true}).count(),0);}
     await page.getByLabel('단지명 또는 주소',{exact:true}).fill('검증단지');await page.getByRole('button',{name:'매물로 등록',exact:true}).click();
     await page.waitForURL(url=>url.pathname==='/listings'&&url.searchParams.get('name')==='검증단지');
     check('홈: 진행 중 케이스의 다음 단계, 샘플 도구·회원 탈퇴는 접힘, 검색은 매물 등록으로 연결');

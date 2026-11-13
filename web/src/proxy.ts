@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { SAMPLE_TOOLS } from "@/lib/features";
 
 const AUTH_PAGES   = ["/login", "/register"];          // 로그인 상태면 접근 불필요
 // 로그인 여부와 무관하게 공개.
@@ -35,6 +36,11 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (pathname.startsWith("/api/") || pathname === "/api") {
     return forwardApi(request);
+  }
+
+  // 가상 매물 비교는 운영 빌드에서 제공하지 않는다. 북마크·이전 링크로 들어오면 실제 후보 비교가 있는 케이스로 보낸다.
+  if (!SAMPLE_TOOLS && (pathname === "/comparison" || pathname.startsWith("/comparison/"))) {
+    return NextResponse.redirect(new URL("/cases", request.url));
   }
 
   const token = request.cookies.get("auth_token");
