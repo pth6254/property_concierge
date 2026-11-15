@@ -8,8 +8,9 @@ import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 import java.util.UUID
 
+// 서비스 DB(infrastructure/compose/compose.yml의 pgvector)와 같은 이미지로 검증한다. 바꿀 때는 두 곳을 함께 바꾼다.
 private class TestPostgres : PostgreSQLContainer<TestPostgres>(
-    DockerImageName.parse("pgvector/pgvector:pg16").asCompatibleSubstituteFor("postgres"))
+    DockerImageName.parse("pgvector/pgvector:0.8.7-pg15-bookworm").asCompatibleSubstituteFor("postgres"))
 private class TestService(image: String) : GenericContainer<TestService>(DockerImageName.parse(image))
 
 /** 접속 환경변수를 상속하지 않고, 이번 JVM이 생성한 저장소만 테스트에 제공한다. */

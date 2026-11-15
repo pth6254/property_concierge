@@ -7,7 +7,11 @@ services:
   #  pgvector — PostgreSQL + pgvector 익스텐션
   # ────────────────────────────────────────────
   pgvector:
-    image: ankane/pgvector:latest
+    # pgvector 공식 이미지를 버전·OS까지 고정한다. 이전 ankane/pgvector:latest는 2023-10 빌드(PG 15.4·pgvector 0.5.1)에서 멈춰 있었다.
+    # PG 주 버전(15)과 Debian 12(bookworm)를 기존 데이터 볼륨과 맞춰 데이터·문자 정렬을 그대로 쓴다. 주 버전을 올리려면 덤프·복원이 필요하다.
+    # 확장 버전을 올린 뒤에는 각 DB에서 ALTER EXTENSION vector UPDATE를 실행한다(docs/operations.md 'DB 이미지 교체').
+    # Kotlin 통합 테스트(PlatformTestRuntime.kt)와 정기 백업 컨테이너도 같은 이미지를 쓴다. 바꿀 때 함께 바꾼다.
+    image: pgvector/pgvector:0.8.7-pg15-bookworm
     container_name: property_concierge_pgvector
     restart: unless-stopped
     environment:
@@ -221,7 +225,8 @@ services:
 
   database-backup:
     profiles: ["maintenance"]
-    image: ankane/pgvector:latest
+    # pg_dump 버전이 서버보다 낮으면 백업이 거부되므로 DB와 같은 이미지를 쓴다.
+    image: pgvector/pgvector:0.8.7-pg15-bookworm
     restart: unless-stopped
     depends_on:
       pgvector:
