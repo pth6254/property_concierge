@@ -5,12 +5,35 @@
 set -eu
 mkdir -p /backups
 retry_seconds="${BACKUP_RETRY_SECONDS:-600}"
+interval_seconds="${BACKUP_INTERVAL_SECONDS:-86400}"
+case "$interval_seconds" in
+  ''|*[!0-9]*|0) echo "BACKUP_INTERVAL_SECONDS는 양의 정수여야 합니다" >&2; exit 2 ;;
+esac
 # 보관 기간(일). 백업 1회가 약 120MB라 지우지 않으면 한 달에 3GB 이상 쌓인다. 0(기본)이면 지우지 않는다 —
 # 기존 설치가 업데이트만으로 백업을 잃지 않게 하고, 새 운영 .env는 .env.example의 값으로 켠다.
 retention_days="${BACKUP_RETENTION_DAYS:-0}"
 case "$retention_days" in
   ''|*[!0-9]*) echo "BACKUP_RETENTION_DAYS는 0 이상의 정수여야 합니다" >&2; exit 2 ;;
 esac
+
+# 덤프 도중 컨테이너가 종료되면(Docker 재시작 등) 아래 실패 처리까지 가지 못해 부분 파일이 남는다(2026-11-14 14개·0.85GB).
+# 부분 파일은 이 스크립트만 쓰고(backup_db.sh는 바로 .dump를 쓴다) 한 번에 하나만 실행되므로 시작 시점의 부분 파일은 모두 중단된 것이다.
+rm -f /backups/property_concierge_*.dump.partial
+
+# 시작할 때마다 바로 백업하면 Docker가 재시작될 때마다 전체 백업이 쌓인다(2026-11-14 40분 동안 24회 시도).
+# 이 스크립트가 검증까지 마친 마지막 백업이 주기 안에 있으면 남은 시간만 기다린다. 기준은 운영 감시가 읽는 같은 기록 파일이라
+# 수동 백업(backup_db.sh) 때문에 기록이 오래돼 무응답 알림이 나는 일이 없다. 직전 기록이 실패이면 바로 다시 시도한다.
+last_ok=$(sed -n 's/^{"status":"ok","checked_at":\([0-9][0-9]*\),.*/\1/p' /backups/backup-status.json 2>/dev/null || true)
+if [ -n "$last_ok" ] && ls /backups/property_concierge_*.dump >/dev/null 2>&1; then
+  remaining=$((last_ok + interval_seconds - $(date +%s)))
+  # 시계가 뒤로 간 경우에도 한 주기보다 오래 기다리지 않는다.
+  if [ "$remaining" -gt "$interval_seconds" ]; then remaining=$interval_seconds; fi
+  if [ "$remaining" -gt 0 ]; then
+    echo "마지막 정기 백업이 주기 안에 있어 ${remaining}초 뒤에 백업합니다"
+    sleep "$remaining"
+  fi
+fi
+
 while true; do
   success=0
   for _ in $(seq 1 60); do
@@ -47,5 +70,5 @@ while true; do
     sleep "$retry_seconds"
     continue
   fi
-  sleep "${BACKUP_INTERVAL_SECONDS:-86400}"
+  sleep "$interval_seconds"
 done
