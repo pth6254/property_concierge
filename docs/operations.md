@@ -104,7 +104,7 @@ GitHub의 별도 readiness workflow는 `EXTERNAL_READINESS_URL` 저장소 secret
 2. `compose.yml`의 `pgvector`·`database-backup`과 `PlatformTestRuntime.kt`의 태그를 함께 바꾼다.
 3. DB 컨테이너만 다시 만든다. 로컬은 테스트 포트를 여는 dev 모드로 실행 중이므로 `sh scripts/compose.sh dev up -d --no-deps pgvector`
    (운영은 `production`). `--no-deps` 없이 다른 모드로 올리면 DB 설정이 달라져 의도하지 않게 다시 만들어질 수 있다.
-4. 확장을 쓰는 DB마다 `ALTER EXTENSION vector UPDATE;`(로컬: `real_estate_db`·`real_estate_test`·`real_estate_corrupted_20260927`).
+4. 확장을 쓰는 DB마다 `ALTER EXTENSION vector UPDATE;`(로컬: `real_estate_db`·`real_estate_test`. 2026-09-27 사고 때 남긴 `real_estate_corrupted_20260927`은 2026-11-15에 삭제했다).
 5. API → Spring → 실행기·운영 감시를 재시작해 연결을 새로 맺고, 유지보수 프로필(`database-backup` 포함)을 `--no-deps --force-recreate`로 다시 만든다.
 6. `/ready`, 법령 벡터 검색, Kotlin `run_platform_tests.sh`, Python `run_isolated_tests.py`, 복구 리허설을 다시 확인한다.
 
