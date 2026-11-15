@@ -5,7 +5,7 @@
 > 사람이 읽는 셋업·기능 설명은 `README.md` 에 있다. 여기에는 **코드를 고칠 때 알아야 할
 > 제약과 함정**만 적는다.
 
-문서 갱신: **2026-11-11**. 9절의 전체 검증 표는 **2026-10-05** 기록이며, 그 뒤 변경은 각 절에 날짜와 함께 적었다.
+문서 갱신: **2026-11-15**. 9절의 전체 검증 표는 **2026-10-05** 기록이며, 그 뒤 변경은 각 절에 날짜와 함께 적었다.
 이어받을 때는 이 파일의 **2-14(현재 AVM 계약) → 8(다음 작업) → 9(최근 검증 범위)**와
 [인수인계 문서](docs/project-handoff.md)를 함께 읽는다. 문서 갱신일을 서비스 재검증일로 해석하지 않는다.
 
@@ -394,6 +394,15 @@ API 변경 시 `web/src/lib/valuation.ts`·`api.ts`·`types.ts`와 `contracts/v1
   알림 시각은 시간대 포함 ISO라 영향이 없다. 테스트 실행기(`run_spring_tests`·Testcontainers)는 Compose를 쓰지 않아 기존과 같다.
 - **개인정보처리방침(`web/src/app/privacy/page.tsx`)은 실제 수집·외부 전송과 맞춘다.** 새 수집 항목·외부 서비스를 추가하면 방침부터 고친다.
   2026-11-14 개정안은 법률 검토 전 초안이며, 설정한 AI 제공자·백업 보관 기간(`BACKUP_RETENTION_DAYS=14`)과 일치해야 한다.
+- **운영에서는 LangSmith 추적을 끈다(2026-11-15).** 추적은 LLM 입력·출력(상담 질문·대화 맥락)을 국외로 보내는데 방침에 없다.
+  `compose.production.yml`·`compose.vercel.yml`이 Python 서비스 전체에서 라이브러리가 읽는 네 이름(`LANGSMITH_TRACING_V2`·`LANGCHAIN_TRACING_V2`·`LANGSMITH_TRACING`·`LANGCHAIN_TRACING`)을
+  `LANGSMITH_PRODUCTION_TRACING`(기본 `false`)으로 고정한다. 한 이름만 고정하면 `.env`의 다른 이름으로 켜진다. 값을 코드에서 바꾸지 않는다 — 라이브러리가 환경변수를 캐시한다.
+  운영에서 켜려면 방침 5·6항부터 고친다. 회귀는 `scripts/check_compose_contract.py`(기본 꺼짐·켜기 선택). Tavily 웹 검색(주소 검색어)은 방침에 적었다.
+- **DB 이미지는 버전·OS를 고정하고 테스트와 같게 둔다(2026-11-15).** `pgvector/pgvector:0.8.7-pg15-bookworm`을 서비스 DB·정기 백업·Kotlin `PlatformTestRuntime`이 함께 쓴다.
+  `latest` 태그로 되돌리지 않는다(이전 `ankane/pgvector:latest`는 2023-10 빌드에서 멈춰 있었다). PG 주 버전이나 Debian 계열을 바꾸면 기존 볼륨을 그대로 쓸 수 없거나
+  문자 정렬 인덱스를 다시 만들어야 하므로 덤프·복원 계획과 함께 바꾼다. 절차는 [DB 이미지 교체](docs/operations.md#db-image-upgrade).
+- **정기 백업은 시작할 때마다 뜨지 않는다(2026-11-15).** `run_scheduled_backup.sh`는 시작 시 남은 `.partial`을 지우고, `backup-status.json`의 마지막 성공이 주기 안이면 기다린다.
+  시작 즉시 백업으로 되돌리면 Docker 재시작마다 전체 백업이 쌓인다(2026-11-14 40분에 24회). 유지보수 프로필 서비스도 업데이트 때 함께 다시 만든다(운영 문서 배포 절차 9).
 
 ---
 

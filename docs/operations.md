@@ -54,15 +54,22 @@ ID는 로컬 `.env`에만 저장한다. 로그인 후 메뉴 하단의 **운영 
 
 ### 정기 백업·HTTPS·외부 감시
 
-`maintenance` 프로필에 `database-backup`을 추가했다. 첫 실행 및 기본 하루 간격으로
+`maintenance` 프로필에 `database-backup`을 추가했다. 기본 하루 간격(`BACKUP_INTERVAL_SECONDS`)으로
 DB custom-format 백업을 생성하고 `pg_restore --list`로 파일을 확인한다. 저장 성공 후에만
 완성 파일로 교체하며 운영 화면에 마지막 시각·용량·실패·26시간 경과를 표시한다.
 목록 읽기 성공은 실제 복원 성공과 다르다. 기존 격리 복원 절차를 주기적으로 수행하고,
-백업을 다른 호스트에도 보관해야 한다. 자동 삭제는 하지 않는다.
+백업을 다른 호스트에도 보관해야 한다. 오래된 백업은 `BACKUP_RETENTION_DAYS`에 따라 지운다(배포 절차 8).
 
 호스트 재시작 직후 DB가 기동 중일 때 백업이 실패하고 하루를 기다리던 결함이 있었다(2026-09-30~10-23 실패 28회,
 성공 백업 간격 최대 11일). 이제 `pg_isready`로 DB를 기다린 뒤 백업하고, 실패하면 `BACKUP_RETRY_SECONDS`(기본 10분) 뒤 다시 시도하며
-빈 `.partial` 파일은 지운다.
+실패한 `.partial` 파일은 지운다.
+
+2026-11-15 시작 동작을 고쳤다. 이전에는 컨테이너가 시작될 때마다 바로 전체 백업을 떠서 Docker가 반복 재시작된
+2026-11-14 새벽 40분 동안 24회 시도했고, 덤프 도중 종료된 `.partial` 14개(약 0.85GB)가 지워지지 않고 남았다.
+이제 시작할 때 남은 `property_concierge_*.dump.partial`을 지우고, 마지막 정기 백업 기록(`backup-status.json`의 성공 시각)이
+주기 안이면 남은 시간만 기다린다. 직전 기록이 실패이거나 덤프 파일이 없으면 바로 백업한다. 기준이 운영 감시와 같은 기록 파일이라
+수동 백업(`backup_db.sh`) 때문에 정기 백업이 미뤄져 26시간 경과 알림이 나는 일은 없다. 확인은 실제 백업 이미지에서 가짜 `pg_*`로
+8가지 조건(부분 파일 정리·주기 안 대기·실패 직후·오래된 기록·덤프 없음·미래 시각·잘못된 주기·14일 정리)을 실행했다.
 
 **복구 리허설:** `bash scripts/restore_db.sh --check backups/<덤프>.dump`는 서비스 DB를 바꾸지 않고 점검용 DB
 `real_estate_restore_check`에 복원해 주요 테이블 건수를 서비스 DB와 나란히 보여주고 지운다. 2026-10-24 로컬 기록:
@@ -84,6 +91,31 @@ sh scripts/compose.sh production --profile maintenance up -d --build
 웹훅을 설정한 경우에만 상태 전환 알림을 보내며 URL과 토큰은 로그에 출력하지 않는다.
 GitHub의 별도 readiness workflow는 `EXTERNAL_READINESS_URL` 저장소 secret을 설정한 경우
 15분마다 검사한다. URL 미설정은 비활성이며 외부 감시 성공으로 해석하지 않는다.
+
+<a id="db-image-upgrade"></a>
+
+### DB 이미지 교체
+
+서비스 DB·정기 백업·Kotlin 통합 테스트는 같은 고정 이미지(`pgvector/pgvector:<pgvector 버전>-pg15-bookworm`)를 쓴다.
+같은 PG 주 버전·Debian 계열 안에서는 기존 데이터 볼륨을 그대로 쓴다. 주 버전(예: 16)이나 OS 계열(예: trixie)을 바꾸려면 덤프·복원과
+문자 정렬 인덱스 재생성 계획이 필요하므로 이 절차로 하지 않는다.
+
+1. 새 백업과 복구 리허설: `bash scripts/backup_db.sh` → `bash scripts/restore_db.sh --check backups/<방금 덤프>.dump`(건수 일치 확인).
+2. `compose.yml`의 `pgvector`·`database-backup`과 `PlatformTestRuntime.kt`의 태그를 함께 바꾼다.
+3. DB 컨테이너만 다시 만든다. 로컬은 테스트 포트를 여는 dev 모드로 실행 중이므로 `sh scripts/compose.sh dev up -d --no-deps pgvector`
+   (운영은 `production`). `--no-deps` 없이 다른 모드로 올리면 DB 설정이 달라져 의도하지 않게 다시 만들어질 수 있다.
+4. 확장을 쓰는 DB마다 `ALTER EXTENSION vector UPDATE;`(로컬: `real_estate_db`·`real_estate_test`·`real_estate_corrupted_20260927`).
+5. API → Spring → 실행기·운영 감시를 재시작해 연결을 새로 맺고, 유지보수 프로필(`database-backup` 포함)을 `--no-deps --force-recreate`로 다시 만든다.
+6. `/ready`, 법령 벡터 검색, Kotlin `run_platform_tests.sh`, Python `run_isolated_tests.py`, 복구 리허설을 다시 확인한다.
+
+**2026-11-15 로컬 교체 기록:** `ankane/pgvector:latest`(2023-10 빌드, PG 15.4·pgvector 0.5.1) → `pgvector/pgvector:0.8.7-pg15-bookworm`
+(PG 15.20·pgvector 0.8.7, Debian 12, 같은 데이터 경로·uid 999). 교체 전 새 백업(116MB)의 복구 리허설에서 users·cases·후보·이력·
+실거래 306,611·법정동 20,560·공시가격 6,475,157건이 서비스 DB와 일치했다. 교체 후 기동 로그 경고 없음, 세 DB의 확장 0.8.7,
+법령 코퍼스 4,115건(2,560차원) 근접 검색 정상, `/ready` 200. 벡터 인덱스는 비어 있는 `real_estate_docs`의 IVFFlat 1개뿐이라 다시 만들지 않았다.
+pgvector 0.6.0의 Docker 안내(병렬 HNSW 생성 시 `--shm-size` ≥ `maintenance_work_mem`)는 HNSW 인덱스가 없고 두 값이 64MB로 같아 해당하지 않는다.
+교체 후 Kotlin 단위 61건·Testcontainers 통합 33건(새 이미지로 기동 확인), 격리 Python 전체 1,285건이 통과했고, 실행 중인 서비스에서
+후보 자금 브라우저 13항목이 통과했다. 새 백업 컨테이너의 `pg_dump` 15.20 스키마 덤프와, 교체 전 덤프를 새 서버에 복원하는 리허설(건수 일치)도 확인했다.
+원격 CI 결과는 이 기록에 포함하지 않는다.
 
 <a id="administration-2026-09-30-적용-검증"></a>
 
@@ -148,6 +180,11 @@ Python 알림·운영 13건, 프론트 타입·린트·빌드, Caddy 설정 3종
 - **가상 매물 도구:** 운영 빌드에서 샘플 매물 추천·비교를 숨긴다. 시연 등으로 필요하면 프론트 빌드 시 `NEXT_PUBLIC_SAMPLE_TOOLS=1`을 준다.
 - **시간대:** Compose의 서비스는 `TZ=Asia/Seoul`로 실행한다. 이 변경 전 기록(2026-11-14 이전)은 UTC 시각 문자열이라 9시간 이르게 보인다.
 - **백업 보관:** 개인정보처리방침이 백업 14일 보관을 고지하므로 운영 `.env`에 `BACKUP_RETENTION_DAYS=14`를 설정한다(미설정이면 지우지 않는다).
+- **LLM 추적(2026-11-15):** LangSmith 추적은 LLM 입력·출력을 국외로 보내지만 방침에 없으므로 `production`·`vercel` Compose가 Python 서비스 전체에서 끈다
+  (라이브러리가 읽는 네 이름 `LANGSMITH_TRACING_V2`·`LANGCHAIN_TRACING_V2`·`LANGSMITH_TRACING`·`LANGCHAIN_TRACING`을 모두 고정). 로컬·개발은 `.env`의 `LANGSMITH_TRACING`을 따른다.
+  운영에서 켜려면 방침 5·6항에 LangSmith를 먼저 추가하고 `.env`에 `LANGSMITH_PRODUCTION_TRACING=true`를 둔다. 내용 없이 실행 구조만 보내려면
+  `LANGSMITH_HIDE_INPUTS=true`·`LANGSMITH_HIDE_OUTPUTS=true`를 함께 둔다. `scripts/check_compose_contract.py`가 기본 꺼짐과 켜기 선택을 함께 검사한다.
+- **웹 검색(Tavily):** 시세추정은 대상 주소로 만든 검색어를 Tavily(국외)로 보낸다. 2026-11-15 방침 5·6항에 추가했다. `TAVILY_API_KEY`가 비면 호출하지 않는다.
 - **개인정보처리방침:** 2026-11-14 개정안은 초안이다. 게시 전 법률 검토, 운영 주체 표기, 실제 설정한 AI 제공자와의 일치를 확인한다.
 
 <a id="administration-준비-상태와-알림"></a>
@@ -389,12 +426,14 @@ sh scripts/compose.sh local --profile maintenance up -d --build
    - PowerShell/로컬에서 `E2E_BASE_URL=https://SERVICE_DOMAIN node scripts/verify_candidate_avm_browser.cjs --form --decision-flow`
      (임시 계정을 만들고 끝나면 지운다. 실제 AVM·자금·비교·선택·새로고침)
    - 로그인·Google 로그인·로그아웃, 레이트 리밋이 사용자 IP 기준인지, `docker logs property_concierge-database-backup-1`
-8. **백업 보관:** 정기 백업은 서버의 `backups/`에 쌓인다(1회 약 120MB, 2026-11 기준. 컨테이너 재시작 때마다 1회 추가).
+8. **백업 보관:** 정기 백업은 서버의 `backups/`에 쌓인다(1회 약 120MB, 2026-11 기준. 재시작해도 마지막 백업이 주기 안이면 추가로 뜨지 않는다).
    `BACKUP_RETENTION_DAYS`(`.env.example` 14일)가 지나면 새 백업이 검증된 뒤 오래된 `property_concierge_*.dump`를 지운다. 0이거나 미설정이면 지우지 않는다
-   (기존 로컬 설치는 `.env`에 값이 없어 그대로 보관). 서버 디스크와 함께 사라지지 않도록 다른 저장소로의 복사는 별도로 정한다.
+   (값이 없던 기존 설치는 그대로 보관한다. 로컬 `.env`는 2026-11-15에 14일로 맞췄다). 서버 디스크와 함께 사라지지 않도록 다른 저장소로의 복사는 별도로 정한다.
 9. **업데이트:** `git pull` → `sh scripts/compose.sh production build --pull api core frontend`(베이스 이미지 보안 패치 반영) →
-   `sh scripts/compose.sh production --profile maintenance up -d --no-deps --force-recreate api core job-worker frontend operations-monitor transaction-refresh avm-retrain`
+   `sh scripts/compose.sh production --profile maintenance up -d --no-deps --force-recreate api core job-worker frontend operations-monitor transaction-refresh avm-retrain database-backup`
    → `/ready` 확인. 이미지만 지정한 서비스(`job-worker`·`avm-retrain` 등)는 `api` 빌드로 만든 이미지를 쓰므로 `api`를 먼저 빌드한다.
+   유지보수 프로필 서비스를 목록에서 빼면 이전 이미지·설정으로 계속 돈다(2026-11-15 로컬에서 `avm-retrain`·`transaction-refresh`가 11-11 이미지에
+   시간대 설정 없이, `database-backup`은 10-24 설정에 보관 기간 없이 실행 중이었다). `database-backup`은 다시 만들어도 주기 안이면 백업을 새로 뜨지 않는다.
    **되돌리기:** 이전 커밋으로 돌아가 같은 명령을 실행한다. 마이그레이션 문제면 직전 백업을 복원한다.
 
 <a id="vercel-deploy"></a>
