@@ -19,8 +19,8 @@ urllib3==2.8.0
 yarl==1.25.1
 
 # ── FastAPI / 서버 ────────────────────────────────────────────
-annotated-doc==0.0.5
-fastapi==0.162.2
+annotated-doc==0.0.6
+fastapi==0.162.6
 PyJWT==2.15.1
 bcrypt==5.0.0
 slowapi==0.1.10
@@ -30,13 +30,13 @@ uvicorn==0.54.0
 websockets==17.4
 
 # ── 관측성 (선택 — SENTRY_DSN 설정 시에만 활성화) ────────────────
-sentry-sdk[fastapi]==2.74.0
+sentry-sdk[fastapi]==2.75.0
 
 # ── LangChain ────────────────────────────────────────────────
-langchain==1.4.9
+langchain==1.5.0
 langchain-classic==1.0.8
 langchain-community==0.4.2
-langchain-core==1.7.6
+langchain-core==1.8.0
 langchain-ollama==1.1.0
 langchain-openai==1.7.4
 langchain-protocol==0.0.21
@@ -51,7 +51,7 @@ langsmith==0.14.17
 # langchain-google-genai
 
 # ── LangGraph ────────────────────────────────────────────────
-langgraph==1.2.20
+langgraph==1.2.21
 langgraph-checkpoint==4.3.1
 langgraph-prebuilt==1.1.1
 langgraph-sdk==0.4.14
@@ -59,7 +59,7 @@ langgraph-sdk==0.4.14
 # ── Pydantic ─────────────────────────────────────────────────
 annotated-types==0.8.0
 pydantic==2.14.3
-pydantic-settings==2.16.2
+pydantic-settings==2.16.3
 pydantic_core==2.50.4
 
 # ── 데이터베이스 (PostgreSQL / pgvector / Redis) ───────────────
@@ -81,8 +81,8 @@ cachetools==8.0.0
 click==8.5.1
 dataclasses-json==0.6.7
 Jinja2==3.1.6
-jsonpatch==1.44
-jsonpointer==3.10
+jsonpatch==1.47
+jsonpointer==3.12
 jsonschema==4.26.0
 jsonschema-specifications==2025.9.1
 marshmallow==3.26.2
@@ -90,7 +90,7 @@ MarkupSafe==3.0.4
 mypy_extensions==1.2.0
 numpy==2.4.6
 orjson==3.13.0
-ormsgpack==1.13.0
+ormsgpack==1.13.1
 packaging==26.3
 pandas==3.1.1
 protobuf==7.36.2
@@ -116,4 +116,4 @@ pytz==2026.6
 six==1.17.0
 tzdata==2026.6
 pypdf
-playwright==1.64.1
+playwright==1.65.1
